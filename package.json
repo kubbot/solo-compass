@@ -5,7 +5,7 @@
   "description": "A living map for solo travelers",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kubbot/solo-compass.git"
+    "url": "https://github.com/getyak/solo-compass.git"
   },
   "license": "MIT",
   "packageManager": "pnpm@9.12.0",
