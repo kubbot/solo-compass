@@ -41,13 +41,13 @@
 
 ## Dependency rules (enforced by review, eventually by tooling)
 
-| Layer | May import from | Must NOT import |
-|---|---|---|
-| `core` | (nothing) | anything else |
-| `ai` | `core` | `data`, `ui`, apps |
-| `data` | `core` | `ai`, `ui`, apps |
-| `ui` | `core` | `ai`, `data`, apps |
-| `apps/*` | any package | other apps |
+| Layer    | May import from | Must NOT import    |
+| -------- | --------------- | ------------------ |
+| `core`   | (nothing)       | anything else      |
+| `ai`     | `core`          | `data`, `ui`, apps |
+| `data`   | `core`          | `ai`, `ui`, apps   |
+| `ui`     | `core`          | `ai`, `data`, apps |
+| `apps/*` | any package     | other apps         |
 
 The asymmetry is deliberate: `core` is the most-shared, slowest-to-change layer. `data` and `ai` are sister layers that don't talk to each other directly — they communicate via `core` types or via apps composing them.
 

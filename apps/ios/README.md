@@ -11,6 +11,7 @@ The product's signature feature — **automatic check-in via background GPS** �
 - 60fps map interaction with 200+ markers in a custom style is achievable in MapKit but choppy in WebView-based stacks.
 
 So: native. iOS first because:
+
 - Digital nomads in Southeast Asia skew ~70% iOS
 - iOS background location story is more predictable than Android (manufacturer-specific killers)
 
@@ -33,6 +34,7 @@ Android comes after iOS validates.
 ## Bridge to TypeScript domain types
 
 The `@solo-compass/core` types are the source of truth. We will:
+
 1. Generate Swift types from the TS schema (`scripts/gen-swift-types.ts`)
 2. Or — more likely — hand-roll matching Swift structs and enforce parity in CI
 

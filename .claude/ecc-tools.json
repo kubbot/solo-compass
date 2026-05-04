@@ -17,33 +17,19 @@
   "recommendedProfile": "core",
   "effectiveProfile": "core",
   "tier": "free",
-  "requestedComponents": [
-    "repo-baseline"
-  ],
-  "selectedComponents": [
-    "repo-baseline"
-  ],
+  "requestedComponents": ["repo-baseline"],
+  "selectedComponents": ["repo-baseline"],
   "requestedAddComponents": [],
   "requestedRemoveComponents": [],
   "blockedRemovalComponents": [],
   "tierFilteredComponents": [],
-  "requestedRootPackages": [
-    "runtime-core"
-  ],
-  "selectedRootPackages": [
-    "runtime-core"
-  ],
-  "requestedPackages": [
-    "runtime-core"
-  ],
+  "requestedRootPackages": ["runtime-core"],
+  "selectedRootPackages": ["runtime-core"],
+  "requestedPackages": ["runtime-core"],
   "requestedAddPackages": [],
   "requestedRemovePackages": [],
-  "selectedPackages": [
-    "runtime-core"
-  ],
-  "packages": [
-    "runtime-core"
-  ],
+  "selectedPackages": ["runtime-core"],
+  "packages": ["runtime-core"],
   "blockedRemovalPackages": [],
   "tierFilteredRootPackages": [],
   "tierFilteredPackages": [],
@@ -51,18 +37,10 @@
   "dependencyGraph": {
     "runtime-core": []
   },
-  "resolutionOrder": [
-    "runtime-core"
-  ],
-  "requestedModules": [
-    "runtime-core"
-  ],
-  "selectedModules": [
-    "runtime-core"
-  ],
-  "modules": [
-    "runtime-core"
-  ],
+  "resolutionOrder": ["runtime-core"],
+  "requestedModules": ["runtime-core"],
+  "selectedModules": ["runtime-core"],
+  "modules": ["runtime-core"],
   "managedFiles": [
     ".claude/skills/solo-compass/SKILL.md",
     ".agents/skills/solo-compass/SKILL.md",

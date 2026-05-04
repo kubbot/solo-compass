@@ -29,8 +29,7 @@ export function distanceMeters(a: Coordinates, b: Coordinates): number {
   const dLon = toRad(lon2 - lon1);
   const sinDLat = Math.sin(dLat / 2);
   const sinDLon = Math.sin(dLon / 2);
-  const h =
-    sinDLat * sinDLat + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * sinDLon * sinDLon;
+  const h = sinDLat * sinDLat + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * sinDLon * sinDLon;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
