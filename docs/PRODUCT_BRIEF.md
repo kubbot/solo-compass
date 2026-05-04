@@ -11,29 +11,29 @@
 
 1. Not another travel app. Not a Google Maps clone. Not a small-red-book replacement.
 2. A **map-first**, **experience-as-unit**, **AI-curated** companion for people traveling alone.
-3. Every dot on the map is a *thing worth doing*, not just *a place that exists*.
+3. Every dot on the map is a _thing worth doing_, not just _a place that exists_.
 
 ## Why does this need to exist
 
 Existing options fail solo travelers in specific ways:
 
-| Existing | Failure for solo travelers |
-|---|---|
-| Google Maps | "places" not "experiences"; ratings inflated; doesn't know if a spot is solo-friendly |
-| 小红书/Xiaohongshu | network-promoted noise; "instagrammable" ≠ good; no honest inconvenience |
-| Lonely Planet | static; cannot reflect "is this open right now in the rain on a Tuesday afternoon" |
-| Tripadvisor | gamed reviews; designed for couples and groups |
-| ChatGPT travel | hallucinations; no live data; no map; no memory of your day |
+| Existing           | Failure for solo travelers                                                            |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Google Maps        | "places" not "experiences"; ratings inflated; doesn't know if a spot is solo-friendly |
+| 小红书/Xiaohongshu | network-promoted noise; "instagrammable" ≠ good; no honest inconvenience              |
+| Lonely Planet      | static; cannot reflect "is this open right now in the rain on a Tuesday afternoon"    |
+| Tripadvisor        | gamed reviews; designed for couples and groups                                        |
+| ChatGPT travel     | hallucinations; no live data; no map; no memory of your day                           |
 
-Nothing in the market combines: live map, honest curation, solo-aware framing, AI that *filters* without *deciding*.
+Nothing in the market combines: live map, honest curation, solo-aware framing, AI that _filters_ without _deciding_.
 
 ## Three design pillars (non-negotiable)
 
-| Pillar | Meaning |
-|---|---|
-| **Map-First** | The map is the home screen. No tabs, no drawer, no onboarding. Everything happens on the map. |
-| **Experience-as-Unit** | Not "places" — concrete, time-bound, story-rich things to do. |
-| **AI doesn't decide** | AI filters from many to few and explains. Never "the answer." Always "options." |
+| Pillar                 | Meaning                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| **Map-First**          | The map is the home screen. No tabs, no drawer, no onboarding. Everything happens on the map. |
+| **Experience-as-Unit** | Not "places" — concrete, time-bound, story-rich things to do.                                 |
+| **AI doesn't decide**  | AI filters from many to few and explains. Never "the answer." Always "options."               |
 
 > AI doesn't travel for you. AI helps you travel better.
 
@@ -51,9 +51,10 @@ If a feature pulls toward any of these, it's a smell.
 
 ## The user we're building for
 
-Primary persona: a solo traveler in Chiang Mai who is technically capable, mildly introverted, has been to a few cities alone, and wants *non-obvious* recommendations. Likely a digital nomad. Aged 25–40. Phone is set up to accept new apps but they have a high bar.
+Primary persona: a solo traveler in Chiang Mai who is technically capable, mildly introverted, has been to a few cities alone, and wants _non-obvious_ recommendations. Likely a digital nomad. Aged 25–40. Phone is set up to accept new apps but they have a high bar.
 
 What they're already doing today:
+
 - Opening Google Maps, scrolling Saved
 - Reading 小红书 with mounting cynicism
 - Asking ChatGPT and feeling the answers are too generic
@@ -65,9 +66,10 @@ What we're trying to be: **a slightly better version of "asking that local frien
 
 A place is "Wat Suan Dok temple."
 
-An *experience* is "watch the sunset paint the white stupas at 17:30, lasts 45 minutes, often peaceful, locals come for evening prayer at 18:30 if you want to stay."
+An _experience_ is "watch the sunset paint the white stupas at 17:30, lasts 45 minutes, often peaceful, locals come for evening prayer at 18:30 if you want to stay."
 
 The difference:
+
 - a place is a noun
 - an experience is a verb-bound, time-bound, sensorially-anchored unit
 
@@ -82,7 +84,8 @@ Three jobs, in order of importance:
 3. **Translate** — voice intent ("somewhere quiet I can read for 2 hours") into a search.
 
 What AI does NOT do:
-- Pick *the* answer.
+
+- Pick _the_ answer.
 - Generate experiences from thin air. (Experiences are sourced from real data + verified.)
 - Hide its uncertainty. Confidence is always visible.
 
@@ -114,12 +117,12 @@ If the seeds aren't good, no algorithm fixes the product. So Phase 0 is "go to C
 3. **Completion rate (Phase 2).** Of recommendations shown, what % do users actually go do?
 4. **NPS at 30 days (Phase 3).** Honest signal, not vanity.
 
-DAU and MAU are not the success metric. *Retention from people who needed the app* is.
+DAU and MAU are not the success metric. _Retention from people who needed the app_ is.
 
 ## Out of scope (for now)
 
 - Booking flows (transport, lodging, tickets). These exist; we link to them.
-- Multi-day trip planning. We help with the *next 3 hours*, not the next week.
+- Multi-day trip planning. We help with the _next 3 hours_, not the next week.
 - Group features. The product is solo. (Two solos meeting up is fine; that's still solo.)
 - AI that "writes back" with personality. The voice is restrained, factual, friendly. Not chatty.
 

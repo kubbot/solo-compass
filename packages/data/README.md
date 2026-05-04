@@ -3,16 +3,19 @@
 Data layer: ingestion, storage, query.
 
 ## Responsibilities
+
 - **Ingestion** from open sources (OSM via Overpass, Wikivoyage MediaWiki API, Reddit, YouTube transcripts)
 - **Schema** for Postgres + PostGIS (Supabase migration files)
 - **Repositories**: `ExperienceRepo`, `UserRepo`, `CompletionRepo` — typed query interfaces
 - **Cold-start seeders** that populate a new city to ~50 experiences
 
 ## What does NOT live here
+
 - AI generation logic (that's `packages/ai`)
 - Domain types (those are `packages/core`)
 
 ## Status
+
 🚧 Skeleton only.
 
 ## Cold-start workflow (target)

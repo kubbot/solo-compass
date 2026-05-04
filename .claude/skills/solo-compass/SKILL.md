@@ -1,18 +1,21 @@
-```markdown
+````markdown
 # solo-compass Development Patterns
 
 > Auto-generated skill from repository analysis
 
 ## Overview
+
 This skill teaches you the core development patterns and conventions used in the `solo-compass` Swift codebase. You'll learn about file naming, import/export styles, commit message conventions, and how to write and run tests. While no automated workflows were detected, this guide provides suggested commands and step-by-step instructions for common development tasks.
 
 ## Coding Conventions
 
 ### File Naming
+
 - Use **PascalCase** for all file names.
   - Example: `LocationManager.swift`, `CompassView.swift`
 
 ### Import Style
+
 - Use **relative imports** within the project.
   - Example:
     ```swift
@@ -21,6 +24,7 @@ This skill teaches you the core development patterns and conventions used in the
     ```
 
 ### Export Style
+
 - Use **named exports** for classes, structs, and functions.
   - Example:
     ```swift
@@ -30,6 +34,7 @@ This skill teaches you the core development patterns and conventions used in the
     ```
 
 ### Commit Message Conventions
+
 - Use **conventional commit** types.
 - Supported prefixes: `chore`, `fix`
 - Keep commit messages concise (average ~50 characters).
@@ -42,6 +47,7 @@ This skill teaches you the core development patterns and conventions used in the
 ## Workflows
 
 ### Creating a New Feature
+
 **Trigger:** When adding a new feature or component  
 **Command:** `/create-feature`
 
@@ -52,6 +58,7 @@ This skill teaches you the core development patterns and conventions used in the
 5. Commit your changes using a conventional commit message.
 
 ### Fixing a Bug
+
 **Trigger:** When addressing a bug or issue  
 **Command:** `/fix-bug`
 
@@ -61,6 +68,7 @@ This skill teaches you the core development patterns and conventions used in the
 4. Commit your changes with a `fix:` prefix and a concise description.
 
 ### Running Tests
+
 **Trigger:** To verify code correctness  
 **Command:** `/run-tests`
 
@@ -75,6 +83,7 @@ This skill teaches you the core development patterns and conventions used in the
 - Place tests alongside or near the code they test for clarity and maintainability.
 
   Example test file:
+
   ```swift
   import XCTest
   @testable import solo_compass
@@ -86,12 +95,16 @@ This skill teaches you the core development patterns and conventions used in the
       }
   }
   ```
+````
 
 ## Commands
 
-| Command         | Purpose                                         |
-|-----------------|-------------------------------------------------|
-| /create-feature | Scaffold a new feature or component             |
-| /fix-bug        | Start the bug fixing workflow                   |
-| /run-tests      | Run all tests in the codebase                   |
+| Command         | Purpose                             |
+| --------------- | ----------------------------------- |
+| /create-feature | Scaffold a new feature or component |
+| /fix-bug        | Start the bug fixing workflow       |
+| /run-tests      | Run all tests in the codebase       |
+
+```
+
 ```

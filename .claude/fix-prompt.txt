@@ -1,0 +1,64 @@
+Fix the following issues in the Solo Compass iOS app at apps/ios/SoloCompass/. 
+Read each file before modifying it. Do one fix at a time, verify it makes sense.
+
+## Fix 1: HealthStatus.symbol — differentiate icons
+File: Models/Experience.swift, line ~213-219
+All four cases return "circle.fill". Give each status a distinct SF Symbol:
+- .healthy → "checkmark.circle.fill"
+- .fading → "clock.badge.questionmark"
+- .questioned → "exclamationmark.circle.fill"  
+- .mayBeGone → "xmark.circle.fill"
+
+## Fix 2: clCoordinate returns optional instead of (0,0)
+File: Models/Experience.swift, line ~87-92
+Change `clCoordinate` to return `CLLocationCoordinate2D?` instead of silently returning (0,0).
+Update all callers to use optional chaining or guard:
+- Check all files that use .clCoordinate or .coordinate and handle the optional properly.
+
+## Fix 3: Add copy() method to Experience, use in markCompleted
+File: Services/ExperienceService.swift, line ~52-71
+Instead of reconstructing all 18 fields in markCompleted(), add a mutating method 
+or copy-style approach. Options:
+a) Make Experience a struct with a copy() method that returns a new instance with overrides
+b) Store experiences as var and mutate stats directly
+
+Choose approach (a) — add a `copy(stats:updatedAt:)` or similar focused factory to Experience. 
+Then simplify markCompleted to use it.
+
+## Fix 4: rename toggleFavorite or wire it up
+File: Services/ExperienceService.swift, line ~74-77
+`toggleFavorite` is a no-op stub. Either:
+- Remove it and let callers go through UserPreferences directly  
+- OR wire it to call preferences.toggleFavorite(id)
+
+Wire it up — inject UserPreferences (or pass it as param) and call through.
+
+## Fix 5: implement footprinted marker state
+File: ViewModels/MapViewModel.swift, markerState(for:now:)
+Add `footprinted` check: if confidence.signals.passiveGpsHits30d > 0 and the experience
+isn't completed/favorited/bestNow/upcoming, return .footprinted.
+Also add a simple footprint count display near the marker.
+
+## Fix 6: add long-press gesture to map for sharing new experiences
+File: Views/Map/CompassMapView.swift
+Add a long-press gesture on the map that:
+1. Converts screen point to coordinate
+2. Shows a confirmation: "Add an experience here?"
+3. On confirm → opens VoiceButton-style recording → AI structures → adds candidate marker
+Add a `handleMapLongPress(at:)` method to MapViewModel that does steps 2-3.
+Use existing VoiceService + AIService.processVoiceIntent for AI structuring.
+Show candidate marker with .hidden category and distinct visual (dashed border?).
+
+## Fix 7: add basic geofence monitoring
+File: Services/LocationService.swift
+Add `startMonitoring(visits: [Experience])` that creates CLCircularRegions 
+(200m radius) for each experience location. Add delegate callback for 
+didEnter/didExit. Store pending check-ins in UserPreferences.
+This is a lightweight implementation — full auto-completion with 30s voice 
+feedback can come later, but the region monitoring infrastructure should be in place.
+
+## After fixing all 7:
+1. Print a summary: "Fixed X of 7 issues"
+2. Make sure nothing is broken — every fix should be minimal and focused
+3. DO NOT add new files unless absolutely necessary
+4. DO NOT change existing behavior except as specified above

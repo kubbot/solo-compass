@@ -14,15 +14,15 @@
 
 Not another travel app. Not a Google Maps clone. Not a small-red-book replacement.
 
-A **map-first**, **experience-as-unit**, **AI-curated** companion for people traveling alone — where every dot on the map is a *thing worth doing*, not just *a place that exists*.
+A **map-first**, **experience-as-unit**, **AI-curated** companion for people traveling alone — where every dot on the map is a _thing worth doing_, not just _a place that exists_.
 
 **Three design pillars (non-negotiable):**
 
-| Layer | Role | Principle |
-|---|---|---|
-| Map | Root | Always the home screen. No tabs, no drawer, no onboarding flow. |
-| Experience | Unit | Not "places" — concrete, time-bound, story-rich things to do. |
-| AI | Soul | Filters candidates from 1000 to 5. Never decides for the user. |
+| Layer      | Role | Principle                                                       |
+| ---------- | ---- | --------------------------------------------------------------- |
+| Map        | Root | Always the home screen. No tabs, no drawer, no onboarding flow. |
+| Experience | Unit | Not "places" — concrete, time-bound, story-rich things to do.   |
+| AI         | Soul | Filters candidates from 1000 to 5. Never decides for the user.  |
 
 > AI doesn't travel for you. AI helps you travel better.
 
@@ -48,7 +48,7 @@ solo-compass/
 └── seeds/                # Hand-curated seed experiences (Chiang Mai 50)
 ```
 
-**Boundary discipline:** `core/`, `ai/`, `data/` are platform-agnostic and have no UI dependencies. Each app pulls only what it needs. You can run *any one app* without the others.
+**Boundary discipline:** `core/`, `ai/`, `data/` are platform-agnostic and have no UI dependencies. Each app pulls only what it needs. You can run _any one app_ without the others.
 
 ---
 
@@ -83,12 +83,12 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development workflow.
 
 This project follows a strict **validate-before-build** roadmap. Each phase has a clear stop/go gate.
 
-| Phase | What | Duration | Stop/go gate |
-|---|---|---|---|
-| 0 | Field week — go to Chiang Mai, do 7 experiences, write seeds | 1 week | 7 experiences with emotional weight |
-| 1 | Notion DB + Figma prototype — show to 10 friends | 2–3 weeks | 30s comprehension test passes |
-| 2 | **Web Pre-MVP** — Next.js + Mapbox, manual check-in | 4 weeks | 30+ users in Chiang Mai, week-1 retention >40% |
-| 3 | iOS native — background GPS, push notifications, real magic | 2–3 months | Production launch |
+| Phase | What                                                         | Duration   | Stop/go gate                                   |
+| ----- | ------------------------------------------------------------ | ---------- | ---------------------------------------------- |
+| 0     | Field week — go to Chiang Mai, do 7 experiences, write seeds | 1 week     | 7 experiences with emotional weight            |
+| 1     | Notion DB + Figma prototype — show to 10 friends             | 2–3 weeks  | 30s comprehension test passes                  |
+| 2     | **Web Pre-MVP** — Next.js + Mapbox, manual check-in          | 4 weeks    | 30+ users in Chiang Mai, week-1 retention >40% |
+| 3     | iOS native — background GPS, push notifications, real magic  | 2–3 months | Production launch                              |
 
 **Currently in: pre-Phase 0.**
 
@@ -113,9 +113,10 @@ The data layer (`packages/data`, `packages/core`) and AI layer (`packages/ai`) a
 
 Because the **data schema** is more valuable than the data itself, and we want the schema to become a standard.
 
-If "experience-as-unit" is the right abstraction for travel, it should outlive any one product. The codebase here defines what an experience *is* — anyone can fork the data layer and build a different front-end.
+If "experience-as-unit" is the right abstraction for travel, it should outlive any one product. The codebase here defines what an experience _is_ — anyone can fork the data layer and build a different front-end.
 
 What we keep proprietary (in private repos):
+
 - Curated seed experiences for each city
 - Prompt engineering for content quality
 - User-generated experience corpus
@@ -136,4 +137,4 @@ If you're a solo traveler in Chiang Mai and want to be a seed user, open an issu
 
 ---
 
-*Built by [@cubxxw](https://github.com/cubxxw) and friends. Started 2026.*
+_Built by [@cubxxw](https://github.com/cubxxw) and friends. Started 2026._

@@ -6,9 +6,7 @@
     "codeComments": true,
     "explanations": true
   },
-  "domains": [
-    "swift"
-  ],
+  "domains": ["swift"],
   "suggestedBy": "ecc-tools-repo-analysis",
   "createdAt": "2026-05-04T12:07:34.603Z"
 }

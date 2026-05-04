@@ -8,7 +8,7 @@ The biggest mistake a small team can make is building a 3-month iOS app to test 
 
 **Goal:** Generate 7 seed experiences with emotional weight.
 
-You and your co-builder go to Chiang Mai. Each day, do *one* experience that fits the "story-rich" criteria. Record it: voice notes, photos, structured writeup.
+You and your co-builder go to Chiang Mai. Each day, do _one_ experience that fits the "story-rich" criteria. Record it: voice notes, photos, structured writeup.
 
 **Output:** 7 hand-curated seed experiences in `seeds/chiang-mai/` (private repo).
 
@@ -18,7 +18,7 @@ Why this is non-negotiable: every later phase scales from these seeds. If the se
 
 ## Phase 1 — Notion + Figma Prototype (2–3 weeks)
 
-**Goal:** Test the *content quality* and *interaction flow* before writing any code.
+**Goal:** Test the _content quality_ and _interaction flow_ before writing any code.
 
 - Build the seeds into a Notion DB matching the `Experience` schema.
 - High-fidelity Figma prototype of the map, experience card, voice flow.
@@ -42,12 +42,12 @@ If gate fails: the recommendation hypothesis is wrong. Go back to Phase 0 and re
 
 **Goal:** The real product. Background GPS, push notifications, native map performance.
 
-Built only after Phase 2 succeeds. Built using the *exact* recommendation engine validated in Phase 2.
+Built only after Phase 2 succeeds. Built using the _exact_ recommendation engine validated in Phase 2.
 
 **Gate to public launch:** App Store review + 10 closed beta users (Chiang Mai) using daily for 2 weeks.
 
 ## Parallel: Bot lane
 
-`apps/bot` runs as a *parallel* validation lane to Phase 2 — not a substitute. The bot tests the same recommendation hypothesis but with chat UI instead of map UI. If bot retention is dramatically higher than web, that's a signal the map metaphor is wrong.
+`apps/bot` runs as a _parallel_ validation lane to Phase 2 — not a substitute. The bot tests the same recommendation hypothesis but with chat UI instead of map UI. If bot retention is dramatically higher than web, that's a signal the map metaphor is wrong.
 
 Don't both-build at full intensity. Bot is one developer, one weekend, ongoing maintenance only.

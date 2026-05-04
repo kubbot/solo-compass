@@ -93,7 +93,14 @@ export interface RealInconvenience {
  *               If older than 60 days, the experience shows ⚫ "may be stale".
  */
 export interface InformationSource {
-  readonly type: "wikivoyage" | "wikipedia" | "reddit" | "blog" | "youtube" | "user" | "field_visit";
+  readonly type:
+    | "wikivoyage"
+    | "wikipedia"
+    | "reddit"
+    | "blog"
+    | "youtube"
+    | "user"
+    | "field_visit";
   readonly url?: string;
   readonly attribution?: string; // user handle, blog name, etc.
   readonly verifiedAt: string; // ISO 8601
