@@ -132,9 +132,7 @@ public final class AIService {
         guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
 
         await MainActor.run { self.isProcessing = true }
-        defer {
-            Task { @MainActor [weak self] in self?.isProcessing = false }
-        }
+        defer { Task { @MainActor [weak self] in self?.isProcessing = false } }
 
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"

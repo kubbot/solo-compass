@@ -118,7 +118,21 @@ public final class MapViewModel {
     /// Refresh visible experiences when the user pans/zooms the map. Does NOT
     /// touch `cameraPosition`, to avoid fighting the user's gesture.
     public func refreshForLocation(_ coordinate: CLLocationCoordinate2D) {
-        loadNearbyExperiences()
+        let radiusKm = max(1.0, preferences.maxDistanceKm)
+        var nearby = experienceService.getExperiences(near: coordinate, radiusKm: radiusKm)
+
+        if let category = selectedCategory {
+            nearby = nearby.filter { $0.category == category }
+        }
+        if isNowFilter {
+            nearby = nearby.filter { $0.isBestNow() }
+        }
+        if !preferences.dislikedCategories.isEmpty {
+            let disliked = Set(preferences.dislikedCategories)
+            nearby = nearby.filter { !disliked.contains($0.category) }
+        }
+        visibleExperiences = nearby
+        nearbySoloCount = computeNearbySoloCount(in: nearby)
         updateBottomInfo()
     }
 
