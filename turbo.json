@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env.local", ".env"],
+  "globalEnv": [
+    "ANTHROPIC_API_KEY",
+    "MAPBOX_TOKEN",
+    "NEXT_PUBLIC_MAPBOX_TOKEN",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "TELEGRAM_BOT_TOKEN",
+    "NODE_ENV"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}
