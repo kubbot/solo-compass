@@ -84,10 +84,8 @@ public struct ExperienceLocation: Codable, Hashable {
     public let placeNameLocal: String?
     public let placeNameRomanized: String?
 
-    public var clCoordinate: CLLocationCoordinate2D {
-        guard coordinates.count >= 2 else {
-            return CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        }
+    public var clCoordinate: CLLocationCoordinate2D? {
+        guard coordinates.count >= 2 else { return nil }
         return CLLocationCoordinate2D(latitude: coordinates[1], longitude: coordinates[0])
     }
 
@@ -212,10 +210,10 @@ public enum HealthStatus: String, Codable {
 
     public var symbol: String {
         switch self {
-        case .healthy:   return "circle.fill"
-        case .fading:    return "circle.fill"
-        case .questioned: return "circle.fill"
-        case .mayBeGone: return "circle.fill"
+        case .healthy:    return "checkmark.circle.fill"
+        case .fading:     return "clock.badge.questionmark"
+        case .questioned: return "exclamationmark.circle.fill"
+        case .mayBeGone:  return "xmark.circle.fill"
         }
     }
 
@@ -381,7 +379,27 @@ public struct Experience: Codable, Hashable, Identifiable {
         self.updatedAt = updatedAt
     }
 
-    public var coordinate: CLLocationCoordinate2D { location.clCoordinate }
+    public var coordinate: CLLocationCoordinate2D? { location.clCoordinate }
+
+    /// Returns a new Experience with selected fields overridden. Use this when
+    /// mutating tracked stats/status/etc. without rewriting all 18 init args.
+    public func copy(
+        stats: Stats? = nil,
+        status: Status? = nil,
+        updatedAt: Date? = nil
+    ) -> Experience {
+        Experience(
+            id: id, title: title, oneLiner: oneLiner, whyItMatters: whyItMatters,
+            category: category, location: location, bestTimes: bestTimes,
+            durationMinutes: durationMinutes, howTo: howTo, realInconveniences: realInconveniences,
+            soloScore: soloScore, sources: sources, confidence: confidence,
+            nearbyExperienceIds: nearbyExperienceIds,
+            stats: stats ?? self.stats,
+            status: status ?? self.status,
+            createdAt: createdAt,
+            updatedAt: updatedAt ?? self.updatedAt
+        )
+    }
 
     /// Is any of this experience's `bestTimes` open right now?
     public func isBestNow(at date: Date = Date()) -> Bool {
