@@ -1,0 +1,16 @@
+# Build outputs
+dist
+build
+.next
+.turbo
+out
+
+# Generated
+*.tsbuildinfo
+next-env.d.ts
+
+# Lockfile (Prettier handles JSON, lockfile is auto-managed)
+pnpm-lock.yaml
+
+# License — not ours to reformat
+LICENSE
