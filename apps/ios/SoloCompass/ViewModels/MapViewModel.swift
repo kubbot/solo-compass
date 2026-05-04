@@ -33,6 +33,16 @@ public final class MapViewModel {
     // True when a "Now" filter is active (best-now experiences only).
     public var isNowFilter: Bool = false
 
+    // MARK: - Add-experience flow (long-press on map)
+
+    /// Coordinate the user long-pressed; non-nil while we're prompting to confirm.
+    public var pendingAddCoordinate: CLLocationCoordinate2D?
+    /// Set once the user confirms — drives the voice-input sheet.
+    public var isRecordingNewExperience: Bool = false
+    /// Candidate experiences added via long-press → voice → AI. Rendered with
+    /// `.hidden` category and a distinct (dashed) marker.
+    public var candidateExperiences: [Experience] = []
+
     public init(
         locationService: LocationService,
         experienceService: ExperienceService,
@@ -118,7 +128,21 @@ public final class MapViewModel {
     /// Refresh visible experiences when the user pans/zooms the map. Does NOT
     /// touch `cameraPosition`, to avoid fighting the user's gesture.
     public func refreshForLocation(_ coordinate: CLLocationCoordinate2D) {
-        loadNearbyExperiences()
+        let radiusKm = max(1.0, preferences.maxDistanceKm)
+        var nearby = experienceService.getExperiences(near: coordinate, radiusKm: radiusKm)
+
+        if let category = selectedCategory {
+            nearby = nearby.filter { $0.category == category }
+        }
+        if isNowFilter {
+            nearby = nearby.filter { $0.isBestNow() }
+        }
+        if !preferences.dislikedCategories.isEmpty {
+            let disliked = Set(preferences.dislikedCategories)
+            nearby = nearby.filter { !disliked.contains($0.category) }
+        }
+        visibleExperiences = nearby
+        nearbySoloCount = computeNearbySoloCount(in: nearby)
         updateBottomInfo()
     }
 
@@ -130,7 +154,15 @@ public final class MapViewModel {
         if let upcoming = minutesUntilBestTime(for: experience, from: now), upcoming > 0, upcoming <= 120 {
             return .upcoming(minutes: upcoming)
         }
+        if experience.confidence.signals.passiveGpsHits30d > 0 {
+            return .footprinted
+        }
         return .default
+    }
+
+    /// Footprint count (passive GPS hits in last 30 days) for the marker badge.
+    public func footprintCount(for experience: Experience) -> Int {
+        experience.confidence.signals.passiveGpsHits30d
     }
 
     private func minutesUntilBestTime(for experience: Experience, from date: Date) -> Int? {
@@ -199,6 +231,72 @@ public final class MapViewModel {
             lastAIError = nil
         } catch {
             // Unranked list is still useful — keep it visible, just record the error.
+            lastAIError = error.localizedDescription
+        }
+    }
+
+    /// Step 1 happens in the view (screen point → coordinate). Steps 2-3 live
+    /// here: stash the coordinate so the view can show a confirmation, then
+    /// `confirmAddExperience()` flips into recording mode for the voice flow.
+    public func handleMapLongPress(at coordinate: CLLocationCoordinate2D) {
+        pendingAddCoordinate = coordinate
+    }
+
+    public func cancelAddExperience() {
+        pendingAddCoordinate = nil
+        isRecordingNewExperience = false
+    }
+
+    public func confirmAddExperience() {
+        guard pendingAddCoordinate != nil else { return }
+        isRecordingNewExperience = true
+    }
+
+    /// Use AIService to structure a free-form transcript into a candidate
+    /// Experience anchored at `pendingAddCoordinate`. The candidate is added
+    /// with category `.hidden` so the marker layer can render it distinctly.
+    public func handleNewExperienceTranscript(_ transcript: String) async {
+        guard let coordinate = pendingAddCoordinate else { return }
+        defer { cancelAddExperience() }
+        do {
+            let response = try await aiService.processVoiceIntent(transcript: transcript, near: coordinate)
+            let now = Date()
+            let candidate = Experience(
+                id: "candidate_\(UUID().uuidString)",
+                title: transcript,
+                oneLiner: response.explanation,
+                whyItMatters: response.explanation,
+                category: .hidden,
+                location: ExperienceLocation(
+                    coordinates: [coordinate.longitude, coordinate.latitude],
+                    cityCode: "user"
+                ),
+                bestTimes: [],
+                durationMinutes: .init(min: 30, max: 60),
+                howTo: [],
+                realInconveniences: [],
+                soloScore: SoloScore(
+                    overall: 0,
+                    breakdown: .init(seatingFriendly: 0, soloPatronRatio: 0, staffPressure: 0, soloPortioning: 0, ambianceFit: 0, safety: 0),
+                    basedOnCount: 0
+                ),
+                sources: [InformationSource(type: .user, attribution: "you", verifiedAt: now)],
+                confidence: Confidence(
+                    level: 0,
+                    lastVerifiedAt: now,
+                    reason: "Self-reported, unverified",
+                    signals: .init(aiScrapeAgeDays: 0, passiveGpsHits30d: 0, activeReports30d: 0, trustedVerifications: 0)
+                ),
+                nearbyExperienceIds: [],
+                stats: .init(completionCount: 0, averageRating: 0),
+                status: .candidate,
+                createdAt: now,
+                updatedAt: now
+            )
+            candidateExperiences.append(candidate)
+            aiExplanation = response.explanation
+            lastAIError = nil
+        } catch {
             lastAIError = error.localizedDescription
         }
     }

@@ -23,6 +23,41 @@ public final class UserPreferences {
         var visitHistory: [String: Date] = [:]
         var completedExperiences: Set<String> = []
         var favoritedExperiences: Set<String> = []
+        var pendingCheckIns: [String: Date] = [:]
+
+        init() {}
+
+        init(
+            preferredCategories: [ExperienceCategory],
+            dislikedCategories: [ExperienceCategory],
+            soloTravelStyle: SoloTravelStyle,
+            maxDistanceKm: Double,
+            visitHistory: [String: Date],
+            completedExperiences: Set<String>,
+            favoritedExperiences: Set<String>,
+            pendingCheckIns: [String: Date]
+        ) {
+            self.preferredCategories = preferredCategories
+            self.dislikedCategories = dislikedCategories
+            self.soloTravelStyle = soloTravelStyle
+            self.maxDistanceKm = maxDistanceKm
+            self.visitHistory = visitHistory
+            self.completedExperiences = completedExperiences
+            self.favoritedExperiences = favoritedExperiences
+            self.pendingCheckIns = pendingCheckIns
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.preferredCategories = try c.decodeIfPresent([ExperienceCategory].self, forKey: .preferredCategories) ?? []
+            self.dislikedCategories = try c.decodeIfPresent([ExperienceCategory].self, forKey: .dislikedCategories) ?? []
+            self.soloTravelStyle = try c.decodeIfPresent(SoloTravelStyle.self, forKey: .soloTravelStyle) ?? .explorer
+            self.maxDistanceKm = try c.decodeIfPresent(Double.self, forKey: .maxDistanceKm) ?? 5.0
+            self.visitHistory = try c.decodeIfPresent([String: Date].self, forKey: .visitHistory) ?? [:]
+            self.completedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .completedExperiences) ?? []
+            self.favoritedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .favoritedExperiences) ?? []
+            self.pendingCheckIns = try c.decodeIfPresent([String: Date].self, forKey: .pendingCheckIns) ?? [:]
+        }
     }
 
     public var preferredCategories: [ExperienceCategory] { didSet { persist() } }
@@ -32,6 +67,7 @@ public final class UserPreferences {
     public var visitHistory: [String: Date] { didSet { persist() } }
     public var completedExperiences: Set<String> { didSet { persist() } }
     public var favoritedExperiences: Set<String> { didSet { persist() } }
+    public var pendingCheckIns: [String: Date] { didSet { persist() } }
 
     private static let storageKey = "com.solocompass.userPreferences.v1"
     private let defaults: UserDefaults
@@ -46,6 +82,7 @@ public final class UserPreferences {
         self.visitHistory = snapshot.visitHistory
         self.completedExperiences = snapshot.completedExperiences
         self.favoritedExperiences = snapshot.favoritedExperiences
+        self.pendingCheckIns = snapshot.pendingCheckIns
     }
 
     private static func load(from defaults: UserDefaults) -> Snapshot {
@@ -64,7 +101,8 @@ public final class UserPreferences {
             maxDistanceKm: maxDistanceKm,
             visitHistory: visitHistory,
             completedExperiences: completedExperiences,
-            favoritedExperiences: favoritedExperiences
+            favoritedExperiences: favoritedExperiences,
+            pendingCheckIns: pendingCheckIns
         )
         guard let data = try? JSONEncoder.iso8601Encoder.encode(snapshot) else { return }
         defaults.set(data, forKey: Self.storageKey)
@@ -87,6 +125,14 @@ public final class UserPreferences {
 
     public func isFavorited(_ id: String) -> Bool { favoritedExperiences.contains(id) }
     public func isCompleted(_ id: String) -> Bool { completedExperiences.contains(id) }
+
+    public func recordPendingCheckIn(_ id: String, at date: Date = Date()) {
+        pendingCheckIns[id] = date
+    }
+
+    public func clearPendingCheckIn(_ id: String) {
+        pendingCheckIns.removeValue(forKey: id)
+    }
 }
 
 // MARK: - JSON helpers (shared, ISO8601 dates)

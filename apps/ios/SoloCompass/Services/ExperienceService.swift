@@ -23,7 +23,8 @@ public final class ExperienceService {
         filteredExperiences = allExperiences.filter { exp in
             if let category, exp.category != category { return false }
             if let location {
-                let d = distanceMeters(from: location, to: exp.coordinate)
+                guard let coord = exp.coordinate else { return false }
+                let d = distanceMeters(from: location, to: coord)
                 if d > maxDistance * 1000 { return false }
             }
             return true
@@ -33,7 +34,10 @@ public final class ExperienceService {
     public func getExperiences(near location: CLLocationCoordinate2D, radiusKm: Double) -> [Experience] {
         let radiusMeters = radiusKm * 1000
         return allExperiences
-            .map { ($0, distanceMeters(from: location, to: $0.coordinate)) }
+            .compactMap { exp -> (Experience, Double)? in
+                guard let coord = exp.coordinate else { return nil }
+                return (exp, distanceMeters(from: location, to: coord))
+            }
             .filter { $0.1 <= radiusMeters }
             .sorted { $0.1 < $1.1 }
             .map { $0.0 }
@@ -57,23 +61,14 @@ public final class ExperienceService {
             averageRating: old.stats.averageRating,
             lastCompletedAt: Date()
         )
-        allExperiences[idx] = Experience(
-            id: old.id, title: old.title, oneLiner: old.oneLiner, whyItMatters: old.whyItMatters,
-            category: old.category, location: old.location, bestTimes: old.bestTimes,
-            durationMinutes: old.durationMinutes, howTo: old.howTo, realInconveniences: old.realInconveniences,
-            soloScore: old.soloScore, sources: old.sources, confidence: old.confidence,
-            nearbyExperienceIds: old.nearbyExperienceIds, stats: newStats, status: old.status,
-            createdAt: old.createdAt, updatedAt: Date()
-        )
-        // Re-apply current filter view by rebuilding from allExperiences
+        allExperiences[idx] = old.copy(stats: newStats, updatedAt: Date())
         if let firstIdx = filteredExperiences.firstIndex(where: { $0.id == id }) {
             filteredExperiences[firstIdx] = allExperiences[idx]
         }
     }
 
-    public func toggleFavorite(_ id: String) {
-        // Favorite state lives in UserPreferences; this is a no-op hook for
-        // services to react if they need to refresh derived caches.
+    public func toggleFavorite(_ id: String, in preferences: UserPreferences) {
+        preferences.toggleFavorite(id)
     }
 
     // MARK: - Loading

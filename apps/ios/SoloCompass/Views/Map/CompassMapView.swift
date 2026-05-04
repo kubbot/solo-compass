@@ -93,6 +93,40 @@ public struct CompassMapView: View {
                 )
             }
         }
+        .alert(
+            NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
+            isPresented: Binding(
+                get: { (viewModel?.pendingAddCoordinate != nil) && (viewModel?.isRecordingNewExperience == false) },
+                set: { if !$0 { viewModel?.cancelAddExperience() } }
+            )
+        ) {
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
+                viewModel?.cancelAddExperience()
+            }
+            Button(NSLocalizedString("addExperience.confirm.add", comment: "Add")) {
+                viewModel?.confirmAddExperience()
+            }
+        } message: {
+            Text(NSLocalizedString("addExperience.confirm.message", comment: "Describe it with your voice"))
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel?.isRecordingNewExperience ?? false },
+            set: { if !$0 { viewModel?.cancelAddExperience() } }
+        )) {
+            VStack(spacing: 24) {
+                Text(NSLocalizedString("addExperience.record.title", comment: "Tell us about this place"))
+                    .font(.headline)
+                Text(NSLocalizedString("addExperience.record.hint", comment: "Hold the mic and describe what makes it worth a solo visit"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                VoiceButton(voiceService: voiceService) { transcript in
+                    Task { await viewModel?.handleNewExperienceTranscript(transcript) }
+                }
+            }
+            .padding(32)
+            .presentationDetents([.medium])
+        }
         .sheet(isPresented: Binding(
             get: { viewModel?.isShowingDetail ?? false },
             set: { if !$0 { viewModel?.isShowingDetail = false } }
@@ -120,27 +154,68 @@ public struct CompassMapView: View {
             set: { viewModel.cameraPosition = $0 }
         )
 
-        Map(position: bindingCamera) {
-            UserAnnotation()
-            ForEach(viewModel.visibleExperiences) { exp in
-                Annotation(exp.title, coordinate: exp.coordinate) {
-                    Button {
-                        viewModel.selectExperience(exp)
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    } label: {
-                        MarkerIconView(category: exp.category, state: viewModel.markerState(for: exp))
+        MapReader { proxy in
+            Map(position: bindingCamera) {
+                UserAnnotation()
+                ForEach(viewModel.visibleExperiences) { exp in
+                    if let coord = exp.coordinate {
+                        Annotation(exp.title, coordinate: coord) {
+                            Button {
+                                viewModel.selectExperience(exp)
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            } label: {
+                                VStack(spacing: 2) {
+                                    MarkerIconView(category: exp.category, state: viewModel.markerState(for: exp))
+                                    if case .footprinted = viewModel.markerState(for: exp) {
+                                        Text("\(viewModel.footprintCount(for: exp))")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(Capsule().fill(Color.gray.opacity(0.85)))
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .buttonStyle(.plain)
+                }
+                ForEach(viewModel.candidateExperiences) { cand in
+                    if let coord = cand.coordinate {
+                        Annotation(cand.title, coordinate: coord) {
+                            Circle()
+                                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+                                .frame(width: 36, height: 36)
+                                .foregroundStyle(Color.gray)
+                                .background(Circle().fill(Color.white.opacity(0.6)))
+                                .overlay(
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.gray)
+                                )
+                        }
+                    }
                 }
             }
-        }
-        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-        .mapControls {
-            MapCompass()
-            MapUserLocationButton()
-        }
-        .onMapCameraChange(frequency: .onEnd) { context in
-            viewModel.refreshForLocation(context.region.center)
+            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+            .mapControls {
+                MapCompass()
+                MapUserLocationButton()
+            }
+            .onMapCameraChange(frequency: .onEnd) { context in
+                viewModel.refreshForLocation(context.region.center)
+            }
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.6)
+                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                    .onEnded { value in
+                        if case .second(true, let drag?) = value,
+                           let coord = proxy.convert(drag.location, from: .local) {
+                            viewModel.handleMapLongPress(at: coord)
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        }
+                    }
+            )
         }
     }
 }

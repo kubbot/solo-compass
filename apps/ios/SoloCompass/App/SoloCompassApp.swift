@@ -15,6 +15,7 @@ struct SoloCompassApp: App {
                 .environment(aiService)
                 .environment(preferences)
                 .onAppear {
+                    locationService.preferences = preferences
                     locationService.requestPermission()
                 }
         }

@@ -47,7 +47,7 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(service.filteredExperiences.allSatisfy { $0.category == .coffee })
     }
 
-    func testGetExperiencesNearReturnsSortedByDistance() {
+    func testGetExperiencesNearReturnsSortedByDistance() throws {
         let service = ExperienceService()
         let center = CLLocationCoordinate2D(latitude: 18.7877, longitude: 98.9938)
         let nearby = service.getExperiences(near: center, radiusKm: 50)
@@ -56,7 +56,8 @@ final class SoloCompassTests: XCTestCase {
         var lastDistance: CLLocationDistance = 0
         let here = CLLocation(latitude: center.latitude, longitude: center.longitude)
         for exp in nearby {
-            let d = here.distance(from: CLLocation(latitude: exp.coordinate.latitude, longitude: exp.coordinate.longitude))
+            let coord = try XCTUnwrap(exp.coordinate)
+            let d = here.distance(from: CLLocation(latitude: coord.latitude, longitude: coord.longitude))
             XCTAssertGreaterThanOrEqual(d, lastDistance - 0.001)
             lastDistance = d
         }
