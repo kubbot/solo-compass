@@ -102,10 +102,19 @@ def find_build(token: str, app_id: str, build_number: str,
         },
     )
     if status != 200:
-        print(f"GET /v1/builds failed: HTTP {status} {payload}", file=sys.stderr)
+        print(f"GET /v1/builds failed: HTTP {status} {json.dumps(payload)[:500]}", file=sys.stderr)
         return None
     items = payload.get("data") or []
     if not items:
+        # Diagnostic: query without version filter to see if any builds exist
+        status2, payload2 = asc_request(
+            "GET", "/v1/builds", token,
+            query={"filter[app]": app_id, "limit": 5},
+        )
+        total = payload2.get("meta", {}).get("paging", {}).get("total", "?")
+        sample = [b.get("attributes", {}).get("version") for b in (payload2.get("data") or [])[:5]]
+        print(f"  [diag] app has {total} total builds visible to this API key; "
+              f"latest versions: {sample}")
         return None
     # Prefer the build whose included preReleaseVersion matches marketing_version.
     included = payload.get("included") or []
