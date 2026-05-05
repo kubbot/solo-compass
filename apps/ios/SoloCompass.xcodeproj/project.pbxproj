@@ -1,0 +1,594 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A830B26D4A18948D16F3A42 /* Experience.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C97F8159A6FA7953D28DAB /* Experience.swift */; };
+		240FFFC4A2B2B8F941129783 /* ConfidenceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8F9EFD56A2C839428AA92D /* ConfidenceBadge.swift */; };
+		28E3EB1BFFB0A73A1C56FD54 /* MarkerIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E0157D30FF53B21FF31D519 /* MarkerIconView.swift */; };
+		297541149234668D12EAF272 /* FilterBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C9A1F22AAE512199548C269 /* FilterBarView.swift */; };
+		31F9538643C362D7EEF64C6B /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C7919EAFDE363B49C4B4C47 /* LocationService.swift */; };
+		56F3055416F4A5316100F9B2 /* ExperienceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 363714672D8A0FA8F7C39887 /* ExperienceCardView.swift */; };
+		5C05B87EA78458094612AC01 /* BottomInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13350B81187FB64B252B8A46 /* BottomInfoBar.swift */; };
+		86F4628473C2D520D4C2FFFB /* SoloScoreBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB579F3F4EBBA014AA306DD1 /* SoloScoreBadge.swift */; };
+		A84320715E7CBDA91FC3F26F /* ExperienceDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE16BF3B189BB0F17E4CE92 /* ExperienceDetailViewModel.swift */; };
+		BAC775E6105DD571F71ACBC1 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 80020844C0A45A5993333741 /* Localizable.strings */; };
+		BD5BB6BD7FCBDB30282F28FA /* VoiceButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8ABF85EEFDF9969C94B441 /* VoiceButton.swift */; };
+		C21906307DCC96E5B2583BFE /* CompassMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6A3144D85CDAD01FA0FECB /* CompassMapView.swift */; };
+		C2C0AF72D709EDC17C6ED874 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63FDD874A8F533F0717132A /* UserPreferences.swift */; };
+		CE1A6A1D5EB25B2BEA5B29DA /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAFFA243BC698EF20C6BC1EF /* MapViewModel.swift */; };
+		CF8B2BDE6D707CE2537C8688 /* ExperienceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B8BA7FFBD93A01E54B7E4A /* ExperienceDetailView.swift */; };
+		D699D4E3E20FE7A7C0ED7E66 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4814DBCEAB5975B6338558D /* AIService.swift */; };
+		D7CC906B358ED5337880A942 /* seed_experiences.json in Resources */ = {isa = PBXBuildFile; fileRef = 61ED51ACFDCE6E0ED274BB60 /* seed_experiences.json */; };
+		E5F463CE3CE822F7F96CA82C /* SoloCompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71DE291BE5569E719413B74 /* SoloCompassApp.swift */; };
+		E7B5B022519434F7C07818CF /* ExperienceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F087E4FA7161529378098C /* ExperienceService.swift */; };
+		EBE1ACB7D574EE000B028B23 /* SoloCompassTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED3CB5045CE59A613B5CAAF5 /* SoloCompassTests.swift */; };
+		F5677DCF081E506C7E32243F /* VoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120FC7465285714C5FA8F96D /* VoiceService.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2C6D32C9538461241D786D7D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 75685F3A029520F918427CD0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54773438FB1E1E9F2C8DF91C;
+			remoteInfo = SoloCompass;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0E0157D30FF53B21FF31D519 /* MarkerIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerIconView.swift; sourceTree = "<group>"; };
+		120FC7465285714C5FA8F96D /* VoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceService.swift; sourceTree = "<group>"; };
+		12F087E4FA7161529378098C /* ExperienceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceService.swift; sourceTree = "<group>"; };
+		13350B81187FB64B252B8A46 /* BottomInfoBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomInfoBar.swift; sourceTree = "<group>"; };
+		2C7919EAFDE363B49C4B4C47 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		363714672D8A0FA8F7C39887 /* ExperienceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceCardView.swift; sourceTree = "<group>"; };
+		3C9A1F22AAE512199548C269 /* FilterBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterBarView.swift; sourceTree = "<group>"; };
+		5CE16BF3B189BB0F17E4CE92 /* ExperienceDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceDetailViewModel.swift; sourceTree = "<group>"; };
+		61ED51ACFDCE6E0ED274BB60 /* seed_experiences.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = seed_experiences.json; sourceTree = "<group>"; };
+		6C5CA5533D846B39EF16CDFA /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		8FDFA5F3503B8ABC4B5CB086 /* SoloCompassTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SoloCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9945A4E03F4C75ED89674594 /* SoloCompass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SoloCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9E8ABF85EEFDF9969C94B441 /* VoiceButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceButton.swift; sourceTree = "<group>"; };
+		BA6A3144D85CDAD01FA0FECB /* CompassMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassMapView.swift; sourceTree = "<group>"; };
+		BC185539C95D5D940693BCB7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C1C97F8159A6FA7953D28DAB /* Experience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Experience.swift; sourceTree = "<group>"; };
+		D5B8BA7FFBD93A01E54B7E4A /* ExperienceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceDetailView.swift; sourceTree = "<group>"; };
+		E71DE291BE5569E719413B74 /* SoloCompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloCompassApp.swift; sourceTree = "<group>"; };
+		EB579F3F4EBBA014AA306DD1 /* SoloScoreBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloScoreBadge.swift; sourceTree = "<group>"; };
+		EC8F9EFD56A2C839428AA92D /* ConfidenceBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidenceBadge.swift; sourceTree = "<group>"; };
+		ED3CB5045CE59A613B5CAAF5 /* SoloCompassTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloCompassTests.swift; sourceTree = "<group>"; };
+		F4814DBCEAB5975B6338558D /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		F63FDD874A8F533F0717132A /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
+		FAFFA243BC698EF20C6BC1EF /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		07C4B3D1D25BE0A78422D951 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				13350B81187FB64B252B8A46 /* BottomInfoBar.swift */,
+				EC8F9EFD56A2C839428AA92D /* ConfidenceBadge.swift */,
+				EB579F3F4EBBA014AA306DD1 /* SoloScoreBadge.swift */,
+				9E8ABF85EEFDF9969C94B441 /* VoiceButton.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		0807CE55F43B61AC22836519 /* Experience */ = {
+			isa = PBXGroup;
+			children = (
+				363714672D8A0FA8F7C39887 /* ExperienceCardView.swift */,
+				D5B8BA7FFBD93A01E54B7E4A /* ExperienceDetailView.swift */,
+			);
+			path = Experience;
+			sourceTree = "<group>";
+		};
+		2A5B2A9CBB684C51EA76313E /* Map */ = {
+			isa = PBXGroup;
+			children = (
+				BA6A3144D85CDAD01FA0FECB /* CompassMapView.swift */,
+				0E0157D30FF53B21FF31D519 /* MarkerIconView.swift */,
+			);
+			path = Map;
+			sourceTree = "<group>";
+		};
+		2CEE9F7CC15A1F0742A0CDDF /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				ED3CB5045CE59A613B5CAAF5 /* SoloCompassTests.swift */,
+			);
+			name = Tests;
+			path = SoloCompass/Tests;
+			sourceTree = "<group>";
+		};
+		349E26E71AF3FA04CA5CC24C /* JSON */ = {
+			isa = PBXGroup;
+			children = (
+				61ED51ACFDCE6E0ED274BB60 /* seed_experiences.json */,
+			);
+			path = JSON;
+			sourceTree = "<group>";
+		};
+		46CE435B49A97DAA511BDFE5 /* SoloCompass */ = {
+			isa = PBXGroup;
+			children = (
+				A982DC3911EF3A3A47764759 /* App */,
+				5B71CF70956BBC9E4305202E /* Models */,
+				AF2168B6372E0B357D17732C /* Resources */,
+				68417DC1101B6DFD2DB9673C /* Services */,
+				66EE2097358C0479C8454592 /* ViewModels */,
+				993B6773487C7744097F4175 /* Views */,
+			);
+			path = SoloCompass;
+			sourceTree = "<group>";
+		};
+		501EF6E4D08477F134FAED1E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9945A4E03F4C75ED89674594 /* SoloCompass.app */,
+				8FDFA5F3503B8ABC4B5CB086 /* SoloCompassTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5B71CF70956BBC9E4305202E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C1C97F8159A6FA7953D28DAB /* Experience.swift */,
+				F63FDD874A8F533F0717132A /* UserPreferences.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		66EE2097358C0479C8454592 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				5CE16BF3B189BB0F17E4CE92 /* ExperienceDetailViewModel.swift */,
+				FAFFA243BC698EF20C6BC1EF /* MapViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		68417DC1101B6DFD2DB9673C /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F4814DBCEAB5975B6338558D /* AIService.swift */,
+				12F087E4FA7161529378098C /* ExperienceService.swift */,
+				2C7919EAFDE363B49C4B4C47 /* LocationService.swift */,
+				120FC7465285714C5FA8F96D /* VoiceService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		8D1441732E5DC5479DD56C18 = {
+			isa = PBXGroup;
+			children = (
+				46CE435B49A97DAA511BDFE5 /* SoloCompass */,
+				2CEE9F7CC15A1F0742A0CDDF /* Tests */,
+				501EF6E4D08477F134FAED1E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		993B6773487C7744097F4175 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				0807CE55F43B61AC22836519 /* Experience */,
+				B1E73913322B5353D1A98672 /* Filter */,
+				2A5B2A9CBB684C51EA76313E /* Map */,
+				07C4B3D1D25BE0A78422D951 /* Shared */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A982DC3911EF3A3A47764759 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E71DE291BE5569E719413B74 /* SoloCompassApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		AF2168B6372E0B357D17732C /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BC185539C95D5D940693BCB7 /* Info.plist */,
+				349E26E71AF3FA04CA5CC24C /* JSON */,
+				80020844C0A45A5993333741 /* Localizable.strings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B1E73913322B5353D1A98672 /* Filter */ = {
+			isa = PBXGroup;
+			children = (
+				3C9A1F22AAE512199548C269 /* FilterBarView.swift */,
+			);
+			path = Filter;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		54773438FB1E1E9F2C8DF91C /* SoloCompass */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E37828983E2D80FD8B06B3E6 /* Build configuration list for PBXNativeTarget "SoloCompass" */;
+			buildPhases = (
+				FD67F39E8160C7EC75CB5491 /* Sources */,
+				F9735D89646F00459C8018CB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SoloCompass;
+			packageProductDependencies = (
+			);
+			productName = SoloCompass;
+			productReference = 9945A4E03F4C75ED89674594 /* SoloCompass.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D49FFD818AF5AD3EDE92522D /* SoloCompassTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C160B36A5D55E784D581845 /* Build configuration list for PBXNativeTarget "SoloCompassTests" */;
+			buildPhases = (
+				90D79EF444F26D11575920A7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00E907C2CD9CDABEA87932EB /* PBXTargetDependency */,
+			);
+			name = SoloCompassTests;
+			packageProductDependencies = (
+			);
+			productName = SoloCompassTests;
+			productReference = 8FDFA5F3503B8ABC4B5CB086 /* SoloCompassTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		75685F3A029520F918427CD0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					54773438FB1E1E9F2C8DF91C = {
+						DevelopmentTeam = 6RG2F8YY59;
+						ProvisioningStyle = Manual;
+					};
+					D49FFD818AF5AD3EDE92522D = {
+						DevelopmentTeam = 6RG2F8YY59;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = D8CE34EBDDD7AC04D2D5323E /* Build configuration list for PBXProject "SoloCompass" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8D1441732E5DC5479DD56C18;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 501EF6E4D08477F134FAED1E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				54773438FB1E1E9F2C8DF91C /* SoloCompass */,
+				D49FFD818AF5AD3EDE92522D /* SoloCompassTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F9735D89646F00459C8018CB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BAC775E6105DD571F71ACBC1 /* Localizable.strings in Resources */,
+				D7CC906B358ED5337880A942 /* seed_experiences.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		90D79EF444F26D11575920A7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EBE1ACB7D574EE000B028B23 /* SoloCompassTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD67F39E8160C7EC75CB5491 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D699D4E3E20FE7A7C0ED7E66 /* AIService.swift in Sources */,
+				5C05B87EA78458094612AC01 /* BottomInfoBar.swift in Sources */,
+				C21906307DCC96E5B2583BFE /* CompassMapView.swift in Sources */,
+				240FFFC4A2B2B8F941129783 /* ConfidenceBadge.swift in Sources */,
+				0A830B26D4A18948D16F3A42 /* Experience.swift in Sources */,
+				56F3055416F4A5316100F9B2 /* ExperienceCardView.swift in Sources */,
+				CF8B2BDE6D707CE2537C8688 /* ExperienceDetailView.swift in Sources */,
+				A84320715E7CBDA91FC3F26F /* ExperienceDetailViewModel.swift in Sources */,
+				E7B5B022519434F7C07818CF /* ExperienceService.swift in Sources */,
+				297541149234668D12EAF272 /* FilterBarView.swift in Sources */,
+				31F9538643C362D7EEF64C6B /* LocationService.swift in Sources */,
+				CE1A6A1D5EB25B2BEA5B29DA /* MapViewModel.swift in Sources */,
+				28E3EB1BFFB0A73A1C56FD54 /* MarkerIconView.swift in Sources */,
+				E5F463CE3CE822F7F96CA82C /* SoloCompassApp.swift in Sources */,
+				86F4628473C2D520D4C2FFFB /* SoloScoreBadge.swift in Sources */,
+				C2C0AF72D709EDC17C6ED874 /* UserPreferences.swift in Sources */,
+				BD5BB6BD7FCBDB30282F28FA /* VoiceButton.swift in Sources */,
+				F5677DCF081E506C7E32243F /* VoiceService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		00E907C2CD9CDABEA87932EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54773438FB1E1E9F2C8DF91C /* SoloCompass */;
+			targetProxy = 2C6D32C9538461241D786D7D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		80020844C0A45A5993333741 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				6C5CA5533D846B39EF16CDFA /* en */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		96CB10D8184006DA8310F30A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = 6RG2F8YY59;
+				INFOPLIST_FILE = SoloCompass/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.solocompass.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A3ABC74647CA0F685A7A776D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 6RG2F8YY59;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		B279CD7B71E5F837209E6ED7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = 6RG2F8YY59;
+				INFOPLIST_FILE = SoloCompass/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.solocompass.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E1DF9D1D2271A4D2593B54BF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 6RG2F8YY59;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		EC82903E674DB84F696F9BD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.solocompass.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SoloCompass.app/SoloCompass";
+			};
+			name = Release;
+		};
+		FC84E6D80723B23534997CFF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.solocompass.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SoloCompass.app/SoloCompass";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3C160B36A5D55E784D581845 /* Build configuration list for PBXNativeTarget "SoloCompassTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC84E6D80723B23534997CFF /* Debug */,
+				EC82903E674DB84F696F9BD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D8CE34EBDDD7AC04D2D5323E /* Build configuration list for PBXProject "SoloCompass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1DF9D1D2271A4D2593B54BF /* Debug */,
+				A3ABC74647CA0F685A7A776D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E37828983E2D80FD8B06B3E6 /* Build configuration list for PBXNativeTarget "SoloCompass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B279CD7B71E5F837209E6ED7 /* Debug */,
+				96CB10D8184006DA8310F30A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 75685F3A029520F918427CD0 /* Project object */;
+}

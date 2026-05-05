@@ -32,7 +32,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.solocompass.app
         INFOPLIST_FILE: SoloCompass/Resources/Info.plist
-        CODE_SIGN_STYLE: Manual    # overridden by match in CI
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
+        DEVELOPMENT_TEAM: "6RG2F8YY59"
     dependencies: []
 
   SoloCompassTests:
