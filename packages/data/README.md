@@ -33,10 +33,10 @@ psql "$SUPABASE_DB_URL" -f packages/data/migrations/0001_initial.sql
 
 **Required env vars** (copy from `.env.example`):
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | Project API URL (`https://xxxxx.supabase.co`) |
-| `SUPABASE_KEY` | Anon key — used by `createAnonClient()`, subject to RLS |
+| Variable                    | Purpose                                                          |
+| --------------------------- | ---------------------------------------------------------------- |
+| `SUPABASE_URL`              | Project API URL (`https://xxxxx.supabase.co`)                    |
+| `SUPABASE_KEY`              | Anon key — used by `createAnonClient()`, subject to RLS          |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key — used by `createServiceClient()`, bypasses RLS |
 
 **PostGIS**: Must be enabled before running the migration.
@@ -49,10 +49,7 @@ import { createAnonClient, createServiceClient, rowToExperience } from "@solo-co
 
 // In API route handlers (RLS applied):
 const client = createAnonClient();
-const { data } = await client
-  .from("experiences")
-  .select("*")
-  .eq("status", "active");
+const { data } = await client.from("experiences").select("*").eq("status", "active");
 
 // In server-side seed scripts (bypasses RLS):
 const admin = createServiceClient();

@@ -151,15 +151,7 @@ const EMIT_EXPERIENCE_TOOL: Anthropic.Tool = {
           properties: {
             type: {
               type: "string",
-              enum: [
-                "wikivoyage",
-                "wikipedia",
-                "reddit",
-                "blog",
-                "youtube",
-                "user",
-                "field_visit",
-              ],
+              enum: ["wikivoyage", "wikipedia", "reddit", "blog", "youtube", "user", "field_visit"],
             },
             url: { type: "string" },
             attribution: { type: "string" },
