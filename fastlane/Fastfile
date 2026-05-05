@@ -89,18 +89,16 @@ platform :ios do
       }
     )
 
-    changelog = ENV["RELEASE_CHANGELOG_FILE"] ? File.read(ENV["RELEASE_CHANGELOG_FILE"]).strip : "New build"
-
-    # Wait for Apple to finish processing (15-30 min) so the build becomes
-    # installable. Without this, the build stays "Processing" and testers
-    # never receive an email notification.
+    # NOTE: passing `changelog` makes fastlane poll until the build appears in
+    # ASC's build list, which Apple can delay 30+ minutes, exhausting the 90-min
+    # job timeout. changelog is written asynchronously by update-changelog.yml
+    # once ASC finishes processing. See .github/workflows/update-changelog.yml.
     upload_to_testflight(
       api_key:                           api_key,
-      skip_waiting_for_build_processing: false,
-      changelog:                         changelog.empty? ? "New build" : changelog[0, 4000]
+      skip_waiting_for_build_processing: true
     )
 
-    UI.success "TestFlight beta uploaded and distributed to testers"
+    UI.success "TestFlight beta uploaded"
   end
 
   desc "Build and submit to App Store for review"

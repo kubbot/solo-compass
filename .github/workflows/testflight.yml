@@ -85,10 +85,14 @@ jobs:
                 exit 1
               fi
             else
-              CURRENT=$(grep -A1 'CFBundleShortVersionString' apps/ios/SoloCompass/Resources/Info.plist \
-                | grep '<string>' | sed 's/.*<string>\(.*\)<\/string>/\1/' | tr -d ' ')
+              # Read MARKETING_VERSION from pbxproj (authoritative after xcodegen).
+              # Info.plist contains $(MARKETING_VERSION) placeholder, not the real value.
+              CURRENT=$(grep -m1 -E 'MARKETING_VERSION = ' apps/ios/SoloCompass.xcodeproj/project.pbxproj \
+                | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' || true)
               if [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 NEXT="$CURRENT"
+              elif [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+$ ]]; then
+                NEXT="${CURRENT}.0"
               else
                 NEXT="0.1.0"
               fi
@@ -246,6 +250,18 @@ jobs:
           files: build/SoloCompass.ipa
           prerelease: true
           fail_on_unmatched_files: true
+
+      # ── 12a. Upload changelog artifact for async update-changelog workflow ──
+      # The changelog is NOT written by upload_to_testflight (see Fastfile NOTE).
+      # update-changelog.yml downloads this artifact and PATCHes "What to Test"
+      # via the ASC API once Apple finishes processing the build (~15-30 min).
+      - name: Upload changelog artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-${{ steps.version.outputs.release_tag }}
+          path: ${{ steps.changelog.outputs.changelog_path }}
+          retention-days: 7
 
       # ── 12. Upload IPA artifact ───────────────────────────────────────────
       - name: Upload IPA artifact
