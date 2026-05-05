@@ -87,6 +87,9 @@ def asc_request(method: str, path: str, token: str, *, body: dict | None = None,
 
 def find_build(token: str, app_id: str, build_number: str,
                marketing_version: str) -> dict | None:
+    # Query by build number only; preReleaseVersion association may not exist
+    # yet when the build first appears in ASC, so the combined filter would
+    # return empty even though the build is visible.
     status, payload = asc_request(
         "GET",
         "/v1/builds",
@@ -94,8 +97,7 @@ def find_build(token: str, app_id: str, build_number: str,
         query={
             "filter[app]": app_id,
             "filter[version]": build_number,
-            "filter[preReleaseVersion.version]": marketing_version,
-            "limit": 5,
+            "limit": 10,
             "include": "preReleaseVersion",
         },
     )
@@ -103,7 +105,21 @@ def find_build(token: str, app_id: str, build_number: str,
         print(f"GET /v1/builds failed: HTTP {status} {payload}", file=sys.stderr)
         return None
     items = payload.get("data") or []
-    return items[0] if items else None
+    if not items:
+        return None
+    # Prefer the build whose included preReleaseVersion matches marketing_version.
+    included = payload.get("included") or []
+    for item in items:
+        prv_id = (item.get("relationships", {})
+                  .get("preReleaseVersion", {})
+                  .get("data") or {}).get("id")
+        if prv_id:
+            for inc in included:
+                if inc.get("id") == prv_id:
+                    if inc.get("attributes", {}).get("version") == marketing_version:
+                        return item
+    # Fallback: return first result with matching build number regardless of version
+    return items[0]
 
 
 def wait_for_processed_build(token_factory, app_id: str, build_number: str,
