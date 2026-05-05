@@ -15,9 +15,16 @@ public struct ConfidenceBadge: View {
     public var body: some View {
         Button { showSignals.toggle() } label: {
             HStack(spacing: 4) {
-                Circle()
-                    .fill(confidence.health.color)
-                    .frame(width: 8, height: 8)
+                ZStack {
+                    Circle()
+                        .fill(confidence.health.color)
+                        .frame(width: 8, height: 8)
+                    if let symbol = confidence.health.accessibilitySymbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 4, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
                 if !compact {
                     Text("L\(confidence.level) · \(confidence.signals.totalCount) \(NSLocalizedString("confidence.signals", comment: "signals"))")
                         .font(.caption2)

@@ -2,6 +2,10 @@ import Foundation
 import Observation
 
 /// State + intent for the experience detail sheet.
+///
+/// @MainActor isolation ensures aiExplanation and other UI-bound properties
+/// are always mutated on the main thread after awaiting async calls.
+@MainActor
 @Observable
 public final class ExperienceDetailViewModel {
     public let experience: Experience
@@ -9,6 +13,7 @@ public final class ExperienceDetailViewModel {
     public var isCompleted: Bool
     public var isFavorited: Bool
     public var aiExplanation: String?
+    public var isLoadingAIExplanation: Bool = false
     public var nearbyExperiences: [Experience] = []
     public var visitCount: Int
 
@@ -51,10 +56,15 @@ public final class ExperienceDetailViewModel {
     }
 
     public func loadAIExplanation() async {
+        isLoadingAIExplanation = true
+        defer { isLoadingAIExplanation = false }
         do {
             aiExplanation = try await aiService.explainRecommendation(for: experience.id)
         } catch {
             aiExplanation = nil
+            #if DEBUG
+            print("[ExperienceDetailViewModel] loadAIExplanation failed for id=\(experience.id): \(error)")
+            #endif
         }
     }
 

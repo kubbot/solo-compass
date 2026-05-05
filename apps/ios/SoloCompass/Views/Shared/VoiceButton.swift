@@ -8,6 +8,7 @@ public struct VoiceButton: View {
     @State private var isRecording = false
     @State private var liveTranscript: String = ""
     @State private var showPermissionAlert = false
+    @State private var recognitionError: String? = nil
     @State private var pulse = false
     @State private var streamTask: Task<Void, Never>?
 
@@ -33,7 +34,7 @@ public struct VoiceButton: View {
                 .shadow(radius: isRecording ? 10 : 4)
 
             Image(systemName: isRecording ? "waveform" : "mic.fill")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
                 .symbolEffect(.variableColor.iterative, isActive: isRecording)
         }
@@ -52,6 +53,12 @@ public struct VoiceButton: View {
             Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
             Text(NSLocalizedString("voice.permission.message", comment: ""))
+        }
+        .alert(NSLocalizedString("voice.error.title", comment: "Voice recognition error"),
+               isPresented: Binding(get: { recognitionError != nil }, set: { if !$0 { recognitionError = nil } })) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { recognitionError = nil }
+        } message: {
+            Text(recognitionError ?? "")
         }
         .overlay(alignment: .top) {
             if isRecording, !liveTranscript.isEmpty {
@@ -86,12 +93,18 @@ public struct VoiceButton: View {
                             await MainActor.run { liveTranscript = text }
                         }
                     } catch {
-                        // Surface as silent stop; stop button will reset UI.
+                        // Surface recognition errors to the user via alert.
+                        await MainActor.run {
+                            isRecording = false
+                            pulse = false
+                            recognitionError = error.localizedDescription
+                        }
                     }
                 }
             } catch {
                 isRecording = false
                 pulse = false
+                recognitionError = error.localizedDescription
             }
         }
     }

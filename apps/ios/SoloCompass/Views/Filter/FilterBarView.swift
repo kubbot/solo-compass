@@ -39,7 +39,7 @@ public struct FilterBarView: View {
                 pill(
                     label: NSLocalizedString("filter.all", comment: "All"),
                     isSelected: !isNowSelected && selectedCategory == nil,
-                    color: .black,
+                    color: Color.primary,
                     action: onSelectAll
                 )
                 ForEach(Self.visibleCategories) { category in
@@ -86,7 +86,7 @@ public struct FilterBarView: View {
             action()
         } label: {
             Image(systemName: category.symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .frame(width: 36, height: 36)
                 .foregroundStyle(isSelected ? .white : category.color)
                 .background(

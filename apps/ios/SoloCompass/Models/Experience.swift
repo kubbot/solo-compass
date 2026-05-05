@@ -30,17 +30,17 @@ public enum ExperienceCategory: String, Codable, CaseIterable, Identifiable, Has
         }
     }
 
-    /// Brand color per category (hex from CLAUDE.md palette).
+    /// Brand color per category — uses UIKit semantic colors that adapt to dark/light mode.
     public var color: Color {
         switch self {
-        case .culture:   return Color(red: 0xE8/255, green: 0x77/255, blue: 0x22/255)
-        case .nature:    return Color(red: 0x2D/255, green: 0x8C/255, blue: 0x4A/255)
-        case .food:      return Color(red: 0xC4/255, green: 0x1E/255, blue: 0x3A/255)
-        case .coffee:    return Color(red: 0x6F/255, green: 0x4E/255, blue: 0x37/255)
-        case .work:      return Color(red: 0x25/255, green: 0x63/255, blue: 0xEB/255)
-        case .wellness:  return Color(red: 0x7C/255, green: 0x3A/255, blue: 0xED/255)
-        case .nightlife: return Color(red: 0x4F/255, green: 0x46/255, blue: 0xE5/255)
-        case .hidden:    return Color(red: 0x6B/255, green: 0x72/255, blue: 0x80/255)
+        case .culture:   return Color(.systemOrange).opacity(0.85)
+        case .nature:    return Color(.systemGreen)
+        case .food:      return Color(.systemRed)
+        case .coffee:    return Color(.systemBrown)
+        case .work:      return Color(.systemBlue)
+        case .wellness:  return Color(.systemTeal)
+        case .nightlife: return Color(.systemPurple)
+        case .hidden:    return Color(.systemGray)
         }
     }
 
@@ -219,15 +219,25 @@ public enum HealthStatus: String, Codable {
 
     public var color: Color {
         switch self {
-        case .healthy:   return .green
-        case .fading:    return .yellow
+        case .healthy:    return .green
+        case .fading:     return .yellow
         case .questioned: return .red
-        case .mayBeGone: return .black
+        case .mayBeGone:  return .secondary // adaptive — visible in both light and dark mode
         }
     }
 
     public var localizedDescription: String {
         NSLocalizedString("health.\(rawValue)", comment: "Health status label")
+    }
+
+    /// SF Symbol to overlay on the compact dot so colorblind users can distinguish states by shape.
+    public var accessibilitySymbol: String? {
+        switch self {
+        case .healthy:    return nil
+        case .fading:     return "clock"
+        case .questioned: return "questionmark"
+        case .mayBeGone:  return "xmark"
+        }
     }
 }
 

@@ -84,6 +84,13 @@ public struct ExperienceCardView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(
+            "\(experience.title). \(experience.oneLiner). " +
+            String(format: NSLocalizedString("solo.a11y", comment: "Solo Score %@ of 10"),
+                   String(format: "%.1f", experience.soloScore.overall))
+        ))
+        .accessibilityHint(Text(NSLocalizedString("experience.card.hint", comment: "Double tap to view details")))
     }
 }
 

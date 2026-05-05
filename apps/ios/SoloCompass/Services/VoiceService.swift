@@ -93,7 +93,8 @@ public final class VoiceService {
 
         isListening = true
 
-        return AsyncThrowingStream { continuation in
+        return AsyncThrowingStream { [weak self] continuation in
+            guard let self else { continuation.finish(); return }
             self.recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 if let result {
                     continuation.yield(result.bestTranscription.formattedString)

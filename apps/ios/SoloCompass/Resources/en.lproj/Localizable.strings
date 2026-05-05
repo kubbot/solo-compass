@@ -66,6 +66,8 @@
 "voice.permission.message" = "Solo Compass needs microphone and speech permission to take voice input.";
 
 /* AI */
+"ai.explanation.loading" = "Loading insight…";
+"ai.explanation.title" = "AI Insight";
 "ai.error.missingKey" = "AI features are not configured.";
 "ai.error.request" = "AI request failed (status %d).";
 "ai.fallback.explanation" = "Recommended for solo travelers based on quiet seating, low staff pressure, and a strong local signal.";
@@ -73,6 +75,14 @@
 
 /* Common */
 "common.ok" = "OK";
+"common.cancel" = "Cancel";
+
+/* Add Experience (long-press flow) */
+"addExperience.confirm.title" = "Add an experience here?";
+"addExperience.confirm.message" = "Describe it with your voice.";
+"addExperience.confirm.add" = "Add";
+"addExperience.record.title" = "Tell us about this place";
+"addExperience.record.hint" = "Hold the mic and describe what makes it worth a solo visit.";
 
 /* Marker accessibility */
 "marker.a11y.bestNow" = "best right now";
@@ -95,3 +105,21 @@
 /* Action bar */
 "action.favorite" = "Add to favorites";
 "action.unfavorite" = "Remove from favorites";
+"action.close" = "Close";
+
+/* Dismiss */
+"common.dismiss" = "Dismiss";
+
+/* AI processing indicator */
+"ai.processing" = "AI is thinking…";
+
+/* Map candidate marker accessibility */
+"map.candidate.label" = "Candidate experience: %@";
+
+/* Experience card accessibility */
+"experience.card.hint" = "Double tap to view details";
+
+/* Voice recognition error alert */
+"voice.error.title" = "Voice recognition error";
+"voice.error.permission" = "Microphone or speech recognition permission was denied. Please allow access in Settings.";
+"voice.error.unavailable" = "Speech recognition is unavailable on this device.";

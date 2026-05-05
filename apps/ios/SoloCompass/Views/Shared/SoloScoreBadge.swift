@@ -46,7 +46,7 @@ public struct SoloScoreBadge: View {
                     .font(.headline)
                 Spacer()
                 Text(formatted(score.overall))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(score.scoreColor)
             }
             if let hint = score.hint {

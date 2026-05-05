@@ -175,16 +175,30 @@ public final class AIService {
         if let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty {
             return env
         }
-        if
-            let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
-            let data = try? Data(contentsOf: url),
-            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-            let key = plist["ANTHROPIC_API_KEY"] as? String,
-            !key.isEmpty
-        {
-            return key
+        guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist") else {
+            return nil
         }
-        return nil
+        do {
+            let data = try Data(contentsOf: url)
+            guard let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+                #if DEBUG
+                print("[AIService] Secrets.plist is not a [String: Any] dictionary")
+                #endif
+                return nil
+            }
+            guard let key = plist["ANTHROPIC_API_KEY"] as? String, !key.isEmpty else {
+                #if DEBUG
+                print("[AIService] ANTHROPIC_API_KEY missing or empty in Secrets.plist")
+                #endif
+                return nil
+            }
+            return key
+        } catch {
+            #if DEBUG
+            print("[AIService] Failed to read Secrets.plist: \(error)")
+            #endif
+            return nil
+        }
     }
 
     private static func recommendationPrompt(candidates: [Experience], context: UserContext) -> String {

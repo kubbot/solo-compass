@@ -86,11 +86,15 @@ public final class UserPreferences {
     }
 
     private static func load(from defaults: UserDefaults) -> Snapshot {
-        guard
-            let data = defaults.data(forKey: storageKey),
-            let snapshot = try? JSONDecoder.iso8601Decoder.decode(Snapshot.self, from: data)
-        else { return Snapshot() }
-        return snapshot
+        guard let data = defaults.data(forKey: storageKey) else { return Snapshot() }
+        do {
+            return try JSONDecoder.iso8601Decoder.decode(Snapshot.self, from: data)
+        } catch {
+            #if DEBUG
+            print("[UserPreferences] decode error — returning defaults. error=\(error)")
+            #endif
+            return Snapshot()
+        }
     }
 
     private func persist() {
@@ -104,8 +108,14 @@ public final class UserPreferences {
             favoritedExperiences: favoritedExperiences,
             pendingCheckIns: pendingCheckIns
         )
-        guard let data = try? JSONEncoder.iso8601Encoder.encode(snapshot) else { return }
-        defaults.set(data, forKey: Self.storageKey)
+        do {
+            let data = try JSONEncoder.iso8601Encoder.encode(snapshot)
+            defaults.set(data, forKey: Self.storageKey)
+        } catch {
+            #if DEBUG
+            print("[UserPreferences] encode error: \(error)")
+            #endif
+        }
     }
 
     // MARK: - Convenience mutations

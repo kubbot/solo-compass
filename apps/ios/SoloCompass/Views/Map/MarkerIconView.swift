@@ -37,7 +37,7 @@ public struct MarkerIconView: View {
                 .opacity(opacity)
 
             Image(systemName: category.symbol)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .opacity(opacity)
 
@@ -81,26 +81,26 @@ public struct MarkerIconView: View {
         switch state {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 18, weight: .bold))
+                .font(.title3.bold())
                 .foregroundStyle(.white, .green)
                 .offset(x: 12, y: 12)
         case .favorited:
             Image(systemName: "heart.fill")
-                .font(.system(size: 12))
+                .font(.caption)
                 .foregroundStyle(.red)
                 .padding(3)
                 .background(Circle().fill(.white))
                 .offset(x: 12, y: -12)
         case .upcoming(let minutes):
             Text("\(minutes)")
-                .font(.system(size: 10, weight: .bold))
+                .font(.caption2.bold())
                 .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
                 .background(Circle().fill(Color.black.opacity(0.85)))
                 .offset(x: 12, y: -12)
         case .footprinted:
             Image(systemName: "figure.walk")
-                .font(.system(size: 9))
+                .font(.caption2)
                 .foregroundStyle(.white)
                 .padding(3)
                 .background(Circle().fill(Color.gray))

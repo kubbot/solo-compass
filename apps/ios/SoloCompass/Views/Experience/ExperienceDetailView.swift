@@ -17,6 +17,7 @@ public struct ExperienceDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 heroSection
                 whyItMattersSection
+                aiInsightSection
                 if !viewModel.experience.bestTimes.isEmpty {
                     bestTimesSection
                 }
@@ -47,6 +48,7 @@ public struct ExperienceDetailView: View {
                 Button(action: onClose) {
                     Image(systemName: "chevron.down")
                 }
+                .accessibilityLabel(Text(NSLocalizedString("action.close", comment: "Close detail sheet")))
             }
         }
         .task { await viewModel.loadAIExplanation() }
@@ -93,6 +95,26 @@ public struct ExperienceDetailView: View {
             Text(viewModel.experience.whyItMatters)
                 .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var aiInsightSection: some View {
+        if viewModel.isLoadingAIExplanation {
+            sectionContainer(title: NSLocalizedString("ai.explanation.title", comment: "AI Insight section title")) {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(NSLocalizedString("ai.explanation.loading", comment: "AI insight loading indicator"))
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else if let explanation = viewModel.aiExplanation {
+            sectionContainer(title: NSLocalizedString("ai.explanation.title", comment: "AI Insight section title")) {
+                Text(explanation)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -253,10 +275,13 @@ public struct ExperienceDetailView: View {
                 .frame(height: 50)
                 .background(
                     RoundedRectangle(cornerRadius: 25)
-                        .fill(viewModel.isCompleted ? Color.green : Color.black)
+                        .fill(viewModel.isCompleted ? Color.green : Color.primary)
                 )
                 .foregroundStyle(.white)
             }
+            .accessibilityLabel(Text(viewModel.isCompleted
+                ? NSLocalizedString("action.completed", comment: "Marked as completed")
+                : NSLocalizedString("action.markDone", comment: "Mark as done")))
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)

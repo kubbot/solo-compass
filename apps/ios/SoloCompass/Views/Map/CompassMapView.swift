@@ -12,6 +12,7 @@ public struct CompassMapView: View {
 
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
+    @State private var dismissedAIError: String? = nil
 
     public init() {}
 
@@ -30,7 +31,52 @@ public struct CompassMapView: View {
                         onSelectCategory: { viewModel.selectCategory($0) }
                     )
                     .padding(.top, 4)
+
+                    // AI / voice error banner — dismissible, shown below filter bar.
+                    if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(errorText)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Spacer()
+                            Button {
+                                dismissedAIError = errorText
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 12)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(Text(errorText))
+                    }
+
                     Spacer()
+
+                    // AI processing indicator — shown above the bottom info bar.
+                    if aiService.isProcessing {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text(NSLocalizedString("ai.processing", comment: "AI is processing"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.thinMaterial, in: Capsule())
+                        .transition(.opacity)
+                    }
+
                     BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
                         .padding(.bottom, 8)
                 }
@@ -81,7 +127,7 @@ public struct CompassMapView: View {
                     .accessibilityLabel(Text(NSLocalizedString("map.loading", comment: "Loading map")))
             }
         }
-        .background(Color(red: 0xF5/255, green: 0xF0/255, blue: 0xE8/255))
+        .background(Color(.systemBackground))
         .onAppear {
             locationService.requestPermission()
             if viewModel == nil {
@@ -168,7 +214,7 @@ public struct CompassMapView: View {
                                     MarkerIconView(category: exp.category, state: viewModel.markerState(for: exp))
                                     if case .footprinted = viewModel.markerState(for: exp) {
                                         Text("\(viewModel.footprintCount(for: exp))")
-                                            .font(.system(size: 9, weight: .semibold))
+                                            .font(.caption2.weight(.semibold))
                                             .foregroundStyle(.white)
                                             .padding(.horizontal, 4)
                                             .padding(.vertical, 1)
@@ -190,9 +236,13 @@ public struct CompassMapView: View {
                                 .background(Circle().fill(Color.white.opacity(0.6)))
                                 .overlay(
                                     Image(systemName: "plus")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(.subheadline.bold())
                                         .foregroundStyle(.gray)
                                 )
+                                .accessibilityLabel(Text(String(
+                                    format: NSLocalizedString("map.candidate.label", comment: "Candidate experience: %@"),
+                                    cand.title
+                                )))
                         }
                     }
                 }

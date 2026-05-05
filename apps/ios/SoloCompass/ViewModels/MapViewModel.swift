@@ -123,7 +123,7 @@ public final class MapViewModel {
 
     public func selectExperience(_ experience: Experience) {
         selectedExperience = experience
-        isShowingDetail = true
+        // isShowingDetail stays false — card shows first, detail sheet on expand
     }
 
     public func dismissDetail() {
