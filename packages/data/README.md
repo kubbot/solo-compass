@@ -16,7 +16,47 @@ Data layer: ingestion, storage, query.
 
 ## Status
 
-🚧 Skeleton only.
+✅ Schema migration + typed Supabase client implemented.
+
+## Running migrations locally
+
+**Prerequisites**: Supabase CLI installed (`brew install supabase/tap/supabase`) and a project configured.
+
+```bash
+# Option A — against a local Supabase instance (recommended for dev)
+supabase start                        # starts local Postgres + PostGIS
+supabase db push                      # applies migrations/0001_initial.sql
+
+# Option B — directly against your hosted Supabase project
+psql "$SUPABASE_DB_URL" -f packages/data/migrations/0001_initial.sql
+```
+
+**Required env vars** (copy from `.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Project API URL (`https://xxxxx.supabase.co`) |
+| `SUPABASE_KEY` | Anon key — used by `createAnonClient()`, subject to RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — used by `createServiceClient()`, bypasses RLS |
+
+**PostGIS**: Must be enabled before running the migration.
+Dashboard → Database → Extensions → search "postgis" → Enable.
+
+## Client usage
+
+```ts
+import { createAnonClient, createServiceClient, rowToExperience } from "@solo-compass/data";
+
+// In API route handlers (RLS applied):
+const client = createAnonClient();
+const { data } = await client
+  .from("experiences")
+  .select("*")
+  .eq("status", "active");
+
+// In server-side seed scripts (bypasses RLS):
+const admin = createServiceClient();
+```
 
 ## Cold-start workflow (target)
 

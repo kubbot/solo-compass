@@ -1,2 +1,5 @@
-// @solo-compass/ai — placeholder. See README.md.
-export const __PLACEHOLDER__ = true;
+export { structureExperience } from "./prompts/structure-experience";
+export type {
+  StructureExperienceInput,
+  StructureExperienceResult,
+} from "./prompts/structure-experience";
