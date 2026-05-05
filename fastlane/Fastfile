@@ -71,6 +71,7 @@ platform :ios do
     )
 
     profile_name = ENV["sigh_com.solocompass.app_appstore_profile-name"] || "match AppStore com.solocompass.app"
+    team_id = ENV["DEVELOPMENT_TEAM"] || "6RG2F8YY59"
     build_app(
       scheme:           "SoloCompass",
       project:          "apps/ios/SoloCompass.xcodeproj",
@@ -79,11 +80,11 @@ platform :ios do
       clean:            false,
       output_directory: "build",
       output_name:      "SoloCompass.ipa",
-      xcargs:           "PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
+      xcargs:           "CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=#{team_id} PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
       export_options:   {
         method:               "app-store",
         signingStyle:         "manual",
-        teamID:               ENV["DEVELOPMENT_TEAM"],
+        teamID:               team_id,
         provisioningProfiles: { "com.solocompass.app" => profile_name }
       }
     )
@@ -120,6 +121,7 @@ platform :ios do
     )
 
     profile_name = ENV["sigh_com.solocompass.app_appstore_profile-name"] || "match AppStore com.solocompass.app"
+    team_id = ENV["DEVELOPMENT_TEAM"] || "6RG2F8YY59"
     build_app(
       scheme:           "SoloCompass",
       project:          "apps/ios/SoloCompass.xcodeproj",
@@ -128,11 +130,11 @@ platform :ios do
       clean:            false,
       output_directory: "build",
       output_name:      "SoloCompass.ipa",
-      xcargs:           "PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
+      xcargs:           "CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=#{team_id} PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
       export_options:   {
         method:               "app-store",
         signingStyle:         "manual",
-        teamID:               ENV["DEVELOPMENT_TEAM"],
+        teamID:               team_id,
         provisioningProfiles: { "com.solocompass.app" => profile_name }
       }
     )
