@@ -113,6 +113,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
+          INPUT_VERSION: ${{ github.event.inputs.version_override }}
         run: |
           set -euo pipefail
           PR_NUM=$(printf '%s' "$COMMIT_MSG" | grep -oE '#[0-9]+' | head -n1 | tr -d '#' || true)
@@ -124,8 +125,11 @@ jobs:
               --json title,body \
               --jq '.title + "\n\n" + (.body // "")' \
               > "$CHANGELOG_FILE" || printf '%s' "$COMMIT_MSG" > "$CHANGELOG_FILE"
-          else
+          elif [ -n "${COMMIT_MSG:-}" ]; then
             printf '%s' "$COMMIT_MSG" > "$CHANGELOG_FILE"
+          else
+            # workflow_dispatch with no commit message
+            printf 'Manual release%s' "${INPUT_VERSION:+ v$INPUT_VERSION}" > "$CHANGELOG_FILE"
           fi
 
           sed -i '' -e 's/\r$//' "$CHANGELOG_FILE" || true
