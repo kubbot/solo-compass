@@ -2,12 +2,17 @@ import Foundation
 import CoreLocation
 import MapKit
 import Observation
+import SwiftUI
 
 /// State + intent for the root `CompassMapView`.
 ///
 /// MVVM rule of thumb: services do I/O, the view model decides what's on
 /// screen. Filters, the selected experience, the bottom info text — all live
 /// here so the View can stay thin.
+///
+/// @MainActor isolation ensures all @Observable property mutations happen on
+/// the main thread, preventing data-race crashes under Swift 6 strict concurrency.
+@MainActor
 @Observable
 public final class MapViewModel {
     // Default: Chiang Mai old city center.
@@ -20,7 +25,20 @@ public final class MapViewModel {
     private let preferences: UserPreferences
 
     // MARK: - Published state
-    public var cameraPosition: MapCameraPosition
+    // @ObservationIgnored avoids @Observable macro expanding MapCameraPosition
+    // into a synthetic file that lacks `import MapKit`, causing build errors.
+    @ObservationIgnored private var _cameraPosition: MapCameraPosition
+    public var cameraPosition: MapCameraPosition {
+        get { _cameraPosition }
+        set {
+            withMutation(keyPath: \.cameraPositionVersion) {
+                _cameraPosition = newValue
+                cameraPositionVersion &+= 1
+            }
+        }
+    }
+    // Observers watch this instead of cameraPosition directly.
+    private var cameraPositionVersion: UInt8 = 0
     public var selectedCategory: ExperienceCategory?
     public var visibleExperiences: [Experience] = []
     public var selectedExperience: Experience?
@@ -53,7 +71,7 @@ public final class MapViewModel {
         self.experienceService = experienceService
         self.aiService = aiService
         self.preferences = preferences
-        self.cameraPosition = .region(MKCoordinateRegion(
+        self._cameraPosition = .region(MKCoordinateRegion(
             center: Self.defaultCenter,
             span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)
         ))
