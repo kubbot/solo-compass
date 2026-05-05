@@ -183,14 +183,15 @@ platform :ios do
       end
     end
 
-    # Build number must be unique per (marketing_version, build_number) pair in ASC.
-    # git rev-list --count HEAD alone collides when the same SHA is rerun (CI retries).
-    # Append the last 4 digits of GitHub run number to guarantee uniqueness.
-    base = sh("git rev-list --count HEAD").strip
-    run_suffix = (ENV["GITHUB_RUN_NUMBER"] || "0").to_s.rjust(4, "0")[-4..]
-    build_number = "#{base}#{run_suffix}"
+    # Use GITHUB_RUN_NUMBER as build number: plain integer, unique per repo,
+    # always increasing — exactly what ASC expects for CFBundleVersion.
+    # The previous composite "base+suffix" (e.g. 660026) was silently rejected
+    # by ASC, causing the build to never appear in the build list.
+    # Falls back to git commit count for local builds without the env var.
+    build_number = ENV["GITHUB_RUN_NUMBER"].to_s.strip
+    build_number = sh("git rev-list --count HEAD").strip if build_number.empty?
     set_pbxproj_version("CURRENT_PROJECT_VERSION", build_number)
-    UI.message "Build number set to #{build_number} (base=#{base} run=#{ENV['GITHUB_RUN_NUMBER']})"
+    UI.message "Build number set to #{build_number}"
   end
 
   error do |lane, exception|
