@@ -89,13 +89,18 @@ platform :ios do
       }
     )
 
-    # skip_waiting_for_build_processing avoids the 30+ min ASC polling timeout
+    changelog = ENV["RELEASE_CHANGELOG_FILE"] ? File.read(ENV["RELEASE_CHANGELOG_FILE"]).strip : "New build"
+
+    # Wait for Apple to finish processing (15-30 min) so the build becomes
+    # installable. Without this, the build stays "Processing" and testers
+    # never receive an email notification.
     upload_to_testflight(
       api_key:                           api_key,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: false,
+      changelog:                         changelog.empty? ? "New build" : changelog[0, 4000]
     )
 
-    UI.success "TestFlight beta uploaded"
+    UI.success "TestFlight beta uploaded and distributed to testers"
   end
 
   desc "Build and submit to App Store for review"
