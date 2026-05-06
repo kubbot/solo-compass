@@ -7,13 +7,13 @@ retention number and a single funnel.
 
 ## Events sent (apps/web/src/lib/analytics.tsx)
 
-| name           | properties                              | meaning                                       |
-| -------------- | --------------------------------------- | --------------------------------------------- |
-| `pageview`     | —                                       | App loaded once.                              |
-| `marker_view`  | `experienceId`, `category`              | A marker tap opened the detail sheet.         |
-| `sheet_open`   | `experienceId`, `category`              | Alias of `marker_view`, kept for spec parity. |
-| `intent_set`   | `length`, `source: "voice" \| "text"`   | User set or changed an intent.                |
-| `checkin`      | `experienceId`, `rated: boolean`        | User pressed "I did this".                    |
+| name          | properties                            | meaning                                       |
+| ------------- | ------------------------------------- | --------------------------------------------- |
+| `pageview`    | —                                     | App loaded once.                              |
+| `marker_view` | `experienceId`, `category`            | A marker tap opened the detail sheet.         |
+| `sheet_open`  | `experienceId`, `category`            | Alias of `marker_view`, kept for spec parity. |
+| `intent_set`  | `length`, `source: "voice" \| "text"` | User set or changed an intent.                |
+| `checkin`     | `experienceId`, `rated: boolean`      | User pressed "I did this".                    |
 
 No PII. DNT honored. PostHog autocapture is **off**.
 

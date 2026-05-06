@@ -172,12 +172,17 @@ export function VoiceIntent({ intent, onIntentChange }: VoiceIntentProps) {
           <span aria-hidden="true">{recording ? "●" : "🎙"}</span>
         </button>
       ) : (
-        <form onSubmit={handleTextSubmit} className="pointer-events-auto flex w-full max-w-md gap-2">
+        <form
+          onSubmit={handleTextSubmit}
+          className="pointer-events-auto flex w-full max-w-md gap-2"
+        >
           <input
             type="text"
             value={textValue}
             onChange={(e) => setTextValue(e.target.value)}
-            placeholder={permissionDenied ? "Type instead — mic permission denied" : "What do you feel like?"}
+            placeholder={
+              permissionDenied ? "Type instead — mic permission denied" : "What do you feel like?"
+            }
             aria-label="Type what you feel like doing"
             className="flex-1 rounded-full border border-ink-warm/15 bg-paper-cream/95 px-4 py-2 text-sm text-ink-warm shadow focus:border-deep-teal focus:outline-none"
           />

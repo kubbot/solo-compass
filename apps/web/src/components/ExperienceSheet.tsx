@@ -7,7 +7,12 @@ import { categoryEmoji, categoryLabel } from "@/lib/category";
 import { healthColor, healthLabel } from "@/lib/health";
 
 interface ExperienceSheetProps {
-  readonly result: { readonly experience: Experience; readonly health: HealthStatus; readonly reason: string; readonly walkingMinutes: number } | null;
+  readonly result: {
+    readonly experience: Experience;
+    readonly health: HealthStatus;
+    readonly reason: string;
+    readonly walkingMinutes: number;
+  } | null;
   readonly onOpenChange: (open: boolean) => void;
   readonly onCheckin: (experienceId: string, rating?: number) => Promise<void> | void;
 }
@@ -54,7 +59,10 @@ export function ExperienceSheet({ result, onOpenChange, onCheckin }: ExperienceS
           className="fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] flex-col rounded-t-2xl bg-paper-cream shadow-2xl outline-none"
           aria-describedby={undefined}
         >
-          <div className="mx-auto mt-2 mb-1 h-1.5 w-12 rounded-full bg-ink-warm/20" aria-hidden="true" />
+          <div
+            className="mx-auto mt-2 mb-1 h-1.5 w-12 rounded-full bg-ink-warm/20"
+            aria-hidden="true"
+          />
           {result ? (
             <SheetBody
               result={result}
@@ -126,7 +134,9 @@ function SheetBody({
               <li key={i} className="flex gap-2">
                 <span className="text-ink-warm/50">•</span>
                 <span>
-                  <span className="text-xs uppercase tracking-wide text-warm-amber">{r.category}</span>{" "}
+                  <span className="text-xs uppercase tracking-wide text-warm-amber">
+                    {r.category}
+                  </span>{" "}
                   {r.text}
                 </span>
               </li>
@@ -154,10 +164,16 @@ function SheetBody({
 
       <Section title="Solo score">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold text-ink-warm">{exp.soloScore.overall.toFixed(0)}</span>
-          <span className="text-xs text-ink-warm/60">/ 10 · based on {exp.soloScore.basedOnCount} reports</span>
+          <span className="text-2xl font-semibold text-ink-warm">
+            {exp.soloScore.overall.toFixed(0)}
+          </span>
+          <span className="text-xs text-ink-warm/60">
+            / 10 · based on {exp.soloScore.basedOnCount} reports
+          </span>
         </div>
-        {exp.soloScore.hint && <p className="mt-1 text-sm text-ink-warm/70">{exp.soloScore.hint}</p>}
+        {exp.soloScore.hint && (
+          <p className="mt-1 text-sm text-ink-warm/70">{exp.soloScore.hint}</p>
+        )}
       </Section>
 
       <Section title="Confidence">
@@ -169,7 +185,9 @@ function SheetBody({
           />
           <span className="capitalize">{healthLabel[result.health]}</span>
           <span className="text-ink-warm/50">·</span>
-          <span className="text-ink-warm/60">verified {verifiedDate.toISOString().slice(0, 10)}</span>
+          <span className="text-ink-warm/60">
+            verified {verifiedDate.toISOString().slice(0, 10)}
+          </span>
         </div>
         <p className="mt-1 text-xs text-ink-warm/60">{exp.confidence.reason}</p>
       </Section>
@@ -184,7 +202,12 @@ function SheetBody({
                 {s.url && (
                   <>
                     {" · "}
-                    <a className="text-deep-teal hover:underline" href={s.url} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className="text-deep-teal hover:underline"
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       link
                     </a>
                   </>
@@ -195,15 +218,27 @@ function SheetBody({
         </Section>
       )}
 
-      <CheckinControl checkinState={checkinState} pendingRating={pendingRating} onCheckin={onCheckin} />
+      <CheckinControl
+        checkinState={checkinState}
+        pendingRating={pendingRating}
+        onCheckin={onCheckin}
+      />
     </div>
   );
 }
 
-function Section({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  readonly title: string;
+  readonly children: React.ReactNode;
+}) {
   return (
     <section className="mb-4">
-      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-warm/50">{title}</h3>
+      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-warm/50">
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -221,7 +256,8 @@ function CheckinControl({
   if (checkinState === "done") {
     return (
       <div className="mt-2 rounded-xl bg-soft-green/30 px-4 py-3 text-center text-sm text-ink-warm">
-        Marked as done{pendingRating ? ` · ${pendingRating}/5` : ""}. Thanks — this lifts the confidence dot.
+        Marked as done{pendingRating ? ` · ${pendingRating}/5` : ""}. Thanks — this lifts the
+        confidence dot.
       </div>
     );
   }

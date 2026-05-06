@@ -119,7 +119,10 @@ export function MapView({ results, onSelect, selectedId, onCenterChange }: MapVi
 
       const el = document.createElement("button");
       el.type = "button";
-      el.setAttribute("aria-label", `${exp.title}, solo score ${exp.soloScore.overall}, ${healthLabel[health]}`);
+      el.setAttribute(
+        "aria-label",
+        `${exp.title}, solo score ${exp.soloScore.overall}, ${healthLabel[health]}`,
+      );
       el.className = [
         "relative flex h-11 w-11 items-center justify-center rounded-full",
         "bg-paper-cream/95 shadow-md ring-1 ring-ink-warm/15",
@@ -148,7 +151,8 @@ export function MapView({ results, onSelect, selectedId, onCenterChange }: MapVi
       // Confidence dot (bottom-right)
       const dot = document.createElement("span");
       dot.setAttribute("aria-hidden", "true");
-      dot.className = "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-1 ring-paper-cream";
+      dot.className =
+        "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-1 ring-paper-cream";
       dot.style.backgroundColor = healthColor[health];
       el.appendChild(dot);
 
