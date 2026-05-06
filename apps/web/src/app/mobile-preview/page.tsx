@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { WEB_CATS, WEB_EXPS, type WebExperience } from "@/lib/lisbon-data";
 import { WebLisbonMap } from "@/components/lisbon/WebLisbonMap";
+import { CommandPalette } from "@/components/lisbon/CommandPalette";
 
 const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
@@ -89,6 +90,7 @@ export default function MobilePreviewPage() {
   );
   const [showHint, setShowHint] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const sortedExps = useMemo(() => [...WEB_EXPS].sort((a, b) => a.walkMin - b.walkMin), []);
 
@@ -174,6 +176,12 @@ export default function MobilePreviewPage() {
         sheetExpanded={sheetExpanded}
         toggleSheet={() => setSheetExpanded((v) => !v)}
         setLang={setLang}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        lang={lang}
       />
     </div>
   );
@@ -191,6 +199,7 @@ interface PhoneFrameProps {
   sheetExpanded: boolean;
   toggleSheet: () => void;
   setLang: (l: Lang) => void;
+  onOpenPalette: () => void;
 }
 
 function PhoneFrame(p: PhoneFrameProps) {
@@ -340,6 +349,24 @@ function PhoneFrame(p: PhoneFrameProps) {
             {p.T.youAreIn}
           </div>
         </div>
+        <button
+          type="button"
+          onClick={p.onOpenPalette}
+          aria-label="Open command palette"
+          style={{
+            padding: "5px 8px",
+            borderRadius: 5,
+            background: "transparent",
+            border: "0.5px solid var(--dark-border-strong)",
+            color: "var(--dark-fg-muted)",
+            fontFamily: FONT_MONO,
+            fontSize: 10,
+            cursor: "pointer",
+            letterSpacing: 0.4,
+          }}
+        >
+          ⌘K
+        </button>
         <button
           type="button"
           onClick={() => p.setLang(p.lang === "zh" ? "en" : "zh")}

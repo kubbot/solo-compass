@@ -1,21 +1,15 @@
-"use client";
-
 /**
- * Scenario C — `/trip/[slug]`
+ * Scenario C — `/trip/[slug]` (server component)
  * Public, shareable trip recap. 760-wide article, magazine-style.
  *
- * Layout:
- *   - Browser bar mock with Share button
- *   - Hero: eyebrow / Fraunces serif title / intro / 4-col stats row
- *   - Pull quote with accent left-border
- *   - Day cards (60 / 1fr / 80 grid)
- *   - Dark CTA panel
- *   - Footer credit
+ * Server-rendered for SEO. `generateMetadata` produces title /
+ * description / OpenGraph / Twitter from the in-memory trip dataset.
+ * Sibling `opengraph-image.tsx` auto-supplies the OG image.
  */
 
 import Link from "next/link";
-import { notFound, useParams, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { findTripBySlug, type Trip } from "@/lib/trips-data";
 
 const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
@@ -25,11 +19,62 @@ const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
 
 type Lang = "zh" | "en";
 
-export default function TripPage() {
-  const params = useParams<{ slug: string }>();
-  const search = useSearchParams();
-  const lang: Lang = search.get("lang") === "en" ? "en" : "zh";
-  const trip = useMemo(() => findTripBySlug(params.slug), [params.slug]);
+interface PageProps {
+  readonly params: Promise<{ slug: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function resolveLang(
+  searchParams: Record<string, string | string[] | undefined>,
+): Lang {
+  const v = searchParams.lang;
+  const single = Array.isArray(v) ? v[0] : v;
+  return single === "en" ? "en" : "zh";
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const sp = await searchParams;
+  const lang = resolveLang(sp);
+  const trip = findTripBySlug(slug);
+  if (!trip) return { title: "Solo Compass — Not found" };
+
+  const title = lang === "zh" ? trip.titleZh : trip.titleEn;
+  const description = lang === "zh" ? trip.introZh : trip.intro;
+  const fullTitle = `${title} — ${trip.author} · Solo Compass`;
+
+  return {
+    title: fullTitle,
+    description,
+    openGraph: {
+      title: fullTitle,
+      description,
+      type: "article",
+      siteName: "Solo Compass",
+      locale: lang === "zh" ? "zh_CN" : "en_US",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+    },
+    alternates: {
+      languages: {
+        en: `/trip/${slug}?lang=en`,
+        zh: `/trip/${slug}`,
+      },
+    },
+  };
+}
+
+export default async function TripPage({ params, searchParams }: PageProps) {
+  const { slug } = await params;
+  const sp = await searchParams;
+  const lang = resolveLang(sp);
+  const trip = findTripBySlug(slug);
   if (!trip) notFound();
   return <TripRecap trip={trip} lang={lang} />;
 }

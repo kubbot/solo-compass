@@ -18,11 +18,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   WEB_CATS,
-  WEB_CITY,
-  findExperienceById,
-  nearbyExperiences,
   type WebExperience,
 } from "@/lib/lisbon-data";
+import { findExperienceAcrossCities, type WebCity } from "@/lib/cities-data";
 
 const FONT_DISPLAY =
   '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
@@ -52,14 +50,15 @@ export async function generateMetadata({
   const { id } = await params;
   const sp = await searchParams;
   const lang = resolveLang(sp);
-  const exp = findExperienceById(id);
-  if (!exp) return { title: "Solo Compass — Not found" };
+  const found = findExperienceAcrossCities(id);
+  if (!found) return { title: "Solo Compass — Not found" };
+  const { exp, city } = found;
 
   const title = lang === "zh" ? exp.titleZh : exp.title;
   const place = lang === "zh" ? exp.placeZh : exp.place;
   const description = lang === "zh" ? exp.whyZh : exp.why;
   const fullTitle = `${title} — ${place} · ${
-    lang === "zh" ? WEB_CITY.zh : WEB_CITY.en
+    lang === "zh" ? city.zh : city.en
   } · Solo Compass`;
 
   return {
@@ -93,20 +92,28 @@ export default async function ExperiencePage({
   const { id } = await params;
   const sp = await searchParams;
   const lang = resolveLang(sp);
-  const exp = findExperienceById(id);
-  if (!exp) notFound();
-  const nearby = nearbyExperiences(exp, 2);
-  return <ExperienceView exp={exp} nearby={nearby} lang={lang} />;
+  const found = findExperienceAcrossCities(id);
+  if (!found) notFound();
+  const { exp, city } = found;
+  const nearby = city.experiences
+    .filter((e) => e.id !== exp.id)
+    .map((e) => ({ e, d: Math.hypot(exp.x - e.x, exp.y - e.y) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 2)
+    .map((x) => x.e);
+  return <ExperienceView exp={exp} nearby={nearby} lang={lang} city={city} />;
 }
 
 function ExperienceView({
   exp,
   nearby,
   lang,
+  city,
 }: {
   exp: WebExperience;
   nearby: readonly WebExperience[];
   lang: Lang;
+  city: WebCity;
 }) {
   const cat = WEB_CATS[exp.cat];
   const fontStack = lang === "zh" ? FONT_CN : FONT_DISPLAY;
@@ -120,7 +127,7 @@ function ExperienceView({
   const T =
     lang === "zh"
       ? {
-          breadcrumb: `${WEB_CITY.zh} · ${cat.zh}`,
+          breadcrumb: `${city.zh} · ${cat.zh}`,
           quickFacts: "速览",
           forYou: "为你推荐",
           when: "什么时候去",
@@ -131,11 +138,11 @@ function ExperienceView({
           viewMap: "在地图上看",
           metaSeo:
             "这一页是 Solo Compass 写的——一份只为独自旅行的人做的、由 AI 整理但人去过的指南。",
-          backToLisbon: "← 回到 里斯本",
+          backToCity: `← 回到 ${city.zh}`,
           mins: "分钟",
         }
       : {
-          breadcrumb: `${WEB_CITY.en} · ${cat.en}`,
+          breadcrumb: `${city.en} · ${cat.en}`,
           quickFacts: "Quick facts",
           forYou: "For you",
           when: "When to go",
@@ -146,7 +153,7 @@ function ExperienceView({
           viewMap: "View on map",
           metaSeo:
             "This page is by Solo Compass — a guide for people traveling alone, organized by AI but written by people who've been there.",
-          backToLisbon: "← Back to Lisbon",
+          backToCity: `← Back to ${city.en}`,
           mins: "min",
         };
 
@@ -219,10 +226,10 @@ function ExperienceView({
               letterSpacing: 0.3,
             }}
           >
-            compass.io / {WEB_CITY.slug} / {exp.id}
+            compass.io / {city.slug} / {exp.id}
           </div>
           <Link
-            href={`/lisbon${lang === "en" ? "?lang=en" : ""}`}
+            href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
             style={{
               fontFamily: FONT_MONO,
               fontSize: 10.5,
@@ -234,7 +241,7 @@ function ExperienceView({
               background: "#FFF",
             }}
           >
-            {T.backToLisbon}
+            {T.backToCity}
           </Link>
         </div>
 
@@ -475,7 +482,7 @@ function ExperienceView({
               }}
             >
               <Link
-                href={`/lisbon${lang === "en" ? "?lang=en" : ""}`}
+                href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 5,
@@ -493,7 +500,7 @@ function ExperienceView({
                 + {T.addToTrip}
               </Link>
               <Link
-                href={`/lisbon${lang === "en" ? "?lang=en" : ""}`}
+                href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 5,

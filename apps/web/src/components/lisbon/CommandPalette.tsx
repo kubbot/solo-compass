@@ -13,10 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   WEB_CATS,
-  WEB_CITY,
-  WEB_EXPS,
   type WebExperience,
 } from "@/lib/lisbon-data";
+import { CITIES, CITY_ORDER } from "@/lib/cities-data";
 import { TRIPS } from "@/lib/trips-data";
 
 const FONT_DISPLAY =
@@ -59,6 +58,15 @@ function buildItems(lang: Lang): readonly PaletteItem[] {
       accent: "#C98628",
     },
     {
+      id: "scenario-porto",
+      kind: "scenario",
+      title: lang === "zh" ? "波尔图（预览）" : "Porto (preview)",
+      subtitle: "/porto",
+      hint: "City · index",
+      href: `/porto${langSuffix}`,
+      accent: "#A66A00",
+    },
+    {
       id: "scenario-mobile-preview",
       kind: "scenario",
       title: lang === "zh" ? "手机浏览器预览" : "Mobile preview",
@@ -78,19 +86,24 @@ function buildItems(lang: Lang): readonly PaletteItem[] {
     },
   ];
 
-  const experiences: PaletteItem[] = WEB_EXPS.map((e) => {
-    const cat = WEB_CATS[e.cat];
-    const title = lang === "zh" ? e.titleZh : e.title;
-    const place = lang === "zh" ? e.placeZh : e.place;
-    return {
-      id: `exp-${e.id}`,
-      kind: "experience" as const,
-      title,
-      subtitle: `${place} · ${e.neighborhood}`,
-      hint: cat.short,
-      href: `/experience/${e.id}${langSuffix}`,
-      accent: cat.color,
-    };
+  const experiences: PaletteItem[] = CITY_ORDER.flatMap((slug) => {
+    const city = CITIES[slug];
+    if (!city) return [];
+    return city.experiences.map((e) => {
+      const cat = WEB_CATS[e.cat];
+      const title = lang === "zh" ? e.titleZh : e.title;
+      const place = lang === "zh" ? e.placeZh : e.place;
+      const cityLabel = lang === "zh" ? city.zh : city.en;
+      return {
+        id: `exp-${e.id}`,
+        kind: "experience" as const,
+        title,
+        subtitle: `${place} · ${e.neighborhood} · ${cityLabel}`,
+        hint: cat.short,
+        href: `/experience/${e.id}${langSuffix}`,
+        accent: cat.color,
+      };
+    });
   });
 
   const trips: PaletteItem[] = Object.values(TRIPS).map((t) => ({
@@ -141,7 +154,11 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
   const items = useMemo(() => buildItems(lang), [lang]);
   const expById = useMemo(() => {
     const map = new Map<string, WebExperience>();
-    for (const e of WEB_EXPS) map.set(e.id, e);
+    for (const slug of CITY_ORDER) {
+      const city = CITIES[slug];
+      if (!city) continue;
+      for (const e of city.experiences) map.set(e.id, e);
+    }
     return map;
   }, []);
 
@@ -406,7 +423,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
           <span style={{ color: "var(--dark-border-strong)" }}>·</span>
           <span>↵ {lang === "zh" ? "跳转" : "go"}</span>
           <span style={{ flex: 1 }} />
-          <span>{WEB_CITY.cityDeck.length} cities</span>
+          <span>{CITY_ORDER.length} cities</span>
         </div>
       </div>
     </div>

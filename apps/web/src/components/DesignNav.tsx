@@ -12,6 +12,7 @@ import Link from "next/link";
 
 const ITEMS = [
   { href: "/lisbon", label: "Lisbon · A" },
+  { href: "/porto", label: "Porto" },
   { href: "/mobile-preview", label: "Mobile · B" },
   { href: "/trip/sofia-lisbon-may-2025", label: "Trip · C" },
   { href: "/experience/miradouro-graca", label: "Experience · D" },
