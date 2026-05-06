@@ -11,11 +11,12 @@ The web app serves four scenarios the iOS app cannot:
 3. **Post-trip sharing** — public URLs, OG images, recap pages
 4. **SEO entry** — Google indexes us; iOS App Store doesn't
 
-**Read [`docs/WEB_DESIGN.md`](../../docs/WEB_DESIGN.md) before opening any web PR.** That document is the definitive answer to "what does the web do?" — including the anti-goals list (what web should *not* do).
+**Read [`docs/WEB_DESIGN.md`](../../docs/WEB_DESIGN.md) before opening any web PR.** That document is the definitive answer to "what does the web do?" — including the anti-goals list (what web should _not_ do).
 
 ## Status
 
 🚧 Foundation phase. Not yet running. See open issues:
+
 - #41 — umbrella scenario tracking
 - #42 — Scenario A (desktop research view)
 - #43 — Scenario B (mobile zero-install funnel)

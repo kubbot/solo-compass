@@ -12,13 +12,13 @@ Web has its own job. iOS has its own job. They serve **different scenarios at di
 
 ## The complementary role
 
-| Phase | Device | Posture | Best served by |
-|---|---|---|---|
-| Pre-trip | Desktop, multiple tabs, planning | Researching, comparing, deciding | **Web** |
-| On the ground (no app) | Phone browser, standing on street | "Let me try this without installing" | **Web** (try-before-install) |
-| On the ground (installed) | Phone, walking, deciding next move | "Where should I go now? Auto-detect when I arrive" | **iOS** |
-| Post-trip | Desktop, leisurely | "Look back, share with friends" | **Web** |
-| Long-tail discovery | Anyone Googling a city | "Find the best quiet café in Chiang Mai" | **Web** (SEO) |
+| Phase                     | Device                             | Posture                                            | Best served by               |
+| ------------------------- | ---------------------------------- | -------------------------------------------------- | ---------------------------- |
+| Pre-trip                  | Desktop, multiple tabs, planning   | Researching, comparing, deciding                   | **Web**                      |
+| On the ground (no app)    | Phone browser, standing on street  | "Let me try this without installing"               | **Web** (try-before-install) |
+| On the ground (installed) | Phone, walking, deciding next move | "Where should I go now? Auto-detect when I arrive" | **iOS**                      |
+| Post-trip                 | Desktop, leisurely                 | "Look back, share with friends"                    | **Web**                      |
+| Long-tail discovery       | Anyone Googling a city             | "Find the best quiet café in Chiang Mai"           | **Web** (SEO)                |
 
 Three of these five are Web's home turf. iOS owns the middle one — the live, in-motion, automated one — and that's plenty for iOS to be the "real product."
 
@@ -56,7 +56,7 @@ Three of these five are Web's home turf. iOS owns the middle one — the live, i
 **Don't:**
 
 - Don't pretend to be the iOS app. Embrace being a great mobile website, not a sad fake app.
-- Don't gate features behind login. Login is for *syncing*, not for *trying*.
+- Don't gate features behind login. Login is for _syncing_, not for _trying_.
 - Don't shove the iOS app prompt in the user's face. Earn the suggestion by giving value first.
 
 ### Scenario C — Post-trip recap & sharing
@@ -110,27 +110,27 @@ Three of these five are Web's home turf. iOS owns the middle one — the live, i
 
 ## The anti-goals (what web does NOT do)
 
-| Don't do | Why |
-|---|---|
-| Background GPS / automatic check-in | Browsers can't. iOS does this; let iOS shine. |
-| Push notifications as a primary interaction | Web Push UX is awful; users decline; we look pushy. |
-| Try to be a "complete PWA" replacing the iOS app | Creates competing posture, dilutes both. |
-| Force registration to view content | Defeats SEO and try-before-install. |
-| Voice as primary input | On desktop, the keyboard wins. Voice stays available but is not the headline. |
-| Animations that mimic native | Mobile web should feel like a great website, not a fake app. |
-| Push for app install before delivering value | Earn the install. Suggest it after the user has gotten value. |
+| Don't do                                         | Why                                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Background GPS / automatic check-in              | Browsers can't. iOS does this; let iOS shine.                                 |
+| Push notifications as a primary interaction      | Web Push UX is awful; users decline; we look pushy.                           |
+| Try to be a "complete PWA" replacing the iOS app | Creates competing posture, dilutes both.                                      |
+| Force registration to view content               | Defeats SEO and try-before-install.                                           |
+| Voice as primary input                           | On desktop, the keyboard wins. Voice stays available but is not the headline. |
+| Animations that mimic native                     | Mobile web should feel like a great website, not a fake app.                  |
+| Push for app install before delivering value     | Earn the install. Suggest it after the user has gotten value.                 |
 
 ## Technical decisions, locked in
 
-| Decision | Choice | Reason |
-|---|---|---|
-| Framework | Next.js 15 App Router | Mix of SSG (SEO pages) and SSR (research view) |
-| Map | Mapbox GL JS | Custom warm style, desktop performance, broad browser support |
-| State | URL as state + RSC | Sharing-friendly, no Redux complexity |
-| Styling | Tailwind + shadcn/ui | Speed of iteration; single design system across web |
-| Auth | Supabase email magic link | Optional, never required for content |
-| Deploy | Vercel | Native Next.js, free tier covers Phase 2 |
-| Mobile strategy | Same code + responsive | Single codebase. No separate mobile site. |
+| Decision        | Choice                    | Reason                                                        |
+| --------------- | ------------------------- | ------------------------------------------------------------- |
+| Framework       | Next.js 15 App Router     | Mix of SSG (SEO pages) and SSR (research view)                |
+| Map             | Mapbox GL JS              | Custom warm style, desktop performance, broad browser support |
+| State           | URL as state + RSC        | Sharing-friendly, no Redux complexity                         |
+| Styling         | Tailwind + shadcn/ui      | Speed of iteration; single design system across web           |
+| Auth            | Supabase email magic link | Optional, never required for content                          |
+| Deploy          | Vercel                    | Native Next.js, free tier covers Phase 2                      |
+| Mobile strategy | Same code + responsive    | Single codebase. No separate mobile site.                     |
 
 ## How to use this document
 
@@ -140,7 +140,7 @@ When a feature lands on someone's desk:
 2. Check the anti-goals. If it violates one, surface that in the PR description.
 3. Cross-reference with `docs/PRODUCT_BRIEF.md` to ensure it doesn't violate the three pillars.
 
-If a proposed feature serves all four scenarios, it's likely too generic — go deeper into which scenario it serves *best*.
+If a proposed feature serves all four scenarios, it's likely too generic — go deeper into which scenario it serves _best_.
 
 ## Linked
 
