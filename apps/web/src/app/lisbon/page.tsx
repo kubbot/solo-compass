@@ -20,6 +20,7 @@ import {
   type WebExperience,
 } from "@/lib/lisbon-data";
 import { WebLisbonMap } from "@/components/lisbon/WebLisbonMap";
+import { CommandPalette } from "@/components/lisbon/CommandPalette";
 
 const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
@@ -111,6 +112,7 @@ export default function LisbonPage() {
   const [focusedId, setFocusedId] = useState<string | null>("miradouro-graca");
   const [activeCat, setActiveCat] = useState<WebCategoryId | null>(null);
   const [activeSort, setActiveSort] = useState<Sort>("curated");
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const filtered = useMemo(
     () => (activeCat ? WEB_EXPS.filter((e) => e.cat === activeCat) : WEB_EXPS),
@@ -139,7 +141,13 @@ export default function LisbonPage() {
         overflow: "hidden",
       }}
     >
-      <TopBar T={T} lang={lang} setLang={setLang} fontStack={fontStack} />
+      <TopBar
+        T={T}
+        lang={lang}
+        setLang={setLang}
+        fontStack={fontStack}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <ListColumn
           T={T}
@@ -165,6 +173,11 @@ export default function LisbonPage() {
         />
       </div>
       <StatusBar T={T} lang={lang} />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        lang={lang}
+      />
     </div>
   );
 }
@@ -175,11 +188,13 @@ function TopBar({
   lang,
   setLang,
   fontStack,
+  onOpenPalette,
 }: {
   T: Strings;
   lang: Lang;
   setLang: (n: Lang) => void;
   fontStack: string;
+  onOpenPalette: () => void;
 }) {
   return (
     <div
@@ -257,7 +272,10 @@ function TopBar({
         </button>
       </div>
       <div style={{ flex: 1 }} />
-      <div
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        aria-label="Open command palette"
         style={{
           height: 28,
           width: 320,
@@ -268,6 +286,8 @@ function TopBar({
           alignItems: "center",
           padding: "0 10px",
           gap: 8,
+          cursor: "pointer",
+          textAlign: "left",
         }}
       >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -296,7 +316,7 @@ function TopBar({
         >
           ⌘ K
         </span>
-      </div>
+      </button>
       <div style={{ width: 12 }} />
       <div
         style={{
