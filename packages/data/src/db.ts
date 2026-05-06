@@ -5,7 +5,13 @@ import type { Experience, ExperienceId } from "@solo-compass/core";
 // These mirror the SQL schema, not the TS domain types.
 // The repository layer translates between the two.
 
+// Row interfaces need `[key: string]: unknown` so they satisfy
+// `Record<string, unknown>` as required by @supabase/postgrest-js GenericTable.Row.
+// This is a Supabase v2 convention — the index signature doesn't widen the
+// known typed fields, it just makes the structural check pass.
+
 export interface ExperienceRow {
+  [key: string]: unknown;
   id: string;
   title: string;
   one_liner: string;
@@ -35,18 +41,27 @@ export interface ExperienceRow {
 }
 
 export interface UserRow {
+  [key: string]: unknown;
   id: string;
   handle: string;
   created_at: string;
 }
 
 export interface CompletionRow {
+  [key: string]: unknown;
   id: string;
   user_id: string;
   experience_id: string;
   completed_at: string;
   rating: number | null;
   note: string | null;
+}
+
+export interface TrafficPingRow {
+  [key: string]: unknown;
+  experience_id: string;
+  anon_id: string;
+  pinged_at: string;
 }
 
 export interface Database {
@@ -59,11 +74,13 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<ExperienceRow>;
+        Relationships: never[];
       };
       users: {
         Row: UserRow;
         Insert: Omit<UserRow, "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<UserRow>;
+        Relationships: never[];
       };
       completions: {
         Row: CompletionRow;
@@ -72,8 +89,18 @@ export interface Database {
           completed_at?: string;
         };
         Update: Partial<CompletionRow>;
+        Relationships: never[];
+      };
+      traffic_pings: {
+        Row: TrafficPingRow;
+        Insert: Omit<TrafficPingRow, "pinged_at"> & { pinged_at?: string };
+        Update: Partial<TrafficPingRow>;
+        Relationships: never[];
       };
     };
+    // Required by @supabase/postgrest-js GenericSchema — keep empty if unused.
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }
 

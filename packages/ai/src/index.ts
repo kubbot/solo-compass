@@ -10,3 +10,9 @@ export type {
   RankExperiencesResult,
   RankedExperience,
 } from "./prompts/rank-experiences";
+
+export { parseIntent } from "./parse-intent";
+export type { IntentFilters } from "./parse-intent";
+
+export { trackCost, withCostTracking } from "./cost-tracker";
+export type { CostSnapshot } from "./cost-tracker";
