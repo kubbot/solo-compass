@@ -183,21 +183,12 @@ platform :ios do
       end
     end
 
-    # Build number = GITHUB_RUN_NUMBER + 1000000 offset.
-    # Offset ensures the value is always greater than the legacy composite
-    # build numbers (e.g. 660026) uploaded before this scheme was adopted.
-    # ASC requires CFBundleVersion to be a strictly increasing plain integer.
-    # Falls back to git commit count + offset for local builds.
-    BASE_OFFSET = 1_000_000
-    run_number = ENV["GITHUB_RUN_NUMBER"].to_s.strip
-    if run_number.empty?
-      git_count = sh("git rev-list --count HEAD").strip.to_i
-      build_number = (git_count + BASE_OFFSET).to_s
-    else
-      build_number = (run_number.to_i + BASE_OFFSET).to_s
-    end
+    # Build number = git commit count (monotonically increasing, no CI dependency).
+    # On CI the workflow already patches pbxproj via sed before Fastlane runs;
+    # this call acts as a fallback for local builds and keeps the value consistent.
+    build_number = sh("git rev-list --count HEAD").strip
     set_pbxproj_version("CURRENT_PROJECT_VERSION", build_number)
-    UI.message "Build number set to #{build_number} (GITHUB_RUN_NUMBER=#{run_number.empty? ? 'N/A' : run_number} + offset=#{BASE_OFFSET})"
+    UI.message "Build number set to #{build_number} (git commit count)"
   end
 
   error do |lane, exception|

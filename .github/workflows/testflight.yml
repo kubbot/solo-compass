@@ -133,7 +133,14 @@ jobs:
           fi
 
           sed -i '' -e 's/\r$//' "$CHANGELOG_FILE" || true
-          sed -i '' -e 's/✅/[x]/g' -e 's/❌/[ ]/g' "$CHANGELOG_FILE" || true
+          sed -i '' \
+            -e 's/\[✓\]/[x]/g' \
+            -e 's/\[✗\]/[ ]/g' \
+            -e 's/✓/[x]/g'    \
+            -e 's/✗/[ ]/g'    \
+            -e 's/✅/[x]/g'   \
+            -e 's/❌/[ ]/g'   \
+            "$CHANGELOG_FILE" || true
           head -c 3800 "$CHANGELOG_FILE" > "$CHANGELOG_FILE.trimmed"
           mv "$CHANGELOG_FILE.trimmed" "$CHANGELOG_FILE"
 
@@ -145,6 +152,12 @@ jobs:
         with:
           ruby-version: "3.1"
           bundler-cache: true
+
+      # ── 4b. Validate Fastfile syntax ─────────────────────────────────────
+      - name: Validate Fastfile
+        run: |
+          ruby -c fastlane/Fastfile
+          bundle exec fastlane lanes > /dev/null
 
       # ── 5. Generate .xcodeproj from project.yml ──────────────────────────
       - name: Install XcodeGen
@@ -161,8 +174,8 @@ jobs:
       # CFBundleVersion. Must run before Cache DerivedData (key hashes pbxproj).
       - name: Patch build number in pbxproj
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 1000000 ))
-          echo "Patching CURRENT_PROJECT_VERSION -> $BUILD_NUMBER"
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          echo "Patching CURRENT_PROJECT_VERSION -> $BUILD_NUMBER (git commit count)"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" \
             apps/ios/SoloCompass.xcodeproj/project.pbxproj
           grep "CURRENT_PROJECT_VERSION" apps/ios/SoloCompass.xcodeproj/project.pbxproj
