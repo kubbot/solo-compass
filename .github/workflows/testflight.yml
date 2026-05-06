@@ -44,6 +44,12 @@ jobs:
           persist-credentials: true
 
       # ── 2. Compute next version ──────────────────────────────────────────
+      # Version scheme: 1.0.1, 1.0.2, 1.0.3 ... (patch auto-bump on every merge)
+      # Rules:
+      #   1) workflow_dispatch + version_override → use override (must be unused tag)
+      #   2) Latest v*.*.* tag exists            → patch+1, loop until unused tag found
+      #   3) No tag yet                          → read MARKETING_VERSION from project.yml
+      #                                            fallback to 1.0.1
       - name: Compute next version
         id: version
         run: |
@@ -65,6 +71,7 @@ jobs:
               echo "::error::Tag $TAG already exists. Pick a different version_override."
               exit 1
             fi
+            echo "Using manual override: $NEXT"
           else
             LAST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 || true)
             if [ -n "$LAST_TAG" ]; then
@@ -79,28 +86,30 @@ jobs:
                   echo "Bumping from $LAST_TAG → $TAG (tried $i candidate(s))"
                   break
                 fi
+                echo "Candidate v$CANDIDATE already exists, trying next patch"
               done
               if [ -z "${NEXT:-}" ]; then
                 echo "::error::Could not find an unused patch within 50 attempts."
                 exit 1
               fi
             else
-              # Read MARKETING_VERSION from pbxproj (authoritative after xcodegen).
-              # Info.plist contains $(MARKETING_VERSION) placeholder, not the real value.
-              CURRENT=$(grep -m1 -E 'MARKETING_VERSION = ' apps/ios/SoloCompass.xcodeproj/project.pbxproj \
-                | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' || true)
+              # No tag yet — read MARKETING_VERSION from project.yml as starting point.
+              # project.yml is the source of truth; pbxproj is generated from it.
+              CURRENT=$(grep -m1 'MARKETING_VERSION' apps/ios/project.yml \
+                | sed -E 's/.*MARKETING_VERSION:[[:space:]]*"?([^"]+)"?.*/\1/' | tr -d ' ' || true)
               if [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 NEXT="$CURRENT"
               elif [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+$ ]]; then
                 NEXT="${CURRENT}.0"
               else
-                NEXT="0.1.0"
+                NEXT="1.0.1"
               fi
               TAG="v$NEXT"
               if tag_exists "$TAG"; then
                 echo "::error::Fallback $TAG already exists. Set version_override."
                 exit 1
               fi
+              echo "No tag found, using project.yml MARKETING_VERSION=$CURRENT → $TAG"
             fi
           fi
 
