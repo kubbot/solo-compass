@@ -1,28 +1,23 @@
-"use client";
-
 /**
- * Scenario D — `/experience/[id]`
- * Magazine-style deep-link page. Optimized for landing from Google.
+ * Scenario D — `/experience/[id]` (server component)
+ *
+ * Server-rendered for proper SEO. `generateMetadata` produces title /
+ * description / OpenGraph / Twitter from the in-memory Lisbon dataset.
  *
  * Layout:
  *   - Browser bar mock + breadcrumb
- *   - Title block with serif italic + accent subtitle + lede paragraph
- *   - Two-column body: narrative ("The moment", "When to go") + Quick Facts aside
+ *   - Title block (serif italic on en, PingFang SC on zh) with category color wash
+ *   - Two-column body: narrative + Quick Facts aside
  *   - "For you" AI block
  *   - Nearby cards (links to other /experience/[id])
  *   - Footer credit
  */
 
 import Link from "next/link";
-import { notFound, useParams, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
-import {
-  WEB_CATS,
-  WEB_CITY,
-  findExperienceById,
-  nearbyExperiences,
-  type WebExperience,
-} from "@/lib/lisbon-data";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { WEB_CATS, type WebExperience } from "@/lib/lisbon-data";
+import { findExperienceAcrossCities, type WebCity } from "@/lib/cities-data";
 
 const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
@@ -31,24 +26,80 @@ const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
 
 type Lang = "zh" | "en";
 
-export default function ExperiencePage() {
-  const params = useParams<{ id: string }>();
-  const search = useSearchParams();
-  const lang: Lang = search.get("lang") === "en" ? "en" : "zh";
-  const exp = useMemo(() => findExperienceById(params.id), [params.id]);
-  const nearby = useMemo(() => (exp ? nearbyExperiences(exp, 2) : []), [exp]);
-  if (!exp) notFound();
-  return <ExperienceView exp={exp} nearby={nearby} lang={lang} />;
+interface PageProps {
+  readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function resolveLang(searchParams: Record<string, string | string[] | undefined>): Lang {
+  const v = searchParams.lang;
+  const single = Array.isArray(v) ? v[0] : v;
+  return single === "en" ? "en" : "zh";
+}
+
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const sp = await searchParams;
+  const lang = resolveLang(sp);
+  const found = findExperienceAcrossCities(id);
+  if (!found) return { title: "Solo Compass — Not found" };
+  const { exp, city } = found;
+
+  const title = lang === "zh" ? exp.titleZh : exp.title;
+  const place = lang === "zh" ? exp.placeZh : exp.place;
+  const description = lang === "zh" ? exp.whyZh : exp.why;
+  const fullTitle = `${title} — ${place} · ${lang === "zh" ? city.zh : city.en} · Solo Compass`;
+
+  return {
+    title: fullTitle,
+    description,
+    openGraph: {
+      title: fullTitle,
+      description,
+      type: "article",
+      siteName: "Solo Compass",
+      locale: lang === "zh" ? "zh_CN" : "en_US",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+    },
+    alternates: {
+      languages: {
+        en: `/experience/${id}?lang=en`,
+        zh: `/experience/${id}`,
+      },
+    },
+  };
+}
+
+export default async function ExperiencePage({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const lang = resolveLang(sp);
+  const found = findExperienceAcrossCities(id);
+  if (!found) notFound();
+  const { exp, city } = found;
+  const nearby = city.experiences
+    .filter((e) => e.id !== exp.id)
+    .map((e) => ({ e, d: Math.hypot(exp.x - e.x, exp.y - e.y) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 2)
+    .map((x) => x.e);
+  return <ExperienceView exp={exp} nearby={nearby} lang={lang} city={city} />;
 }
 
 function ExperienceView({
   exp,
   nearby,
   lang,
+  city,
 }: {
   exp: WebExperience;
   nearby: readonly WebExperience[];
   lang: Lang;
+  city: WebCity;
 }) {
   const cat = WEB_CATS[exp.cat];
   const fontStack = lang === "zh" ? FONT_CN : FONT_DISPLAY;
@@ -62,7 +113,7 @@ function ExperienceView({
   const T =
     lang === "zh"
       ? {
-          breadcrumb: `${WEB_CITY.zh} · ${cat.zh}`,
+          breadcrumb: `${city.zh} · ${cat.zh}`,
           quickFacts: "速览",
           forYou: "为你推荐",
           when: "什么时候去",
@@ -73,11 +124,11 @@ function ExperienceView({
           viewMap: "在地图上看",
           metaSeo:
             "这一页是 Solo Compass 写的——一份只为独自旅行的人做的、由 AI 整理但人去过的指南。",
-          backToLisbon: "← 回到 里斯本",
+          backToCity: `← 回到 ${city.zh}`,
           mins: "分钟",
         }
       : {
-          breadcrumb: `${WEB_CITY.en} · ${cat.en}`,
+          breadcrumb: `${city.en} · ${cat.en}`,
           quickFacts: "Quick facts",
           forYou: "For you",
           when: "When to go",
@@ -88,7 +139,7 @@ function ExperienceView({
           viewMap: "View on map",
           metaSeo:
             "This page is by Solo Compass — a guide for people traveling alone, organized by AI but written by people who've been there.",
-          backToLisbon: "← Back to Lisbon",
+          backToCity: `← Back to ${city.en}`,
           mins: "min",
         };
 
@@ -125,7 +176,6 @@ function ExperienceView({
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}
       >
-        {/* Browser bar mock */}
         <div
           style={{
             padding: "11px 22px",
@@ -162,10 +212,10 @@ function ExperienceView({
               letterSpacing: 0.3,
             }}
           >
-            compass.io / {WEB_CITY.slug} / {exp.id}
+            compass.io / {city.slug} / {exp.id}
           </div>
           <Link
-            href={`/lisbon${lang === "en" ? "?lang=en" : ""}`}
+            href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
             style={{
               fontFamily: FONT_MONO,
               fontSize: 10.5,
@@ -177,11 +227,10 @@ function ExperienceView({
               background: "#FFF",
             }}
           >
-            {T.backToLisbon}
+            {T.backToCity}
           </Link>
         </div>
 
-        {/* Breadcrumb */}
         <div
           style={{
             padding: "20px 56px 0",
@@ -195,7 +244,6 @@ function ExperienceView({
           {T.breadcrumb}
         </div>
 
-        {/* Title block — soft category color wash on the panel */}
         <div
           style={{
             padding: "14px 56px 30px",
@@ -243,7 +291,6 @@ function ExperienceView({
           </div>
         </div>
 
-        {/* Two-column body */}
         <div
           style={{
             padding: "0 56px 32px",
@@ -304,7 +351,6 @@ function ExperienceView({
               {lang === "zh" ? exp.whyZh : exp.why}
             </p>
 
-            {/* AI for-you */}
             <div
               style={{
                 background: "#FFF7EA",
@@ -418,8 +464,8 @@ function ExperienceView({
                 gap: 6,
               }}
             >
-              <button
-                type="button"
+              <Link
+                href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 5,
@@ -430,12 +476,14 @@ function ExperienceView({
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: "pointer",
+                  textAlign: "center",
+                  textDecoration: "none",
                 }}
               >
                 + {T.addToTrip}
-              </button>
+              </Link>
               <Link
-                href={`/lisbon${lang === "en" ? "?lang=en" : ""}`}
+                href={`/${city.slug}${lang === "en" ? "?lang=en" : ""}`}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 5,
@@ -469,7 +517,6 @@ function ExperienceView({
           </aside>
         </div>
 
-        {/* Nearby */}
         {nearby.length > 0 && (
           <div style={{ padding: "0 56px 36px" }}>
             <div
@@ -571,7 +618,6 @@ function ExperienceView({
           </div>
         )}
 
-        {/* Footer */}
         <div
           style={{
             padding: "20px 56px",

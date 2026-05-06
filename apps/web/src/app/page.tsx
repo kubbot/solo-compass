@@ -5,6 +5,7 @@ import { MapView } from "@/components/MapView";
 import { ExperienceSheet } from "@/components/ExperienceSheet";
 import { InfoBar } from "@/components/InfoBar";
 import { VoiceIntent } from "@/components/VoiceIntent";
+import { DesignNav } from "@/components/DesignNav";
 import { useNearby } from "@/lib/use-nearby";
 import { track } from "@/lib/analytics";
 
@@ -66,6 +67,8 @@ function HomeInner() {
         selectedId={selectedId}
         onCenterChange={setCenter}
       />
+
+      <DesignNav />
 
       <VoiceIntent intent={intent} onIntentChange={handleIntentChange} />
 
