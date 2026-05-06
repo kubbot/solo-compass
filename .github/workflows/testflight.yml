@@ -155,6 +155,18 @@ jobs:
           cd apps/ios
           xcodegen generate --spec project.yml
 
+      # ── 5b. Patch build number in pbxproj AFTER xcodegen ─────────────────
+      # xcodegen bakes CURRENT_PROJECT_VERSION=1 from project.yml into the
+      # pbxproj. Override it here so Apple receives a strictly-increasing
+      # CFBundleVersion. Must run before Cache DerivedData (key hashes pbxproj).
+      - name: Patch build number in pbxproj
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 1000000 ))
+          echo "Patching CURRENT_PROJECT_VERSION -> $BUILD_NUMBER"
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" \
+            apps/ios/SoloCompass.xcodeproj/project.pbxproj
+          grep "CURRENT_PROJECT_VERSION" apps/ios/SoloCompass.xcodeproj/project.pbxproj
+
       # ── 6. Cache DerivedData ─────────────────────────────────────────────
       - name: Cache DerivedData
         uses: actions/cache@v4
