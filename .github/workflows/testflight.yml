@@ -168,17 +168,36 @@ jobs:
           cd apps/ios
           xcodegen generate --spec project.yml
 
-      # ── 5b. Patch build number in pbxproj AFTER xcodegen ─────────────────
-      # xcodegen bakes CURRENT_PROJECT_VERSION=1 from project.yml into the
-      # pbxproj. Override it here so Apple receives a strictly-increasing
-      # CFBundleVersion. Must run before Cache DerivedData (key hashes pbxproj).
-      - name: Patch build number in pbxproj
+      # ── 5b. Patch version after xcodegen ─────────────────────────────────
+      # xcodegen reads MARKETING_VERSION and CURRENT_PROJECT_VERSION from
+      # project.yml and bakes them as HARDCODED STRINGS into Info.plist
+      # (not as $(VAR) references). It also bakes them into pbxproj build
+      # settings. We must patch BOTH files after xcodegen runs.
+      - name: Patch version in Info.plist and pbxproj
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
-          echo "Patching CURRENT_PROJECT_VERSION -> $BUILD_NUMBER (git commit count)"
+          MARKETING="${RELEASE_VERSION:-0.1.0}"
+          echo "Patching Info.plist: CFBundleVersion=$BUILD_NUMBER CFBundleShortVersionString=$MARKETING"
+
+          # Patch Info.plist (xcodegen writes hardcoded values, not $(VAR) refs)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" \
+            apps/ios/SoloCompass/Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MARKETING" \
+            apps/ios/SoloCompass/Resources/Info.plist
+
+          echo "Patching pbxproj: CURRENT_PROJECT_VERSION=$BUILD_NUMBER MARKETING_VERSION=$MARKETING"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" \
             apps/ios/SoloCompass.xcodeproj/project.pbxproj
-          grep "CURRENT_PROJECT_VERSION" apps/ios/SoloCompass.xcodeproj/project.pbxproj
+          sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = $MARKETING;/g" \
+            apps/ios/SoloCompass.xcodeproj/project.pbxproj
+
+          echo "--- Info.plist after patch ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" apps/ios/SoloCompass/Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" apps/ios/SoloCompass/Resources/Info.plist
+          echo "--- pbxproj after patch ---"
+          grep "CURRENT_PROJECT_VERSION\|MARKETING_VERSION" apps/ios/SoloCompass.xcodeproj/project.pbxproj
 
 
       # ── 7. Write .env from GitHub Secret ─────────────────────────────────
