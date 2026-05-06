@@ -24,18 +24,13 @@ interface PageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function resolveLang(
-  searchParams: Record<string, string | string[] | undefined>,
-): Lang {
+function resolveLang(searchParams: Record<string, string | string[] | undefined>): Lang {
   const v = searchParams.lang;
   const single = Array.isArray(v) ? v[0] : v;
   return single === "en" ? "en" : "zh";
 }
 
-export async function generateMetadata({
-  params,
-  searchParams,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const sp = await searchParams;
   const lang = resolveLang(sp);

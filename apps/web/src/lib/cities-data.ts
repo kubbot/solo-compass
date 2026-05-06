@@ -80,10 +80,8 @@ const PORTO_EXPS: readonly WebExperience[] = [
     bestHours: [9, 10],
     durationMin: 30,
     why: "The most photographed bookshop in the world. Open at 9, get in line at 8:50, and you'll have the staircase to yourself for ten minutes.",
-    whyZh:
-      "世界上被拍最多的书店。九点开门，八点五十排队，你能独享那道楼梯十分钟。",
-    moment:
-      "There's a tiny brass plaque on the third step. Most people miss it.",
+    whyZh: "世界上被拍最多的书店。九点开门，八点五十排队，你能独享那道楼梯十分钟。",
+    moment: "There's a tiny brass plaque on the third step. Most people miss it.",
     momentZh: "第三级踏板上有一块小铜片。多数人不会注意到。",
     crowd: "calm",
     soloScore: 8,
@@ -111,8 +109,7 @@ const PORTO_EXPS: readonly WebExperience[] = [
     bestHours: [18, 19, 20],
     durationMin: 60,
     why: "The river bends and the buildings on the opposite bank turn copper. Cross the Dom Luís bridge on the upper deck — the view is the entire city.",
-    whyZh:
-      "河水转弯，对岸的楼变成铜色。从 Dom Luís 桥的上层走过去——视野是整座城市。",
+    whyZh: "河水转弯，对岸的楼变成铜色。从 Dom Luís 桥的上层走过去——视野是整座城市。",
     moment: "A man with an accordion plays at the bend. Drop a coin, don't stop.",
     momentZh: "一个拉手风琴的人在转弯处演奏。放一枚硬币，别停下脚步。",
     crowd: "busy",
@@ -121,8 +118,7 @@ const PORTO_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-26",
     aiReason:
       "You walked the Tagus at sunset. The Douro does the same trick, but the bridge does it better.",
-    aiReasonZh:
-      "你在日落时沿 Tagus 河走过。Douro 是同一招，但那座桥让它更好看。",
+    aiReasonZh: "你在日落时沿 Tagus 河走过。Douro 是同一招，但那座桥让它更好看。",
     tags: ["sunset", "free", "no booking"],
     tagsZh: ["日落", "免费", "不用预订"],
     pricePill: "€0",
@@ -151,8 +147,7 @@ const PORTO_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-15",
     aiReason:
       "Origin stories again. This one is shorter than Pastéis de Belém, but more people sat with their notebooks open here.",
-    aiReasonZh:
-      "又一个起源故事。比贝伦蛋挞短，但有更多人在这里摊开过笔记本。",
+    aiReasonZh: "又一个起源故事。比贝伦蛋挞短，但有更多人在这里摊开过笔记本。",
     tags: ["heritage", "indoors", "rainy day"],
     tagsZh: ["历史建筑", "室内", "下雨天"],
     pricePill: "€8–14",
@@ -181,8 +176,7 @@ const PORTO_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-21",
     aiReason:
       "You linger on details. This is a place where the detail IS the place — there's nothing to do but read.",
-    aiReasonZh:
-      "你喜欢停留在细节上。这里的细节就是这个地方——除了读，什么都不用做。",
+    aiReasonZh: "你喜欢停留在细节上。这里的细节就是这个地方——除了读，什么都不用做。",
     tags: ["free", "any weather", "5 minutes works"],
     tagsZh: ["免费", "全天气", "五分钟也行"],
     pricePill: "free",
@@ -201,19 +195,17 @@ const PORTO_EXPS: readonly WebExperience[] = [
     bestHours: [15, 16, 17],
     durationMin: 75,
     why: "Cellars older than the United States. The standard tasting is fine; the vintage tasting is what people fly here for. Reserve online — walk-ins wait.",
-    whyZh:
-      "比美国还老的酒窖。普通品鉴还行；年份品鉴才是人们飞来这里的理由。网上预订——临时来要等。",
-    moment: "The guide will tell you to look for caramel in the 30-year. Don't agree out loud unless you mean it.",
-    momentZh:
-      "导览员会让你在 30 年陈酒里找焦糖味。别勉强附和——除非你真的尝到了。",
+    whyZh: "比美国还老的酒窖。普通品鉴还行；年份品鉴才是人们飞来这里的理由。网上预订——临时来要等。",
+    moment:
+      "The guide will tell you to look for caramel in the 30-year. Don't agree out loud unless you mean it.",
+    momentZh: "导览员会让你在 30 年陈酒里找焦糖味。别勉强附和——除非你真的尝到了。",
     crowd: "calm",
     soloScore: 8,
     sources: 14,
     lastVerified: "2026-04-23",
     aiReason:
       "You picked Tasca do Chico in Lisbon — places where solo at the bar works. The cellar tasting room is shaped like that, only standing.",
-    aiReasonZh:
-      "你在里斯本选了 Tasca do Chico——独自坐吧台的地方。这家品鉴室是同款，只是站着。",
+    aiReasonZh: "你在里斯本选了 Tasca do Chico——独自坐吧台的地方。这家品鉴室是同款，只是站着。",
     tags: ["reservation", "afternoon", "Vintage"],
     tagsZh: ["需预订", "下午", "年份酒"],
     pricePill: "€18–45",
@@ -235,8 +227,7 @@ const PORTO_CITY: WebCity = {
     // the north bank. The drawn river is wider/lower than Lisbon's.
     riverPath:
       "M -20 580 C 200 565, 400 580, 600 600 C 760 615, 880 622, 1020 624 L 1020 720 L -20 720 Z",
-    riverEdgePath:
-      "M -20 580 C 200 565, 400 580, 600 600 C 760 615, 880 622, 1020 624",
+    riverEdgePath: "M -20 580 C 200 565, 400 580, 600 600 C 760 615, 880 622, 1020 624",
     // Dom Luís bridge — short straight line spanning the river near Ribeira.
     ribbonPath: "M 460 540 L 600 590",
     labels: [
@@ -264,8 +255,7 @@ const LISBON_AS_CITY: WebCity = {
     // River Tagus — bottom-right curve, matches the original Lisbon map.
     riverPath:
       "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645 L 1020 720 L -20 720 Z",
-    riverEdgePath:
-      "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
+    riverEdgePath: "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
     // Tram 28 historic loop.
     ribbonPath: "M 240 410 Q 380 380 480 410 Q 580 430 700 360 Q 760 320 800 250",
     labels: [

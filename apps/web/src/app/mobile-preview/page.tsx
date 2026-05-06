@@ -178,11 +178,7 @@ export default function MobilePreviewPage() {
         setLang={setLang}
         onOpenPalette={() => setPaletteOpen(true)}
       />
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        lang={lang}
-      />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} lang={lang} />
     </div>
   );
 }

@@ -11,15 +11,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  WEB_CATS,
-  type WebExperience,
-} from "@/lib/lisbon-data";
+import { WEB_CATS, type WebExperience } from "@/lib/lisbon-data";
 import { CITIES, CITY_ORDER } from "@/lib/cities-data";
 import { TRIPS } from "@/lib/trips-data";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
 
@@ -119,11 +115,7 @@ function buildItems(lang: Lang): readonly PaletteItem[] {
   return [...scenarios, ...experiences, ...trips];
 }
 
-function matches(
-  item: PaletteItem,
-  exp: WebExperience | undefined,
-  q: string,
-): boolean {
+function matches(item: PaletteItem, exp: WebExperience | undefined, q: string): boolean {
   if (!q) return true;
   const lower = q.toLowerCase();
   const fields = [
@@ -246,8 +238,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
           backdropFilter: "blur(20px) saturate(180%)",
           border: "0.5px solid var(--dark-border-strong)",
           borderRadius: 12,
-          boxShadow:
-            "0 24px 80px rgba(0,0,0,0.55), 0 1px 0 rgba(229,205,160,0.06) inset",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 1px 0 rgba(229,205,160,0.06) inset",
           overflow: "hidden",
           fontFamily: fontStack,
         }}
@@ -263,21 +254,14 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <circle cx="6" cy="6" r="4" stroke="#A89377" strokeWidth="1.4" />
-            <path
-              d="M9 9 L13 13"
-              stroke="#A89377"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
+            <path d="M9 9 L13 13" stroke="#A89377" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              lang === "zh"
-                ? "搜场景、体验、城市…"
-                : "Search scenarios, experiences, cities…"
+              lang === "zh" ? "搜场景、体验、城市…" : "Search scenarios, experiences, cities…"
             }
             style={{
               flex: 1,
@@ -304,10 +288,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
           </span>
         </div>
 
-        <div
-          className="lc-scroll"
-          style={{ maxHeight: 380, overflow: "auto", padding: "6px 0" }}
-        >
+        <div className="lc-scroll" style={{ maxHeight: 380, overflow: "auto", padding: "6px 0" }}>
           {filtered.length === 0 && (
             <div
               style={{
@@ -343,9 +324,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
                   border: "none",
                   cursor: "pointer",
                   textAlign: "left",
-                  borderLeft: active
-                    ? `2px solid ${it.accent}`
-                    : "2px solid transparent",
+                  borderLeft: active ? `2px solid ${it.accent}` : "2px solid transparent",
                 }}
               >
                 <div

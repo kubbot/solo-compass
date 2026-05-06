@@ -124,10 +124,7 @@ export default function CityPage() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const filtered = useMemo(
-    () =>
-      activeCat
-        ? city.experiences.filter((e) => e.cat === activeCat)
-        : city.experiences,
+    () => (activeCat ? city.experiences.filter((e) => e.cat === activeCat) : city.experiences),
     [activeCat, city.experiences],
   );
   const focused = useMemo(
@@ -190,11 +187,7 @@ export default function CityPage() {
         />
       </div>
       <StatusBar T={T} lang={lang} city={city} />
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        lang={lang}
-      />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} lang={lang} />
     </div>
   );
 }
@@ -1205,15 +1198,7 @@ function MetaRow({ k, v }: { k: string; v: string }) {
   );
 }
 
-function StatusBar({
-  T,
-  lang,
-  city,
-}: {
-  T: Strings;
-  lang: Lang;
-  city: WebCity;
-}) {
+function StatusBar({ T, lang, city }: { T: Strings; lang: Lang; city: WebCity }) {
   return (
     <div
       style={{

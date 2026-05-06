@@ -21,8 +21,7 @@ import type { WebCityMapConfig } from "@/lib/cities-data";
 const LISBON_DEFAULT_MAP: WebCityMapConfig = {
   riverPath:
     "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645 L 1020 720 L -20 720 Z",
-  riverEdgePath:
-    "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
+  riverEdgePath: "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
   ribbonPath: "M 240 410 Q 380 380 480 410 Q 580 430 700 360 Q 760 320 800 250",
   labels: [
     { text: "CASTELO", x: 640, y: 245 },
@@ -113,12 +112,7 @@ export function WebLisbonMap({
       {/* Water body (river / harbor) */}
       {mapConfig.riverPath && <path d={mapConfig.riverPath} fill={water} />}
       {mapConfig.riverEdgePath && (
-        <path
-          d={mapConfig.riverEdgePath}
-          fill="none"
-          stroke={riverEdge}
-          strokeWidth="1"
-        />
+        <path d={mapConfig.riverEdgePath} fill="none" stroke={riverEdge} strokeWidth="1" />
       )}
 
       {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (

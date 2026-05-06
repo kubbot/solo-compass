@@ -16,14 +16,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import {
-  WEB_CATS,
-  type WebExperience,
-} from "@/lib/lisbon-data";
+import { WEB_CATS, type WebExperience } from "@/lib/lisbon-data";
 import { findExperienceAcrossCities, type WebCity } from "@/lib/cities-data";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_SERIF = '"Fraunces", Georgia, "Cormorant Garamond", serif';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
@@ -35,18 +31,13 @@ interface PageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function resolveLang(
-  searchParams: Record<string, string | string[] | undefined>,
-): Lang {
+function resolveLang(searchParams: Record<string, string | string[] | undefined>): Lang {
   const v = searchParams.lang;
   const single = Array.isArray(v) ? v[0] : v;
   return single === "en" ? "en" : "zh";
 }
 
-export async function generateMetadata({
-  params,
-  searchParams,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const sp = await searchParams;
   const lang = resolveLang(sp);
@@ -57,9 +48,7 @@ export async function generateMetadata({
   const title = lang === "zh" ? exp.titleZh : exp.title;
   const place = lang === "zh" ? exp.placeZh : exp.place;
   const description = lang === "zh" ? exp.whyZh : exp.why;
-  const fullTitle = `${title} — ${place} · ${
-    lang === "zh" ? city.zh : city.en
-  } · Solo Compass`;
+  const fullTitle = `${title} — ${place} · ${lang === "zh" ? city.zh : city.en} · Solo Compass`;
 
   return {
     title: fullTitle,
@@ -85,10 +74,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function ExperiencePage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function ExperiencePage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const sp = await searchParams;
   const lang = resolveLang(sp);
@@ -443,10 +429,7 @@ function ExperienceView({
               {T.quickFacts}
             </div>
             {facts.map(([k, v], i) => (
-              <div
-                key={k}
-                style={{ marginBottom: i === facts.length - 1 ? 0 : 12 }}
-              >
+              <div key={k} style={{ marginBottom: i === facts.length - 1 ? 0 : 12 }}>
                 <div
                   style={{
                     fontFamily: FONT_MONO,
