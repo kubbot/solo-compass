@@ -1,24 +1,26 @@
 "use client";
 
 /**
- * Scenario A — `/lisbon`
+ * Scenario A — `/[city]` (e.g. `/lisbon`, `/porto`)
  * Desktop research view. Linear/Arc/Raycast software-tool aesthetic.
  *
  * Layout:  [TopBar] / [ListColumn (480) | RightSurface map + DetailDock] / [StatusBar]
  *
  * Language toggle stored in URL: `?lang=zh|en` (default zh).
+ * City data resolved at runtime from `cities-data.ts`.
  */
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { notFound, useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  CITIES,
+  CITY_ORDER,
   WEB_CATS,
-  WEB_CITY,
-  WEB_EXPS,
   type WebCategoryId,
+  type WebCity,
   type WebExperience,
-} from "@/lib/lisbon-data";
+} from "@/lib/cities-data";
 import { WebLisbonMap } from "@/components/lisbon/WebLisbonMap";
 import { CommandPalette } from "@/components/lisbon/CommandPalette";
 
@@ -52,10 +54,10 @@ interface Strings {
   tram: string;
 }
 
-function strings(lang: Lang): Strings {
+function strings(lang: Lang, city: WebCity): Strings {
   return lang === "zh"
     ? {
-        nearby: `${WEB_CITY.zh} · ${WEB_CITY.experienceCount} 个体验`,
+        nearby: `${city.zh} · ${city.experiences.length} 个体验`,
         search: "搜地点、心情、时间…",
         sortBy: "排序",
         recent: "最近编辑",
@@ -74,10 +76,10 @@ function strings(lang: Lang): Strings {
         crowd: "人",
         addToPlan: "加入计划",
         pinned: "体验",
-        tram: "28 路",
+        tram: city.slug === "porto" ? "Dom Luís 桥" : "28 路",
       }
     : {
-        nearby: `${WEB_CITY.en} · ${WEB_CITY.experienceCount} experiences`,
+        nearby: `${city.en} · ${city.experiences.length} experiences`,
         search: "Search places, moods, times…",
         sortBy: "Sort",
         recent: "Recent",
@@ -96,29 +98,42 @@ function strings(lang: Lang): Strings {
         crowd: "Crowd",
         addToPlan: "Add to plan",
         pinned: "pinned",
-        tram: "Tram 28",
+        tram: city.slug === "porto" ? "Dom Luís" : "Tram 28",
       };
 }
 
-export default function LisbonPage() {
+export default function CityPage() {
+  const routeParams = useParams<{ city: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+
+  const citySlug = routeParams.city;
+  const city = citySlug ? CITIES[citySlug] : undefined;
+  if (!city) notFound();
+
   const lang: Lang = searchParams.get("lang") === "en" ? "en" : "zh";
-  const T = useMemo(() => strings(lang), [lang]);
+  const T = useMemo(() => strings(lang, city), [lang, city]);
   const fontStack = lang === "zh" ? FONT_CN : FONT_DISPLAY;
 
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [focusedId, setFocusedId] = useState<string | null>("miradouro-graca");
+  const initialFocusId = city.experiences[0]?.id ?? null;
+  const [focusedId, setFocusedId] = useState<string | null>(initialFocusId);
   const [activeCat, setActiveCat] = useState<WebCategoryId | null>(null);
   const [activeSort, setActiveSort] = useState<Sort>("curated");
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const filtered = useMemo(
-    () => (activeCat ? WEB_EXPS.filter((e) => e.cat === activeCat) : WEB_EXPS),
-    [activeCat],
+    () =>
+      activeCat
+        ? city.experiences.filter((e) => e.cat === activeCat)
+        : city.experiences,
+    [activeCat, city.experiences],
   );
-  const focused = useMemo(() => WEB_EXPS.find((e) => e.id === focusedId) ?? null, [focusedId]);
+  const focused = useMemo(
+    () => city.experiences.find((e) => e.id === focusedId) ?? null,
+    [city.experiences, focusedId],
+  );
 
   const setLang = (next: Lang) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -147,6 +162,7 @@ export default function LisbonPage() {
         setLang={setLang}
         fontStack={fontStack}
         onOpenPalette={() => setPaletteOpen(true)}
+        activeCitySlug={city.slug}
       />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <ListColumn
@@ -170,9 +186,10 @@ export default function LisbonPage() {
           focusedId={focusedId}
           setFocusedId={setFocusedId}
           focused={focused}
+          city={city}
         />
       </div>
-      <StatusBar T={T} lang={lang} />
+      <StatusBar T={T} lang={lang} city={city} />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
@@ -189,12 +206,14 @@ function TopBar({
   setLang,
   fontStack,
   onOpenPalette,
+  activeCitySlug,
 }: {
   T: Strings;
   lang: Lang;
   setLang: (n: Lang) => void;
   fontStack: string;
   onOpenPalette: () => void;
+  activeCitySlug: string;
 }) {
   return (
     <div
@@ -218,11 +237,15 @@ function TopBar({
         }}
       />
       <div style={{ display: "flex", gap: 2 }}>
-        {WEB_CITY.cityDeck.map((c, i) => {
-          const active = i === 0;
+        {CITY_ORDER.map((slug) => {
+          const c = CITIES[slug];
+          if (!c) return null;
+          const active = slug === activeCitySlug;
+          const label = `${c.en} · ${c.country}`;
           return (
-            <div
-              key={c}
+            <Link
+              key={slug}
+              href={`/${slug}${lang === "en" ? "?lang=en" : ""}`}
               style={{
                 padding: "5px 11px",
                 borderRadius: 6,
@@ -250,8 +273,8 @@ function TopBar({
                   }}
                 />
               )}
-              {c}
-            </div>
+              <span style={{ textDecoration: "none" }}>{label}</span>
+            </Link>
           );
         })}
         <button
@@ -747,6 +770,7 @@ interface RightSurfaceProps {
   focusedId: string | null;
   setFocusedId: (v: string | null) => void;
   focused: WebExperience | null;
+  city: WebCity;
 }
 
 function RightSurface(p: RightSurfaceProps) {
@@ -761,12 +785,13 @@ function RightSurface(p: RightSurfaceProps) {
     >
       <div style={{ position: "absolute", inset: 0 }}>
         <WebLisbonMap
-          pins={WEB_EXPS}
+          pins={p.city.experiences}
           hoverId={p.hoverId}
           focusedId={p.focusedId}
           onHover={p.setHoverId}
           onTap={p.setFocusedId}
           dark
+          mapConfig={p.city.mapConfig}
         />
       </div>
 
@@ -827,7 +852,7 @@ function RightSurface(p: RightSurfaceProps) {
             textTransform: "uppercase",
           }}
         >
-          Lisbon · Centro Histórico
+          {p.city.en} · {p.city.country}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -865,7 +890,7 @@ function RightSurface(p: RightSurfaceProps) {
                 color: "var(--dark-fg-muted)",
               }}
             >
-              {WEB_EXPS.length} {p.T.pinned}
+              {p.city.experiences.length} {p.T.pinned}
             </span>
           </div>
         </div>
@@ -1180,7 +1205,15 @@ function MetaRow({ k, v }: { k: string; v: string }) {
   );
 }
 
-function StatusBar({ T, lang }: { T: Strings; lang: Lang }) {
+function StatusBar({
+  T,
+  lang,
+  city,
+}: {
+  T: Strings;
+  lang: Lang;
+  city: WebCity;
+}) {
   return (
     <div
       style={{
@@ -1199,10 +1232,10 @@ function StatusBar({ T, lang }: { T: Strings; lang: Lang }) {
       }}
     >
       <span style={{ color: "var(--accent-amber)" }}>●</span>
-      <span>compass.io / lisbon</span>
+      <span>compass.io / {city.slug}</span>
       <span style={{ color: "var(--dark-border-strong)" }}>·</span>
       <span>
-        {WEB_EXPS.length} exp · {Object.keys(WEB_CATS).length} cats · 234 sources
+        {city.experiences.length} exp · {Object.keys(WEB_CATS).length} cats
       </span>
       <span style={{ flex: 1 }} />
       <span>{T.lastEdit}</span>

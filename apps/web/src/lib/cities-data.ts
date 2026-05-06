@@ -19,6 +19,39 @@ import {
   type WebExperience,
 } from "./lisbon-data";
 
+export interface WebCityMapLabel {
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly muted?: boolean;
+}
+
+/** Optional per-city overrides for WebCityMap. All path strings live in
+ *  the same 1000×700 SVG canvas as the experience x/y coordinates. */
+export interface WebCityMapConfig {
+  /** Filled water polygon (river / sea / harbor). Should close into the
+   *  bottom-right of the canvas to match the existing Lisbon framing. */
+  readonly riverPath?: string;
+  /** Single-stroke top edge of the water for the riverbank line. */
+  readonly riverEdgePath?: string;
+  /** Optional ribbon route (e.g. tram line) drawn dashed in amber. */
+  readonly ribbonPath?: string;
+  /** Neighborhood / landmark text labels rendered in mono uppercase. */
+  readonly labels?: readonly WebCityMapLabel[];
+  /** Single accent landmark icon placed at (x, y); used by Lisbon's castle. */
+  readonly landmark?: {
+    readonly x: number;
+    readonly y: number;
+    readonly d: string;
+  };
+  /** Optional concentric contour ellipses rendered behind the landmark. */
+  readonly contour?: {
+    readonly cx: number;
+    readonly cy: number;
+    readonly radii: readonly { readonly rx: number; readonly ry: number }[];
+  };
+}
+
 export interface WebCity {
   readonly slug: string;
   readonly zh: string;
@@ -29,6 +62,7 @@ export interface WebCity {
   readonly taglineZh: string;
   readonly experienceCount: number;
   readonly experiences: readonly WebExperience[];
+  readonly mapConfig?: WebCityMapConfig;
 }
 
 const PORTO_EXPS: readonly WebExperience[] = [
@@ -196,6 +230,24 @@ const PORTO_CITY: WebCity = {
   taglineZh: "一条河，六座桥，一种以这座城市命名的酒。",
   experienceCount: PORTO_EXPS.length,
   experiences: PORTO_EXPS,
+  mapConfig: {
+    // Douro flows roughly W-E on the south of the city; Porto sits on
+    // the north bank. The drawn river is wider/lower than Lisbon's.
+    riverPath:
+      "M -20 580 C 200 565, 400 580, 600 600 C 760 615, 880 622, 1020 624 L 1020 720 L -20 720 Z",
+    riverEdgePath:
+      "M -20 580 C 200 565, 400 580, 600 600 C 760 615, 880 622, 1020 624",
+    // Dom Luís bridge — short straight line spanning the river near Ribeira.
+    ribbonPath: "M 460 540 L 600 590",
+    labels: [
+      { text: "VITÓRIA", x: 420, y: 300 },
+      { text: "ALIADOS", x: 470, y: 360 },
+      { text: "STA. CATARINA", x: 520, y: 340 },
+      { text: "RIBEIRA", x: 540, y: 510 },
+      { text: "GAIA", x: 620, y: 640, muted: true },
+      { text: "RIO DOURO", x: 800, y: 615, muted: true },
+    ],
+  },
 };
 
 const LISBON_AS_CITY: WebCity = {
@@ -208,6 +260,38 @@ const LISBON_AS_CITY: WebCity = {
   taglineZh: LISBON_CITY.taglineZh,
   experienceCount: LISBON_EXPS.length,
   experiences: LISBON_EXPS,
+  mapConfig: {
+    // River Tagus — bottom-right curve, matches the original Lisbon map.
+    riverPath:
+      "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645 L 1020 720 L -20 720 Z",
+    riverEdgePath:
+      "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
+    // Tram 28 historic loop.
+    ribbonPath: "M 240 410 Q 380 380 480 410 Q 580 430 700 360 Q 760 320 800 250",
+    labels: [
+      { text: "CASTELO", x: 640, y: 245 },
+      { text: "CHIADO", x: 430, y: 380 },
+      { text: "BAIRRO ALTO", x: 490, y: 450 },
+      { text: "ALFAMA", x: 700, y: 335 },
+      { text: "GRAÇA", x: 610, y: 270 },
+      { text: "BELÉM", x: 240, y: 540, muted: true },
+      { text: "RIO TEJO", x: 800, y: 618, muted: true },
+    ],
+    landmark: {
+      x: 640,
+      y: 290,
+      d: "M -16 0 L -16 -10 L -10 -10 L -10 -14 L -4 -14 L -4 -10 L 4 -10 L 4 -14 L 10 -14 L 10 -10 L 16 -10 L 16 0 Z",
+    },
+    contour: {
+      cx: 640,
+      cy: 290,
+      radii: [
+        { rx: 80, ry: 55 },
+        { rx: 60, ry: 42 },
+        { rx: 40, ry: 28 },
+      ],
+    },
+  },
 };
 
 export const CITIES: Readonly<Record<string, WebCity>> = {

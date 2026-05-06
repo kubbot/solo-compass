@@ -12,6 +12,42 @@
 
 import type { CSSProperties } from "react";
 import { WEB_CATS, type WebCategoryId, type WebExperience } from "@/lib/lisbon-data";
+import type { WebCityMapConfig } from "@/lib/cities-data";
+
+// Lisbon default — preserves the original look when no mapConfig is
+// supplied (e.g. /mobile-preview). Duplicated from LISBON_AS_CITY
+// .mapConfig in cities-data.ts so this component has no runtime
+// dependency on the multi-city dataset (type-only import above).
+const LISBON_DEFAULT_MAP: WebCityMapConfig = {
+  riverPath:
+    "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645 L 1020 720 L -20 720 Z",
+  riverEdgePath:
+    "M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645",
+  ribbonPath: "M 240 410 Q 380 380 480 410 Q 580 430 700 360 Q 760 320 800 250",
+  labels: [
+    { text: "CASTELO", x: 640, y: 245 },
+    { text: "CHIADO", x: 430, y: 380 },
+    { text: "BAIRRO ALTO", x: 490, y: 450 },
+    { text: "ALFAMA", x: 700, y: 335 },
+    { text: "GRAÇA", x: 610, y: 270 },
+    { text: "BELÉM", x: 240, y: 540, muted: true },
+    { text: "RIO TEJO", x: 800, y: 618, muted: true },
+  ],
+  landmark: {
+    x: 640,
+    y: 290,
+    d: "M -16 0 L -16 -10 L -10 -10 L -10 -14 L -4 -14 L -4 -10 L 4 -10 L 4 -14 L 10 -14 L 10 -10 L 16 -10 L 16 0 Z",
+  },
+  contour: {
+    cx: 640,
+    cy: 290,
+    radii: [
+      { rx: 80, ry: 55 },
+      { rx: 60, ry: 42 },
+      { rx: 40, ry: 28 },
+    ],
+  },
+};
 
 interface WebLisbonMapProps {
   readonly pins: readonly WebExperience[];
@@ -21,6 +57,8 @@ interface WebLisbonMapProps {
   readonly onTap?: (id: string) => void;
   readonly dark?: boolean;
   readonly style?: CSSProperties;
+  /** Optional per-city config; defaults to Lisbon for back-compat. */
+  readonly mapConfig?: WebCityMapConfig;
 }
 
 export function WebLisbonMap({
@@ -31,6 +69,7 @@ export function WebLisbonMap({
   onTap,
   dark = true,
   style,
+  mapConfig = LISBON_DEFAULT_MAP,
 }: WebLisbonMapProps) {
   const bg = dark ? "#1A1714" : "#F4ECDD";
   const water = dark ? "#221C16" : "#E6D8B6";
@@ -71,17 +110,16 @@ export function WebLisbonMap({
 
       <rect width="1000" height="700" fill="url(#webPaper)" />
 
-      {/* River Tagus */}
-      <path
-        d="M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645 L 1020 720 L -20 720 Z"
-        fill={water}
-      />
-      <path
-        d="M -20 540 C 200 530, 380 555, 560 590 C 720 620, 880 640, 1020 645"
-        fill="none"
-        stroke={riverEdge}
-        strokeWidth="1"
-      />
+      {/* Water body (river / harbor) */}
+      {mapConfig.riverPath && <path d={mapConfig.riverPath} fill={water} />}
+      {mapConfig.riverEdgePath && (
+        <path
+          d={mapConfig.riverEdgePath}
+          fill="none"
+          stroke={riverEdge}
+          strokeWidth="1"
+        />
+      )}
 
       {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
         <path
@@ -116,15 +154,17 @@ export function WebLisbonMap({
         strokeLinecap="round"
       />
 
-      {/* Tram 28 */}
-      <path
-        d="M 240 410 Q 380 380 480 410 Q 580 430 700 360 Q 760 320 800 250"
-        fill="none"
-        stroke={tramStroke}
-        strokeWidth="1.5"
-        strokeDasharray="3 4"
-        strokeLinecap="round"
-      />
+      {/* Optional ribbon route (Lisbon: Tram 28; Porto: Dom Luís bridge) */}
+      {mapConfig.ribbonPath && (
+        <path
+          d={mapConfig.ribbonPath}
+          fill="none"
+          stroke={tramStroke}
+          strokeWidth="1.5"
+          strokeDasharray="3 4"
+          strokeLinecap="round"
+        />
+      )}
 
       <g stroke={street} strokeWidth="1" strokeLinecap="round" fill="none">
         <path d="M 200 200 L 720 220" />
@@ -139,57 +179,60 @@ export function WebLisbonMap({
         <path d="M 670 200 L 690 530" />
       </g>
 
-      {/* Castelo de São Jorge */}
-      <g transform="translate(640 290)">
-        <path
-          d="M -16 0 L -16 -10 L -10 -10 L -10 -14 L -4 -14 L -4 -10 L 4 -10 L 4 -14 L 10 -14 L 10 -10 L 16 -10 L 16 0 Z"
-          fill="none"
-          stroke={label}
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-        />
-      </g>
+      {/* Optional accent landmark (Lisbon: Castelo de São Jorge) */}
+      {mapConfig.landmark && (
+        <g transform={`translate(${mapConfig.landmark.x} ${mapConfig.landmark.y})`}>
+          <path
+            d={mapConfig.landmark.d}
+            fill="none"
+            stroke={label}
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </g>
+      )}
 
-      <g fill="none" stroke={contour} strokeWidth="0.8">
-        <ellipse cx="640" cy="290" rx="80" ry="55" />
-        <ellipse cx="640" cy="290" rx="60" ry="42" />
-        <ellipse cx="640" cy="290" rx="40" ry="28" />
-      </g>
+      {/* Optional concentric contour ellipses (hill behind landmark) */}
+      {mapConfig.contour && (
+        <g fill="none" stroke={contour} strokeWidth="0.8">
+          {mapConfig.contour.radii.map((r, i) => (
+            <ellipse
+              key={i}
+              cx={mapConfig.contour!.cx}
+              cy={mapConfig.contour!.cy}
+              rx={r.rx}
+              ry={r.ry}
+            />
+          ))}
+        </g>
+      )}
 
       <rect width="1000" height="700" fill="url(#webMapVignette)" pointerEvents="none" />
 
       {/* Neighborhood labels */}
-      <g
-        style={{
-          fontFamily: "JetBrains Mono, ui-monospace, monospace",
-          fontSize: 9,
-          letterSpacing: 1.5,
-          textTransform: "uppercase",
-          userSelect: "none",
-        }}
-      >
-        <text x="640" y="245" fill={label} textAnchor="middle">
-          CASTELO
-        </text>
-        <text x="430" y="380" fill={label} textAnchor="middle">
-          CHIADO
-        </text>
-        <text x="490" y="450" fill={label} textAnchor="middle">
-          BAIRRO ALTO
-        </text>
-        <text x="700" y="335" fill={label} textAnchor="middle">
-          ALFAMA
-        </text>
-        <text x="610" y="270" fill={label} textAnchor="middle">
-          GRAÇA
-        </text>
-        <text x="240" y="540" fill={sub} textAnchor="middle">
-          BELÉM
-        </text>
-        <text x="800" y="618" fill={sub} textAnchor="middle">
-          RIO TEJO
-        </text>
-      </g>
+      {mapConfig.labels && mapConfig.labels.length > 0 && (
+        <g
+          style={{
+            fontFamily: "JetBrains Mono, ui-monospace, monospace",
+            fontSize: 9,
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            userSelect: "none",
+          }}
+        >
+          {mapConfig.labels.map((l) => (
+            <text
+              key={`${l.text}-${l.x}-${l.y}`}
+              x={l.x}
+              y={l.y}
+              fill={l.muted ? sub : label}
+              textAnchor="middle"
+            >
+              {l.text}
+            </text>
+          ))}
+        </g>
+      )}
 
       {/* Pins */}
       {pins.map((p) => {
