@@ -5,6 +5,7 @@ import {
   distanceMeters,
   walkingMinutes,
 } from "@solo-compass/core";
+import { withCostTracking } from "../cost-tracker";
 
 export interface RankExperiencesInput {
   /** [longitude, latitude] — GeoJSON order. */
@@ -15,6 +16,8 @@ export interface RankExperiencesInput {
   availableExperiences: Experience[];
   /** Local hour 0–23 in the user's current city. */
   currentHour: number;
+  /** Caller label passed through to cost tracking, e.g. "nearby" or "bot:voice". */
+  route?: string;
 }
 
 export interface RankedExperience {
@@ -114,7 +117,7 @@ export async function rankExperiences(
   input: RankExperiencesInput,
   client?: Anthropic,
 ): Promise<RankExperiencesResult> {
-  const { userLocation, userIntent, availableExperiences, currentHour } = input;
+  const { userLocation, userIntent, availableExperiences, currentHour, route = "rank" } = input;
 
   if (availableExperiences.length === 0) {
     return { ranked: [] };
@@ -146,13 +149,17 @@ ${candidatesText}
 Rank the top 3 best matches. Use emit_ranking.`;
 
   const anthropic = client ?? new Anthropic();
-  const response = await anthropic.messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    tools: [RANK_TOOL],
-    tool_choice: { type: "tool", name: "emit_ranking" },
-    messages: [{ role: "user", content: userMessage }],
+
+  const response = await withCostTracking(route, async () => {
+    const msg = await anthropic.messages.create({
+      model: "claude-opus-4-7",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      tools: [RANK_TOOL],
+      tool_choice: { type: "tool", name: "emit_ranking" },
+      messages: [{ role: "user", content: userMessage }],
+    });
+    return { result: msg, usage: msg.usage, model: msg.model };
   });
 
   const toolUse = response.content.find((b) => b.type === "tool_use");

@@ -48,6 +48,37 @@ export interface Confidence {
  */
 export type HealthStatus = "healthy" | "fading" | "questioned" | "may_be_gone";
 
+/**
+ * Decay a confidence level based on how long ago `lastVerifiedAt` was.
+ *
+ * Time bands (days since lastVerifiedAt):
+ *   < 30   — no decay, return current level unchanged
+ *   30–59  — downgrade one level  (5→4, 4→3, 3→2, 2→1, 1→0, 0→0)
+ *   60–89  — downgrade two levels (5→3, 4→2, 3→1, 2→0, already 0 stays 0)
+ *   ≥ 90   — force to 0
+ *
+ * @param current        The current ConfidenceLevel.
+ * @param lastVerifiedAt ISO 8601 UTC timestamp of last verification.
+ * @param nowIso         Optional ISO 8601 for the current time (for testing).
+ *                       Defaults to `new Date().toISOString()`.
+ */
+export function decayConfidence(
+  current: ConfidenceLevel,
+  lastVerifiedAt: string,
+  nowIso?: string,
+): ConfidenceLevel {
+  const now = new Date(nowIso ?? new Date().toISOString()).getTime();
+  const verified = new Date(lastVerifiedAt).getTime();
+  const ageDays = (now - verified) / (1000 * 60 * 60 * 24);
+
+  if (ageDays < 30) return current;
+  if (ageDays >= 90) return 0;
+
+  const steps = ageDays < 60 ? 1 : 2;
+  const decayed = current - steps;
+  return (decayed < 0 ? 0 : decayed) as ConfidenceLevel;
+}
+
 export function healthFromConfidence(c: Confidence): HealthStatus {
   const ageDaysSinceLastVerify =
     (Date.now() - new Date(c.lastVerifiedAt).getTime()) / (1000 * 60 * 60 * 24);

@@ -1,5 +1,5 @@
 export { createAnonClient, createServiceClient, rowToExperience } from "./db";
-export type { Database, ExperienceRow, UserRow, CompletionRow } from "./db";
+export type { Database, ExperienceRow, UserRow, CompletionRow, TrafficPingRow } from "./db";
 
 export { ExperiencesRepo } from "./experiences-repo";
 export type { FindNearbyParams } from "./experiences-repo";
