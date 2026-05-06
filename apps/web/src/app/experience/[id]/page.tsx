@@ -24,8 +24,7 @@ import {
   type WebExperience,
 } from "@/lib/lisbon-data";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_SERIF = '"Fraunces", Georgia, "Cormorant Garamond", serif';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';

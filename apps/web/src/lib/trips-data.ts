@@ -49,8 +49,7 @@ export const TRIPS: Readonly<Record<string, Trip>> = {
     monthLabelZh: "2025 年 5 月",
     titleEn: "Four days, in Lisbon",
     titleZh: "四天 · 在里斯本",
-    intro:
-      "I didn't plan. I opened compass.io/lisbon and followed it for four days.",
+    intro: "I didn't plan. I opened compass.io/lisbon and followed it for four days.",
     introZh: "我没做攻略。打开了 compass.io/lisbon，跟着它走了四天。",
     quote:
       "I got lost in Alfama three times. Each time, the AI told me not to worry — this alley leads to another miradouro, quieter than the one on the map.",

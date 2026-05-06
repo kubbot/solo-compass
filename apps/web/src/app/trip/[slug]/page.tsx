@@ -18,8 +18,7 @@ import { notFound, useParams, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { findTripBySlug, type Trip } from "@/lib/trips-data";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_SERIF = '"Fraunces", Georgia, "Cormorant Garamond", serif';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
@@ -125,8 +124,7 @@ function TripRecap({ trip, lang }: { trip: Trip; lang: Lang }) {
               letterSpacing: 0.5,
             }}
           >
-            compass.io / {trip.author.toLowerCase().replace(/\s+/g, "-")} /{" "}
-            {trip.slug}
+            compass.io / {trip.author.toLowerCase().replace(/\s+/g, "-")} / {trip.slug}
           </span>
           <span style={{ flex: 1 }} />
           <button
@@ -242,11 +240,7 @@ function TripRecap({ trip, lang }: { trip: Trip; lang: Lang }) {
                 </div>
                 <div
                   style={{
-                    fontFamily: s.mono
-                      ? FONT_MONO
-                      : lang === "zh"
-                        ? FONT_CN
-                        : FONT_SERIF,
+                    fontFamily: s.mono ? FONT_MONO : lang === "zh" ? FONT_CN : FONT_SERIF,
                     fontSize: s.mono ? 18 : 16,
                     fontWeight: s.mono ? 500 : 600,
                     fontStyle: !s.mono && lang !== "zh" ? "italic" : "normal",
@@ -284,9 +278,7 @@ function TripRecap({ trip, lang }: { trip: Trip; lang: Lang }) {
         <div style={{ padding: "0 56px 40px" }}>
           {trip.days.map((d, i) => {
             const dayTitle = lang === "zh" ? d.titleZh : d.title;
-            const label =
-              T.dayLabels[i] ??
-              (lang === "zh" ? `第 ${i + 1} 天` : `Day ${i + 1}`);
+            const label = T.dayLabels[i] ?? (lang === "zh" ? `第 ${i + 1} 天` : `Day ${i + 1}`);
             return (
               <div
                 key={d.title}

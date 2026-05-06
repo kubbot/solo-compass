@@ -21,8 +21,7 @@ import {
 } from "@/lib/lisbon-data";
 import { WebLisbonMap } from "@/components/lisbon/WebLisbonMap";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
 
@@ -117,10 +116,7 @@ export default function LisbonPage() {
     () => (activeCat ? WEB_EXPS.filter((e) => e.cat === activeCat) : WEB_EXPS),
     [activeCat],
   );
-  const focused = useMemo(
-    () => WEB_EXPS.find((e) => e.id === focusedId) ?? null,
-    [focusedId],
-  );
+  const focused = useMemo(() => WEB_EXPS.find((e) => e.id === focusedId) ?? null, [focusedId]);
 
   const setLang = (next: Lang) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -276,12 +272,7 @@ function TopBar({
       >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
           <circle cx="4.5" cy="4.5" r="3" stroke="#5C4F3E" strokeWidth="1.2" />
-          <path
-            d="M7 7 L10 10"
-            stroke="#5C4F3E"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
+          <path d="M7 7 L10 10" stroke="#5C4F3E" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         <span
           style={{
@@ -491,9 +482,7 @@ function ListColumn(p: ListColumnProps) {
                   color: a ? "var(--dark-fg)" : "var(--dark-fg-subtle)",
                   cursor: "pointer",
                   padding: 0,
-                  borderBottom: a
-                    ? "1.5px solid var(--accent-amber)"
-                    : "1.5px solid transparent",
+                  borderBottom: a ? "1.5px solid var(--accent-amber)" : "1.5px solid transparent",
                   paddingBottom: 2,
                 }}
               >
@@ -510,21 +499,18 @@ function ListColumn(p: ListColumnProps) {
           >
             {p.T.allCats}
           </CatChip>
-          {(
-            Object.entries(WEB_CATS) as [
-              WebCategoryId,
-              (typeof WEB_CATS)[WebCategoryId],
-            ][]
-          ).map(([k, c]) => (
-            <CatChip
-              key={k}
-              active={p.activeCat === k}
-              color={c.color}
-              onClick={() => p.setActiveCat(p.activeCat === k ? null : k)}
-            >
-              {p.lang === "zh" ? c.zh : c.en}
-            </CatChip>
-          ))}
+          {(Object.entries(WEB_CATS) as [WebCategoryId, (typeof WEB_CATS)[WebCategoryId]][]).map(
+            ([k, c]) => (
+              <CatChip
+                key={k}
+                active={p.activeCat === k}
+                color={c.color}
+                onClick={() => p.setActiveCat(p.activeCat === k ? null : k)}
+              >
+                {p.lang === "zh" ? c.zh : c.en}
+              </CatChip>
+            ),
+          )}
         </div>
       </div>
       <div className="lc-scroll" style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
@@ -866,12 +852,7 @@ function RightSurface(p: RightSurfaceProps) {
       </div>
 
       {p.focused && (
-        <DetailDock
-          exp={p.focused}
-          lang={p.lang}
-          T={p.T}
-          onClose={() => p.setFocusedId(null)}
-        />
+        <DetailDock exp={p.focused} lang={p.lang} T={p.T} onClose={() => p.setFocusedId(null)} />
       )}
     </div>
   );
@@ -910,8 +891,7 @@ function DetailDock({
         padding: "18px 22px 16px",
         display: "flex",
         gap: 24,
-        boxShadow:
-          "0 12px 40px rgba(0,0,0,0.5), 0 1px 0 rgba(229,205,160,0.04) inset",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.5), 0 1px 0 rgba(229,205,160,0.04) inset",
         minHeight: 220,
       }}
     >
@@ -1017,10 +997,7 @@ function DetailDock({
             marginBottom: 12,
           }}
         >
-          <Link
-            href={detailHref}
-            style={{ color: "inherit", textDecoration: "none" }}
-          >
+          <Link href={detailHref} style={{ color: "inherit", textDecoration: "none" }}>
             {title}
           </Link>
         </div>

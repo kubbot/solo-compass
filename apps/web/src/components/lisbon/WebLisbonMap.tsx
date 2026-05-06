@@ -11,11 +11,7 @@
  */
 
 import type { CSSProperties } from "react";
-import {
-  WEB_CATS,
-  type WebCategoryId,
-  type WebExperience,
-} from "@/lib/lisbon-data";
+import { WEB_CATS, type WebCategoryId, type WebExperience } from "@/lib/lisbon-data";
 
 interface WebLisbonMapProps {
   readonly pins: readonly WebExperience[];
@@ -160,12 +156,7 @@ export function WebLisbonMap({
         <ellipse cx="640" cy="290" rx="40" ry="28" />
       </g>
 
-      <rect
-        width="1000"
-        height="700"
-        fill="url(#webMapVignette)"
-        pointerEvents="none"
-      />
+      <rect width="1000" height="700" fill="url(#webMapVignette)" pointerEvents="none" />
 
       {/* Neighborhood labels */}
       <g
@@ -177,13 +168,27 @@ export function WebLisbonMap({
           userSelect: "none",
         }}
       >
-        <text x="640" y="245" fill={label} textAnchor="middle">CASTELO</text>
-        <text x="430" y="380" fill={label} textAnchor="middle">CHIADO</text>
-        <text x="490" y="450" fill={label} textAnchor="middle">BAIRRO ALTO</text>
-        <text x="700" y="335" fill={label} textAnchor="middle">ALFAMA</text>
-        <text x="610" y="270" fill={label} textAnchor="middle">GRAÇA</text>
-        <text x="240" y="540" fill={sub} textAnchor="middle">BELÉM</text>
-        <text x="800" y="618" fill={sub} textAnchor="middle">RIO TEJO</text>
+        <text x="640" y="245" fill={label} textAnchor="middle">
+          CASTELO
+        </text>
+        <text x="430" y="380" fill={label} textAnchor="middle">
+          CHIADO
+        </text>
+        <text x="490" y="450" fill={label} textAnchor="middle">
+          BAIRRO ALTO
+        </text>
+        <text x="700" y="335" fill={label} textAnchor="middle">
+          ALFAMA
+        </text>
+        <text x="610" y="270" fill={label} textAnchor="middle">
+          GRAÇA
+        </text>
+        <text x="240" y="540" fill={sub} textAnchor="middle">
+          BELÉM
+        </text>
+        <text x="800" y="618" fill={sub} textAnchor="middle">
+          RIO TEJO
+        </text>
       </g>
 
       {/* Pins */}
@@ -208,13 +213,7 @@ export function WebLisbonMap({
             <circle r={r + 2} fill={pinHole} />
             <circle r={r} fill={cat.color} />
             {isFocus && (
-              <circle
-                r={r + 4}
-                fill="none"
-                stroke={cat.color}
-                strokeWidth="1.2"
-                opacity="0.7"
-              />
+              <circle r={r + 4} fill="none" stroke={cat.color} strokeWidth="1.2" opacity="0.7" />
             )}
           </g>
         );

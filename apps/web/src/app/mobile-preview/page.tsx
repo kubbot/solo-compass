@@ -17,15 +17,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import {
-  WEB_CATS,
-  WEB_EXPS,
-  type WebExperience,
-} from "@/lib/lisbon-data";
+import { WEB_CATS, WEB_EXPS, type WebExperience } from "@/lib/lisbon-data";
 import { WebLisbonMap } from "@/components/lisbon/WebLisbonMap";
 
-const FONT_DISPLAY =
-  '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
+const FONT_DISPLAY = '-apple-system, "SF Pro Display", "Inter", system-ui, sans-serif';
 const FONT_MONO = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
 const FONT_CN = '"PingFang SC", "Hiragino Sans GB", system-ui, sans-serif';
 
@@ -95,10 +90,7 @@ export default function MobilePreviewPage() {
   const [showHint, setShowHint] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(false);
 
-  const sortedExps = useMemo(
-    () => [...WEB_EXPS].sort((a, b) => a.walkMin - b.walkMin),
-    [],
-  );
+  const sortedExps = useMemo(() => [...WEB_EXPS].sort((a, b) => a.walkMin - b.walkMin), []);
 
   const toggleCheckin = (id: string) => {
     setCheckedIds((prev) => {
@@ -121,8 +113,7 @@ export default function MobilePreviewPage() {
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(ellipse at top, #2C241B 0%, #15110D 60%, #0F0D0B 100%)",
+        background: "radial-gradient(ellipse at top, #2C241B 0%, #15110D 60%, #0F0D0B 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -286,8 +277,7 @@ function PhoneFrame(p: PhoneFrameProps) {
             height: 14,
             borderRadius: 7,
             background: "#3B82F6",
-            boxShadow:
-              "0 0 0 4px rgba(59,130,246,0.3), 0 0 0 12px rgba(59,130,246,0.15)",
+            boxShadow: "0 0 0 4px rgba(59,130,246,0.3), 0 0 0 12px rgba(59,130,246,0.15)",
           }}
         />
       </div>
@@ -448,8 +438,7 @@ function PhoneFrame(p: PhoneFrameProps) {
             style={{
               margin: "0 16px 12px",
               padding: "12px 14px",
-              background:
-                "linear-gradient(135deg, rgba(201,134,40,0.10), rgba(201,134,40,0.04))",
+              background: "linear-gradient(135deg, rgba(201,134,40,0.10), rgba(201,134,40,0.04))",
               border: "0.5px solid rgba(201,134,40,0.3)",
               borderRadius: 10,
               display: "flex",
@@ -522,10 +511,7 @@ function PhoneFrame(p: PhoneFrameProps) {
           </div>
         )}
 
-        <div
-          className="lc-scroll"
-          style={{ flex: 1, overflow: "auto", padding: "0 16px 16px" }}
-        >
+        <div className="lc-scroll" style={{ flex: 1, overflow: "auto", padding: "0 16px 16px" }}>
           {p.sortedExps.slice(0, p.sheetExpanded ? 7 : 4).map((e) => {
             const cat = WEB_CATS[e.cat];
             const checked = p.checkedIds.has(e.id);
@@ -602,17 +588,11 @@ function PhoneFrame(p: PhoneFrameProps) {
                   style={{
                     padding: "5px 10px",
                     borderRadius: 5,
-                    background: checked
-                      ? "rgba(201,134,40,0.15)"
-                      : "transparent",
+                    background: checked ? "rgba(201,134,40,0.15)" : "transparent",
                     border: `0.5px solid ${
-                      checked
-                        ? "var(--accent-amber)"
-                        : "var(--dark-border-strong)"
+                      checked ? "var(--accent-amber)" : "var(--dark-border-strong)"
                     }`,
-                    color: checked
-                      ? "var(--accent-amber)"
-                      : "var(--dark-fg-muted)",
+                    color: checked ? "var(--accent-amber)" : "var(--dark-fg-muted)",
                     fontFamily: p.fontStack,
                     fontSize: 11,
                     fontWeight: 500,

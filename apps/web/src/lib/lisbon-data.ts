@@ -36,12 +36,7 @@ export const WEB_CITY = {
   tagline: "Seven hills, four trams, one river that catches the evening.",
   taglineZh: "七座山，四条电车，一条接住傍晚的河。",
   experienceCount: 47,
-  cityDeck: [
-    "Lisbon · Portugal",
-    "Porto · Portugal",
-    "Lyon · France",
-    "Tbilisi · Georgia",
-  ],
+  cityDeck: ["Lisbon · Portugal", "Porto · Portugal", "Lyon · France", "Tbilisi · Georgia"],
 } as const;
 
 export interface WebExperience {
@@ -96,8 +91,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-22",
     aiReason:
       "You saved two viewpoints in Porto. Graça has a wider sky than the others — the river bends, the castle frames it.",
-    aiReasonZh:
-      "你在波尔图收藏过两个观景台。Graça 的天空更开阔——河在这里转弯，城堡正好框住它。",
+    aiReasonZh: "你在波尔图收藏过两个观景台。Graça 的天空更开阔——河在这里转弯，城堡正好框住它。",
     tags: ["solo-friendly", "sunset", "no booking"],
     tagsZh: ["一个人也行", "日落", "不用预订"],
     pricePill: "€0",
@@ -125,8 +119,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-30",
     aiReason:
       "You like origin stories. This is one of three places in Lisbon where the food predates the country it's in.",
-    aiReasonZh:
-      "你喜欢起源的故事。里斯本只有三个地方的食物比这个国家本身还老，这是其中之一。",
+    aiReasonZh: "你喜欢起源的故事。里斯本只有三个地方的食物比这个国家本身还老，这是其中之一。",
     tags: ["cash ok", "queue moves", "eat in"],
     tagsZh: ["可现金", "队伍快", "坐下吃"],
     pricePill: "€1.40",
@@ -145,8 +138,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     bestHours: [11, 12, 13, 14, 15, 16],
     durationMin: 50,
     why: "Soaps, sardines, notebooks, blankets — every product has a label written by someone who cared. The floors creak.",
-    whyZh:
-      "肥皂、沙丁鱼、笔记本、毯子——每件商品的标签都是认真写的人写的。地板会吱呀响。",
+    whyZh: "肥皂、沙丁鱼、笔记本、毯子——每件商品的标签都是认真写的人写的。地板会吱呀响。",
     moment: "The shopkeeper will let you smell three soaps before suggesting one.",
     momentZh: "店主会让你闻完三块肥皂，再温柔地推荐一块。",
     crowd: "calm",
@@ -155,8 +147,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-12",
     aiReason:
       "Reading time: you lingered on shops in Porto. This one is the most articulate of its kind in Iberia.",
-    aiReasonZh:
-      "阅读时长：你在波尔图的店铺页面停留得久。这家是伊比利亚同类里最有想法的。",
+    aiReasonZh: "阅读时长：你在波尔图的店铺页面停留得久。这家是伊比利亚同类里最有想法的。",
     tags: ["rainy day", "gifts", "no rush"],
     tagsZh: ["下雨天去", "送礼", "不赶"],
     pricePill: "€€",
@@ -175,8 +166,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     bestHours: [21, 22, 23],
     durationMin: 90,
     why: "No stage, no microphone. The singer stands among the tables. When she begins, the lights drop and people stop chewing.",
-    whyZh:
-      "没有舞台，也没有话筒。歌者站在桌子之间。她一开口，灯就暗下去，所有人停止嚼东西。",
+    whyZh: "没有舞台，也没有话筒。歌者站在桌子之间。她一开口，灯就暗下去，所有人停止嚼东西。",
     moment: "Three songs, then they pass a basket. Five euros is right.",
     momentZh: "三首歌后会传一个篮子。五欧元正好。",
     crowd: "busy",
@@ -185,8 +175,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-18",
     aiReason:
       "You mentioned you don't like reserved tables. Chico doesn't take bookings — you stand at the bar, which is the best seat anyway.",
-    aiReasonZh:
-      "你说过不喜欢预订座位。Chico 不接受预订——你站在吧台，那本来就是最好的位置。",
+    aiReasonZh: "你说过不喜欢预订座位。Chico 不接受预订——你站在吧台，那本来就是最好的位置。",
     tags: ["no booking", "late", "standing room"],
     tagsZh: ["不接受预订", "夜里", "站着也行"],
     pricePill: "€10–20",
@@ -215,8 +204,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-08",
     aiReason:
       "You spent eighteen minutes on the Alfama walk page. The market lives in the same web of streets — go on the way down.",
-    aiReasonZh:
-      "你在 Alfama 散步页面停留了十八分钟。这个市场就在同一片街区里——下山顺路过去。",
+    aiReasonZh: "你在 Alfama 散步页面停留了十八分钟。这个市场就在同一片街区里——下山顺路过去。",
     tags: ["Tue · Sat", "morning", "cash"],
     tagsZh: ["周二·周六", "清晨", "现金"],
     pricePill: "free",
@@ -236,8 +224,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     durationMin: 60,
     why: "Open since 1732. Pessoa drank coffee in the chair by the window. The English shelves are upstairs, mostly fiction.",
     whyZh: "1732 年至今。佩索阿坐过窗边那把椅子喝咖啡。英文书在楼上，多是小说。",
-    moment:
-      "There's a card you can stamp; ten stamps gets you a free book of any size.",
+    moment: "There's a card you can stamp; ten stamps gets you a free book of any size.",
     momentZh: "柜台有一张卡可以盖章；盖满十个，可以免费换一本任意大小的书。",
     crowd: "quiet",
     soloScore: 9,
@@ -266,8 +253,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     why: "The same yellow car that everyone Instagrams at noon — but at 7am it carries pensioners going to mass and you. They will nod.",
     whyZh:
       "中午被人疯狂拍照的同一辆黄色电车——早上 7 点，里面坐的是去望弥撒的退休老人，加你。他们会点头。",
-    moment:
-      "It rocks hard around the cathedral curve. Hold the leather strap, not the seat.",
+    moment: "It rocks hard around the cathedral curve. Hold the leather strap, not the seat.",
     momentZh: "到大教堂那个弯会摇得厉害。抓皮带，别抓座椅。",
     crowd: "quiet",
     soloScore: 9,
@@ -275,8 +261,7 @@ export const WEB_EXPS: readonly WebExperience[] = [
     lastVerified: "2026-04-29",
     aiReason:
       "You said you'd rather skip the famous things. The famous things are still good — at the right hour they become not famous.",
-    aiReasonZh:
-      "你说想跳过那些「必去」的。其实它们没毛病——在对的时间，它们就不「必去」了。",
+    aiReasonZh: "你说想跳过那些「必去」的。其实它们没毛病——在对的时间，它们就不「必去」了。",
     tags: ["early", "crowd-free", "€3"],
     tagsZh: ["早起", "没人", "€3"],
     pricePill: "€3",
@@ -287,10 +272,7 @@ export function findExperienceById(id: string): WebExperience | undefined {
   return WEB_EXPS.find((e) => e.id === id);
 }
 
-export function nearbyExperiences(
-  exp: WebExperience,
-  count = 2,
-): readonly WebExperience[] {
+export function nearbyExperiences(exp: WebExperience, count = 2): readonly WebExperience[] {
   return WEB_EXPS.filter((e) => e.id !== exp.id)
     .map((e) => ({ e, d: Math.hypot(exp.x - e.x, exp.y - e.y) }))
     .sort((a, b) => a.d - b.d)
