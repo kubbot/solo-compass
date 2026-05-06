@@ -55,7 +55,8 @@ const RANK_TOOL: Anthropic.Tool = {
               type: "number",
               minimum: 0,
               maximum: 100,
-              description: "0–100. Composite of intent fit, time fit, proximity, solo-friendliness.",
+              description:
+                "0–100. Composite of intent fit, time fit, proximity, solo-friendliness.",
             },
             reason: {
               type: "string",

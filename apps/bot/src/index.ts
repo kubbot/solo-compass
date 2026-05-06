@@ -166,7 +166,9 @@ bot.on("voice", async (ctx) => {
 
   const voice = ctx.message.voice;
   if (voice.duration < VOICE_MIN_SECONDS) {
-    await ctx.reply(`Voice was too short. Aim for ${VOICE_MIN_SECONDS}–${VOICE_MAX_SECONDS} seconds.`);
+    await ctx.reply(
+      `Voice was too short. Aim for ${VOICE_MIN_SECONDS}–${VOICE_MAX_SECONDS} seconds.`,
+    );
     return;
   }
   if (voice.duration > VOICE_MAX_SECONDS) {
@@ -266,7 +268,10 @@ async function handleIntent(ctx: Context, intent: string): Promise<void> {
   session.stage = "idle";
 
   const buttons = result.ranked.map((r, i) =>
-    Markup.button.callback(`${i + 1}. ${shortTitle(r.experience.title)}`, `detail:${r.experience.id}`),
+    Markup.button.callback(
+      `${i + 1}. ${shortTitle(r.experience.title)}`,
+      `detail:${r.experience.id}`,
+    ),
   );
 
   await ctx.reply(

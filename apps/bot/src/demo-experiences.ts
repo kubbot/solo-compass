@@ -55,8 +55,14 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 4, text: "Walk three clockwise circuits of the chedi after sunrise." },
     ],
     realInconveniences: [
-      { category: "logistics", text: "First songthaew up only fills around 04:30 — be willing to wait or charter (~600 THB)." },
-      { category: "etiquette", text: "Cover knees and shoulders. Sarongs at the gate are loaner-only and can run out." },
+      {
+        category: "logistics",
+        text: "First songthaew up only fills around 04:30 — be willing to wait or charter (~600 THB).",
+      },
+      {
+        category: "etiquette",
+        text: "Cover knees and shoulders. Sarongs at the gate are loaner-only and can run out.",
+      },
     ],
     soloOverall: 9,
     soloHint: "Solo travelers blend into morning meditation; nobody will ask why you're alone.",
@@ -82,7 +88,10 @@ const DEMOS: readonly DemoSpec[] = [
     ],
     realInconveniences: [
       { category: "logistics", text: "Closed Sundays. Sells out by 13:00 most days." },
-      { category: "crowds", text: "Four tables and shared seating — lunchtime you'll sit with strangers." },
+      {
+        category: "crowds",
+        text: "Four tables and shared seating — lunchtime you'll sit with strangers.",
+      },
     ],
     soloOverall: 9,
     soloHint: "A solo bowl is normal here. Nobody hovers.",
@@ -102,7 +111,10 @@ const DEMOS: readonly DemoSpec[] = [
     durationMax: 60,
     howTo: [
       { order: 1, text: "Skip the takeaway line, ask for a bar seat." },
-      { order: 2, text: "Order a single-origin pourover (~140 THB) — they'll talk you through it." },
+      {
+        order: 2,
+        text: "Order a single-origin pourover (~140 THB) — they'll talk you through it.",
+      },
       { order: 3, text: "Stay for a second small drink; the bar is a dialog, not a transaction." },
     ],
     realInconveniences: [
@@ -130,13 +142,19 @@ const DEMOS: readonly DemoSpec[] = [
     durationMin: 90,
     durationMax: 150,
     howTo: [
-      { order: 1, text: "Take a Grab to the trailhead (50 THB). Look for the orange cloth on the first tree." },
+      {
+        order: 1,
+        text: "Take a Grab to the trailhead (50 THB). Look for the orange cloth on the first tree.",
+      },
       { order: 2, text: "Follow the orange markers up — about 40–50 min, mostly shaded." },
       { order: 3, text: "Sit at the temple stream. Stay 30+ minutes; it earns it." },
       { order: 4, text: "Descend the same way, or walk down the paved road for a flatter route." },
     ],
     realInconveniences: [
-      { category: "weather", text: "Trail is slick after rain. April–May heat is brutal even at 08:00." },
+      {
+        category: "weather",
+        text: "Trail is slick after rain. April–May heat is brutal even at 08:00.",
+      },
       { category: "safety", text: "No phone signal in patches. Tell someone you're going." },
     ],
     soloOverall: 8,
@@ -156,12 +174,21 @@ const DEMOS: readonly DemoSpec[] = [
     durationMin: 120,
     durationMax: 130,
     howTo: [
-      { order: 1, text: "Book online or by phone at least a day ahead — walk-ins are rarely possible." },
+      {
+        order: 1,
+        text: "Book online or by phone at least a day ahead — walk-ins are rarely possible.",
+      },
       { order: 2, text: "Arrive 10 min early, foot-wash in the garden." },
-      { order: 3, text: "Two-hour traditional Thai is 1,200 THB. Tip 100 THB cash if you liked it." },
+      {
+        order: 3,
+        text: "Two-hour traditional Thai is 1,200 THB. Tip 100 THB cash if you liked it.",
+      },
     ],
     realInconveniences: [
-      { category: "logistics", text: "The free shuttle pickup window is narrow — confirm pickup time when booking." },
+      {
+        category: "logistics",
+        text: "The free shuttle pickup window is narrow — confirm pickup time when booking.",
+      },
       { category: "etiquette", text: "Phones-off in the treatment garden is enforced." },
     ],
     soloOverall: 10,
@@ -185,7 +212,10 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 3, text: "Watch silver hammer-work in the open shopfronts past Soi 3." },
     ],
     realInconveniences: [
-      { category: "scam", text: "'Antique' silver from non-shopfront stalls is mostly nickel. Buy from named workshops." },
+      {
+        category: "scam",
+        text: "'Antique' silver from non-shopfront stalls is mostly nickel. Buy from named workshops.",
+      },
       { category: "crowds", text: "After 20:30 it's elbow-to-elbow. Go early, leave early." },
     ],
     soloOverall: 9,
@@ -213,8 +243,14 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 3, text: "Re-buy at the 2-hour mark for a fresh code." },
     ],
     realInconveniences: [
-      { category: "crowds", text: "Exam season (May, October) it fills by 09:00 and you'll stand." },
-      { category: "logistics", text: "Outlets at window seats only. Bring an extension cord if you can." },
+      {
+        category: "crowds",
+        text: "Exam season (May, October) it fills by 09:00 and you'll stand.",
+      },
+      {
+        category: "logistics",
+        text: "Outlets at window seats only. Bring an extension cord if you can.",
+      },
     ],
     soloOverall: 10,
     soloHint: "Designed for solo work. Headphones on = nobody approaches you.",
@@ -234,11 +270,20 @@ const DEMOS: readonly DemoSpec[] = [
     howTo: [
       { order: 1, text: "Enter at Tha Pae Gate before 17:30 for golden light." },
       { order: 2, text: "Eat at Wat Phan On courtyard — the food court is on temple grounds." },
-      { order: 3, text: "Buy at workshops with people working visible — hand-pressed coconut sugar etc." },
+      {
+        order: 3,
+        text: "Buy at workshops with people working visible — hand-pressed coconut sugar etc.",
+      },
     ],
     realInconveniences: [
-      { category: "scam", text: "'Hill tribe handmade' often isn't. Look for sellers actually weaving on the spot." },
-      { category: "crowds", text: "After 19:00 the main road is shoulder-traffic. Side sois are calmer." },
+      {
+        category: "scam",
+        text: "'Hill tribe handmade' often isn't. Look for sellers actually weaving on the spot.",
+      },
+      {
+        category: "crowds",
+        text: "After 19:00 the main road is shoulder-traffic. Side sois are calmer.",
+      },
     ],
     soloOverall: 9,
   },
@@ -263,14 +308,18 @@ const DEMOS: readonly DemoSpec[] = [
     ],
     realInconveniences: [
       { category: "logistics", text: "Most stalls cash-only. ATM nearby but on the ground floor." },
-      { category: "crowds", text: "Saturdays before 08:00 the market road is jammed with delivery scooters." },
+      {
+        category: "crowds",
+        text: "Saturdays before 08:00 the market road is jammed with delivery scooters.",
+      },
     ],
     soloOverall: 8,
   },
   {
     slug: "huay_tung_tao_lake_lunch",
     title: "Take a bamboo hut at Huay Tung Tao for lake-side fish lunch",
-    oneLiner: "Reservoir north of town with stilted huts on the water — eat with your feet over the lake.",
+    oneLiner:
+      "Reservoir north of town with stilted huts on the water — eat with your feet over the lake.",
     whyItMatters:
       "Locals' weekend lunch spot. You rent a bamboo platform for the duration, food comes in waves, you can swim between courses. Quieter on weekdays.",
     category: "nature",
@@ -286,8 +335,14 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 4, text: "Swim if you brought a swimsuit. The far end of the lake is cleaner." },
     ],
     realInconveniences: [
-      { category: "weather", text: "Rainy season (Jun–Oct) the huts can flood; check before going." },
-      { category: "logistics", text: "Grabs back to town are scarce after 16:00. Have one called when you order food." },
+      {
+        category: "weather",
+        text: "Rainy season (Jun–Oct) the huts can flood; check before going.",
+      },
+      {
+        category: "logistics",
+        text: "Grabs back to town are scarce after 16:00. Have one called when you order food.",
+      },
     ],
     soloOverall: 7,
     soloHint: "Solo lunches happen but most huts are families. Pick a corner one.",
@@ -312,8 +367,14 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 3, text: "Walk a clockwise circuit of the chedi as the lights come on." },
     ],
     realInconveniences: [
-      { category: "etiquette", text: "Feet must point away from the Buddha. Locals will shift you politely if you forget." },
-      { category: "crowds", text: "Tour group window 17:30–18:00. Arrive at 18:15 and they're leaving." },
+      {
+        category: "etiquette",
+        text: "Feet must point away from the Buddha. Locals will shift you politely if you forget.",
+      },
+      {
+        category: "crowds",
+        text: "Tour group window 17:30–18:00. Arrive at 18:15 and they're leaving.",
+      },
     ],
     soloOverall: 9,
   },
@@ -345,7 +406,8 @@ const DEMOS: readonly DemoSpec[] = [
   {
     slug: "thai_cooking_class_morning",
     title: "Take the morning market-then-kitchen Thai cooking class",
-    oneLiner: "Half-day class that starts at the market — you pick the chiles, you learn what they do.",
+    oneLiner:
+      "Half-day class that starts at the market — you pick the chiles, you learn what they do.",
     whyItMatters:
       "Most classes skip the market. The market portion is what makes the dish make sense — you see the difference between palm sugar and white sugar, between bird's-eye and long chiles.",
     category: "food",
@@ -357,10 +419,16 @@ const DEMOS: readonly DemoSpec[] = [
     howTo: [
       { order: 1, text: "Book a class with a market visit — confirm the day before." },
       { order: 2, text: "Wear closed shoes. Markets are wet floors." },
-      { order: 3, text: "Pick the harder dishes (massaman, khao soi paste) — you can buy pad thai mix anywhere." },
+      {
+        order: 3,
+        text: "Pick the harder dishes (massaman, khao soi paste) — you can buy pad thai mix anywhere.",
+      },
     ],
     realInconveniences: [
-      { category: "logistics", text: "Quality varies wildly. Schools that take >8 students per session are usually a worse experience." },
+      {
+        category: "logistics",
+        text: "Quality varies wildly. Schools that take >8 students per session are usually a worse experience.",
+      },
       { category: "weather", text: "Rainy days the market portion is shortened." },
     ],
     soloOverall: 9,
@@ -385,8 +453,14 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 3, text: "Sit upstairs balcony for breathing room with sightline to the stage." },
     ],
     realInconveniences: [
-      { category: "crowds", text: "Tuesdays are a known event — by 22:30 the sidewalk is the venue." },
-      { category: "safety", text: "Walking back through the old city after midnight is fine; the moat road less so. Grab one back if your guesthouse is far." },
+      {
+        category: "crowds",
+        text: "Tuesdays are a known event — by 22:30 the sidewalk is the venue.",
+      },
+      {
+        category: "safety",
+        text: "Walking back through the old city after midnight is fine; the moat road less so. Grab one back if your guesthouse is far.",
+      },
     ],
     soloOverall: 8,
     soloHint: "Solo at a jazz bar reads as serious-listener. Take a stool, not a table.",
@@ -406,11 +480,20 @@ const DEMOS: readonly DemoSpec[] = [
     howTo: [
       { order: 1, text: "Charter a Grab one-way (~350 THB). Negotiate return with the driver." },
       { order: 2, text: "Entrance: 100 THB foreigner. Private room: +200 THB / 30 min." },
-      { order: 3, text: "Buy eggs to boil in the spring (10 THB / 6 eggs) — local ritual, takes 7 minutes." },
+      {
+        order: 3,
+        text: "Buy eggs to boil in the spring (10 THB / 6 eggs) — local ritual, takes 7 minutes.",
+      },
     ],
     realInconveniences: [
-      { category: "logistics", text: "Public transit is unreliable. Confirm a return Grab before going in." },
-      { category: "etiquette", text: "Public pools require a swimsuit, not undergarments. Private rooms are private." },
+      {
+        category: "logistics",
+        text: "Public transit is unreliable. Confirm a return Grab before going in.",
+      },
+      {
+        category: "etiquette",
+        text: "Public pools require a swimsuit, not undergarments. Private rooms are private.",
+      },
     ],
     soloOverall: 8,
     soloHint: "Private room makes solo soaking comfortable; the public pool is family-coded.",
@@ -431,11 +514,20 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 1, text: "Start at Wat Phra Singh (west). Free entry; donate 20 THB." },
       { order: 2, text: "East to Wat Phan Tao — small, all teak, often empty." },
       { order: 3, text: "Wat Chedi Luang next door — 40 THB foreigner ticket." },
-      { order: 4, text: "End at Wat Chiang Man, the city's oldest. Sit in the back of the viharn." },
+      {
+        order: 4,
+        text: "End at Wat Chiang Man, the city's oldest. Sit in the back of the viharn.",
+      },
     ],
     realInconveniences: [
-      { category: "etiquette", text: "Knees and shoulders covered at all four. Wat Phra Singh has loaner sarongs." },
-      { category: "weather", text: "April–May the cobbles are oven-hot by 10:00. Move fast or wait until afternoon." },
+      {
+        category: "etiquette",
+        text: "Knees and shoulders covered at all four. Wat Phra Singh has loaner sarongs.",
+      },
+      {
+        category: "weather",
+        text: "April–May the cobbles are oven-hot by 10:00. Move fast or wait until afternoon.",
+      },
     ],
     soloOverall: 9,
     soloHint: "Self-paced loop is built for solo. No guide needed.",
@@ -443,7 +535,8 @@ const DEMOS: readonly DemoSpec[] = [
   {
     slug: "mae_kha_canal_walk_evening",
     title: "Walk the restored Mae Kha canal walkway at dusk",
-    oneLiner: "Recently uncovered side-canal turned linear park — one of the city's quiet recent wins.",
+    oneLiner:
+      "Recently uncovered side-canal turned linear park — one of the city's quiet recent wins.",
     whyItMatters:
       "The Mae Kha was a sewer for thirty years. The 2023 restoration cleaned a 1km stretch and ran a wood walkway alongside. Locals stroll it at dusk; it has not yet shown up in guidebooks.",
     category: "hidden",
@@ -460,7 +553,10 @@ const DEMOS: readonly DemoSpec[] = [
     ],
     realInconveniences: [
       { category: "weather", text: "Smell can return after heavy rain — restoration is partial." },
-      { category: "safety", text: "Some unlit gaps where the walkway hasn't been finished. Keep a phone torch." },
+      {
+        category: "safety",
+        text: "Some unlit gaps where the walkway hasn't been finished. Keep a phone torch.",
+      },
     ],
     soloOverall: 9,
   },
@@ -485,7 +581,10 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 4, text: "Walk the talking-tree forest path on the way out." },
     ],
     realInconveniences: [
-      { category: "etiquette", text: "Active monastery. No talking inside the tunnels. Phone silent." },
+      {
+        category: "etiquette",
+        text: "Active monastery. No talking inside the tunnels. Phone silent.",
+      },
       { category: "logistics", text: "Donation box on exit — 40–60 THB is right." },
     ],
     soloOverall: 10,
@@ -511,7 +610,10 @@ const DEMOS: readonly DemoSpec[] = [
     ],
     realInconveniences: [
       { category: "logistics", text: "Closes Wednesdays. Closes at 17:30." },
-      { category: "crowds", text: "The Nimman branch is busier — Hassadhisawee is the calmer choice." },
+      {
+        category: "crowds",
+        text: "The Nimman branch is busier — Hassadhisawee is the calmer choice.",
+      },
     ],
     soloOverall: 9,
     soloHint: "Communal benches; staff happy to chat with solo customers.",
@@ -535,7 +637,10 @@ const DEMOS: readonly DemoSpec[] = [
       { order: 3, text: "Stay through the afternoon — the river crossing happens 14:00." },
     ],
     realInconveniences: [
-      { category: "scam", text: "Many copycat 'nature parks' run riding operations under similar names. Book only on elephantnaturepark.org." },
+      {
+        category: "scam",
+        text: "Many copycat 'nature parks' run riding operations under similar names. Book only on elephantnaturepark.org.",
+      },
       { category: "logistics", text: "Long day — you won't be back in town until 18:00." },
     ],
     soloOverall: 9,
