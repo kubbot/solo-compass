@@ -180,14 +180,6 @@ jobs:
             apps/ios/SoloCompass.xcodeproj/project.pbxproj
           grep "CURRENT_PROJECT_VERSION" apps/ios/SoloCompass.xcodeproj/project.pbxproj
 
-      # ── 6. Cache DerivedData ─────────────────────────────────────────────
-      - name: Cache DerivedData
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: deriveddata-${{ hashFiles('apps/ios/SoloCompass.xcodeproj/project.pbxproj') }}
-          restore-keys: |
-            deriveddata-
 
       # ── 7. Write .env from GitHub Secret ─────────────────────────────────
       - name: Write .env file
