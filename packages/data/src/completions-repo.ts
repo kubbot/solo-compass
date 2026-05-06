@@ -36,6 +36,9 @@ export class CompletionsRepo {
 
     // Upsert anonymous user. The handle column is unique → use it as the key.
     const handle = `anon_${anonUserId.slice(0, 12)}`;
+    // Supabase typed client's .upsert() chain resolves Insert type to `never`.
+    // This is a known Supabase-js typing limitation — the runtime API works correctly.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: userRow, error: userErr } = await (this.client as any)
       .from("users")
       .upsert({ handle }, { onConflict: "handle" })
@@ -44,6 +47,7 @@ export class CompletionsRepo {
     if (userErr || !userRow) throw new Error(`anon user upsert failed: ${userErr?.message}`);
 
     // Insert completion. Unique (user_id, experience_id) → handle conflict by update.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: insErr, count } = await (this.client as any).from("completions").upsert(
       {
         user_id: userRow.id,

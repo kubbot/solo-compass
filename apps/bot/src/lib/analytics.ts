@@ -14,11 +14,11 @@
 import { anonUserId } from "./anon-id.js";
 
 export type EventName =
-  | "session_start"
-  | "intent_submitted"
+  | "pageview"
+  | "intent_set"
   | "recommendations_shown"
-  | "experience_opened"
-  | "experience_completed"
+  | "sheet_open"
+  | "checkin"
   | "experience_skipped"
   | "experience_reported"
   | "opted_out";

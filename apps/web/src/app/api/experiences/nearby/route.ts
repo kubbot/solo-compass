@@ -26,6 +26,7 @@ import {
   type HealthStatus,
 } from "@solo-compass/core";
 import { getExperiencesRepo } from "@/lib/repos";
+import { WEB_DEMO_EXPERIENCES } from "@/data/demo-experiences";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,10 @@ const QuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
   intent: z.string().trim().min(1).max(280).optional(),
   radius: z.coerce.number().int().min(100).max(10_000).default(1500),
+  // UTC offset in minutes (e.g. +420 for UTC+7). Client sends from
+  // Intl.DateTimeFormat().resolvedOptions() so time-filtered experiences
+  // use the user's local clock instead of the server's UTC clock.
+  tz: z.coerce.number().int().min(-840).max(840).optional(),
 });
 
 export interface NearbyResult {
@@ -84,6 +89,7 @@ export async function GET(
     lat: url.searchParams.get("lat"),
     intent: url.searchParams.get("intent") ?? undefined,
     radius: url.searchParams.get("radius") ?? undefined,
+    tz: url.searchParams.get("tz") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -93,7 +99,7 @@ export async function GET(
     );
   }
 
-  const { lng, lat, intent, radius } = parsed.data;
+  const { lng, lat, intent, radius, tz } = parsed.data;
   const center = [lng, lat] as const;
 
   let candidates: Experience[];
@@ -103,7 +109,13 @@ export async function GET(
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("findNearby failed", err);
-    return NextResponse.json({ error: "experience lookup failed" }, { status: 502 });
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.warn("Using demo fallback data — Supabase unavailable in dev");
+      candidates = [...WEB_DEMO_EXPERIENCES];
+    } else {
+      return NextResponse.json({ error: "experience lookup failed" }, { status: 502 });
+    }
   }
 
   if (candidates.length === 0) {
@@ -117,7 +129,10 @@ export async function GET(
 
   // Intent provided → ask the ranker to pick the top 3.
   try {
-    const currentHour = new Date().getUTCHours(); // approximate; per-city local time deferred
+    // Compute local hour using the client-supplied UTC offset (minutes).
+    // Without it, sunset/sunrise filters fire at the wrong time for non-UTC cities.
+    const offsetMs = (tz ?? 0) * 60_000;
+    const currentHour = Math.floor(((Date.now() + offsetMs) % 86_400_000) / 3_600_000);
     const ranked = await rankExperiences({
       userLocation: center,
       userIntent: intent,

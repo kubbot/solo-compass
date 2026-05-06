@@ -152,7 +152,7 @@ bot.start(async (ctx) => {
   resetSession(ctx.from.id);
   const session = getSession(ctx.from.id);
   session.stage = "awaiting_location";
-  await track(ctx.from.id, "session_start");
+  await track(ctx.from.id, "pageview");
   await ctx.reply(
     [
       "Solo Compass.",
@@ -305,7 +305,7 @@ bot.on("callback_query", async (ctx) => {
     }
     await ctx.answerCbQuery();
     if (userId) {
-      await track(userId, "experience_opened", { experience_id: expId });
+      await track(userId, "sheet_open", { experience_id: expId });
     }
     await ctx.reply(formatDetail(exp), {
       parse_mode: "MarkdownV2",
@@ -326,7 +326,7 @@ bot.on("callback_query", async (ctx) => {
     if (userId && expId) {
       const eventName =
         action === "did"
-          ? "experience_completed"
+          ? "checkin"
           : action === "skip"
             ? "experience_skipped"
             : "experience_reported";
@@ -357,7 +357,7 @@ async function handleIntent(ctx: Context, intent: string): Promise<void> {
 
   session.lastIntent = intent;
   await ctx.sendChatAction("typing");
-  await track(userId, "intent_submitted");
+  await track(userId, "intent_set");
 
   let result;
   try {
