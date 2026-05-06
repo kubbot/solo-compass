@@ -119,11 +119,7 @@ export class ExperiencesRepo {
    * Results are ordered by relevance descending (PostgREST default for
    * textSearch). An optional `cityCode` narrows the search to one city.
    */
-  async searchByIntent(
-    query: string,
-    cityCode?: string,
-    limit = 20,
-  ): Promise<Experience[]> {
+  async searchByIntent(query: string, cityCode?: string, limit = 20): Promise<Experience[]> {
     let q = this.client
       .from("experiences")
       .select("*")

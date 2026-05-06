@@ -155,9 +155,7 @@ function parseBudget(text: string): number | undefined {
 
 // ─── indoorOutdoor ────────────────────────────────────────────────────────────
 
-function deriveIndoorOutdoor(
-  vibes: string[],
-): "indoor" | "outdoor" | "either" {
+function deriveIndoorOutdoor(vibes: string[]): "indoor" | "outdoor" | "either" {
   const hasOutdoor = vibes.includes("outdoor");
   const hasIndoor = vibes.includes("indoor");
   if (hasOutdoor && !hasIndoor) return "outdoor";

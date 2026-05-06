@@ -165,10 +165,7 @@ describe("rankExperiences — anti-hallucination", () => {
       messages: { create: createMock },
     } as unknown as Anthropic;
 
-    const result = await rankExperiences(
-      { ...BASE_INPUT, availableExperiences: [] },
-      mockClient,
-    );
+    const result = await rankExperiences({ ...BASE_INPUT, availableExperiences: [] }, mockClient);
 
     expect(result.ranked).toHaveLength(0);
     expect(createMock).not.toHaveBeenCalled();

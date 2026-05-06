@@ -30,11 +30,7 @@ const BodySchema = z.object({
 });
 
 /** SHA-256 hex of `ip:ua:experienceId`. Deterministic, non-reversible, scoped. */
-async function buildAnonId(
-  ip: string,
-  userAgent: string,
-  experienceId: string,
-): Promise<string> {
+async function buildAnonId(ip: string, userAgent: string, experienceId: string): Promise<string> {
   const raw = `${ip}:${userAgent}:${experienceId}`;
   const encoded = new TextEncoder().encode(raw);
   const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
@@ -46,9 +42,7 @@ const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 const SEVEN_DAYS_AGO_ISO = (): string =>
   new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-export async function POST(
-  request: Request,
-): Promise<NextResponse<{ ok: true }>> {
+export async function POST(request: Request): Promise<NextResponse<{ ok: true }>> {
   // Always return ok: true — never leak DB state to the client.
   const ok = NextResponse.json({ ok: true as const });
 
@@ -95,10 +89,12 @@ export async function POST(
 
   try {
     // Upsert ping — conflict on (experience_id, anon_id) updates pinged_at.
-    const { error: upsertError } = await client.from("traffic_pings").upsert(
-      { experience_id: experienceId, anon_id: anonId, pinged_at: new Date().toISOString() },
-      { onConflict: "experience_id,anon_id" },
-    );
+    const { error: upsertError } = await client
+      .from("traffic_pings")
+      .upsert(
+        { experience_id: experienceId, anon_id: anonId, pinged_at: new Date().toISOString() },
+        { onConflict: "experience_id,anon_id" },
+      );
     if (upsertError) {
       // eslint-disable-next-line no-console
       console.error("[traffic] upsert failed", upsertError.message);

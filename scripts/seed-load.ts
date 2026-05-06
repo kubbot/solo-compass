@@ -132,8 +132,8 @@ function experienceToRow(
     duration_min: (duration?.["min"] as number | undefined) ?? 0,
     duration_max: (duration?.["max"] as number | undefined) ?? 0,
     how_to: (obj["howTo"] ?? []) as unknown as ExperienceRow["how_to"],
-    real_inconveniences:
-      (obj["realInconveniences"] ?? []) as unknown as ExperienceRow["real_inconveniences"],
+    real_inconveniences: (obj["realInconveniences"] ??
+      []) as unknown as ExperienceRow["real_inconveniences"],
     solo_score: (obj["soloScore"] ?? {}) as unknown as ExperienceRow["solo_score"],
     sources: (obj["sources"] ?? []) as unknown as ExperienceRow["sources"],
     confidence: resolvedConfidence as unknown as ExperienceRow["confidence"],
@@ -193,7 +193,10 @@ async function main(): Promise<void> {
     for (let i = 0; i < items.length; i++) {
       const errors = validateExperience(items[i], i);
       if (errors.length > 0) {
-        console.warn(`  [INVALID] ${file}[${i}]:`, errors.map((e) => `${e.field}: ${e.message}`).join("; "));
+        console.warn(
+          `  [INVALID] ${file}[${i}]:`,
+          errors.map((e) => `${e.field}: ${e.message}`).join("; "),
+        );
         totalSkipped++;
       } else {
         valid.push(items[i] as Record<string, unknown>);
