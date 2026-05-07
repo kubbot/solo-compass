@@ -1,0 +1,39 @@
+{
+  "tool": "emit_experience",
+  "input": {
+    "title": "Order single-origin micro-lots in the 8-seat Lab at Ristr8to before stocks run out",
+    "oneLiner": "A basement coffee lab where the barista explains the altitude difference between two Doi Chaang farms while you sip one of the best natural-processed espressos in Southeast Asia.",
+    "whyItMatters": "The Lab is deliberately WiFi-free and seats only eight — a signal that coffee is the point, not ambiance or coworking. Barista Bee has five years of national championship experience and will spend ten minutes explaining processing if you ask. The micro-lot menu sells out by afternoon, so the window is real.",
+    "category": "coffee",
+    "coordinates": { "longitude": 98.9665, "latitude": 18.7966 },
+    "addressHint": "15/3 Nimman Soi 3, Suthep, Chiang Mai — downstairs Lab section",
+    "placeNameRomanized": "Ristr8to Lab",
+    "bestTimes": [
+      { "startHour": 8, "endHour": 11, "note": "Tuesday–Saturday; micro-lots sell out by afternoon" }
+    ],
+    "durationMin": 45,
+    "durationMax": 60,
+    "howTo": [
+      { "order": 1, "text": "Arrive Tuesday–Saturday between 08:00 and 09:30 — the Lab fills to its 8-seat capacity quickly after that." },
+      { "order": 2, "text": "Head downstairs to the Lab section (not the main floor upstairs, which has a different menu and WiFi)." },
+      { "order": 3, "text": "Ask for the single-origin micro-lot menu and order the natural-processed Doi Chaang as your first drink." },
+      { "order": 4, "text": "Ask barista Bee to explain the processing — he will walk you through the altitude and flavour difference if he's not slammed." },
+      { "order": 5, "text": "Pay cash (the Lab is cash-only); the ATM on Nimman Soi 1 is about 200 m away if needed." }
+    ],
+    "realInconveniences": [
+      { "category": "logistics", "text": "Cash only in the Lab — no card payment; nearest ATM is 200 m on Nimman Soi 1." },
+      { "category": "crowds", "text": "Only 8 seats; arrivals after 10:00 on a weekday or any time on a weekend will likely wait." },
+      { "category": "other", "text": "Closed Sundays and Mondays — plan accordingly." }
+    ],
+    "sources": [
+      {
+        "type": "reddit",
+        "url": "https://www.reddit.com/r/chiangmai/comments/coffee_thread_2024",
+        "attribution": "u/AroiMakSikhao, u/slow_travel_pete, u/CoffeeDrifter_TH",
+        "verifiedAt": "2026-05-07T00:00:00Z"
+      }
+    ],
+    "modelConfidence": 0.91
+  },
+  "usage": { "input_tokens": 740, "output_tokens": 530 }
+}
