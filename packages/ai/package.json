@@ -12,9 +12,12 @@
   },
   "dependencies": {
     "@solo-compass/core": "workspace:*",
-    "@anthropic-ai/sdk": "^0.32.0"
+    "@solo-compass/sources-core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.32.0",
+    "fast-levenshtein": "^3.0.0"
   },
   "devDependencies": {
+    "@types/fast-levenshtein": "^0.0.4",
     "typescript": "^5.6.2",
     "vitest": "^2.0.0"
   }

@@ -16,3 +16,4 @@ Stories: 45
 [2026-05-07T10:28:12Z] Story #US-008: Define SourceAdapter contract in packages/sources/core — PASSED
 [2026-05-07T10:32:02Z] Story #US-009: Implement Wikivoyage source adapter — PASSED
 [2026-05-07T10:35:59Z] Story #US-010: Implement OpenStreetMap + Overpass source adapter — PASSED
+[2026-05-07T10:41:07Z] Story #US-011: Implement Google Places API source adapter — PASSED
