@@ -1,104 +1,145 @@
-# CLAUDE.md
+# Solo Compass — Claude Code Project Guidelines
 
-> Project memory for Claude Code and other AI coding agents working in this repo.
+## Overview
 
-## What this project is
+Solo Compass: a map-first companion app for solo travelers. The core unit is `Experience` (not `Place`); the map is the home screen.
 
-**Solo Compass** is a map-first, experience-as-unit, AI-curated companion app for solo travelers. The core unit is `Experience`, not `Place`. The map is the home screen, not a feature.
-
-Read these first when picking up a task:
-
-1. `docs/PRODUCT_BRIEF.md` — the _why_
-2. `docs/PHASES.md` — what we're building _now_
-3. `packages/core/src/experience.ts` — the schema everything orbits
-
-## Repository conventions
+## Tech Stack
 
 ### Monorepo
 
-- `pnpm` workspaces + `turbo` for tasks.
-- `packages/*` — platform-agnostic, no UI deps.
-- `apps/*` — apps. Web (Next.js), iOS (Swift, Xcode-managed, NOT in pnpm workspaces), Bot (Telegraf).
+| Layer | Choice | Notes |
+|---|---|---|
+| Package manager | **pnpm 9.12.0** workspaces + **turbo** | `engines.node >=20`. iOS app is **not** a workspace member |
+| TypeScript | `strict: true`, `noUncheckedIndexedAccess: true` | Don't relax. `interface` for object shapes, `type` for unions |
+| IDs | **Branded types** (`UserId`, `ExperienceId`) | Never plain `string` |
+| Geo coords | `[longitude, latitude]` (GeoJSON / Mapbox / PostGIS) | Convert at the boundary when integrating Google APIs (`[lat, lng]`) |
+| Time | ISO 8601 UTC at storage; local at display | `bestTimes` uses 0–23 hour ints in the **experience's** local time |
+| Commits | Conventional Commits, lowercase scope | See `CONTRIBUTING.md` |
 
-### TypeScript
+### Apps & Packages
 
-- `strict: true`, `noUncheckedIndexedAccess: true`. Don't disable.
-- Prefer `interface` for object shapes, `type` for unions.
-- All IDs are branded types (`UserId`, `ExperienceId`). Never `string`.
+```
+apps/
+  web/    Next.js (App Router)
+  bot/    Telegraf (Telegram bot)
+  ios/    SwiftUI + MapKit — Xcode-managed, NOT in pnpm workspaces
+packages/
+  core/   Schema (experience.ts, confidence.ts, solo-score.ts, geo.ts, user.ts) — no UI deps
+  ai/     Recommendation + extraction prompts
+  data/   Seed loaders, fixtures
+```
 
-### Geo
+### iOS App (`apps/ios/SoloCompass/`)
 
-- Coordinates are `[longitude, latitude]` (GeoJSON / Mapbox / PostGIS convention).
-- **Never** mix with `[lat, lng]` (Google Maps convention). When integrating with Google APIs, convert at the boundary.
+| Layer | Choice | Notes |
+|---|---|---|
+| Platform | **iOS 17.0+**, Swift 5.10 | Single Xcode target `SoloCompass.app`, **zero third-party deps** |
+| Project gen | **xcodegen** from `apps/ios/project.yml` | Regenerate after editing the yml; don't hand-edit `.xcodeproj` |
+| UI | SwiftUI + **MapKit** | `CompassMapView` is the root — no tabs, no drawer |
+| State | `@Observable` + `@MainActor` services | `SWIFT_STRICT_CONCURRENCY: complete` is on |
+| Architecture | MVVM | `Views/{Map,Experience,Filter,Shared}` / `Models/` / `Services/` / `ViewModels/` |
+| Voice | `SFSpeechRecognizer` + `AVAudioEngine` | `VoiceService.swift` streams partial transcripts via `AsyncThrowingStream` |
+| Location | `CLLocationManager` + `CLCircularRegion` (200m, ≤20 regions) | `LocationService.shared` |
+| AI | Anthropic Messages API direct | `AIService.swift`, model `claude-opus-4-7`, key from `Secrets.plist` or `ANTHROPIC_API_KEY` env. Falls back to Solo-Score ranking when key is absent |
+| Seed data | `Resources/JSON/seed_experiences.json` (bundle) | Falls back to `ExperienceService.hardcodedSeed` for previews/tests |
+| Localization | `NSLocalizedString` from day 1 | All user strings in `Resources/en.lproj/Localizable.strings` |
 
-### Time
+## Project Structure
 
-- Storage: ISO 8601 strings, UTC.
-- Display: local to the user's current city.
-- Best-time windows for experiences use 0–23 hour ints in _local time of the experience's city_.
+```
+solo-compass/
+  apps/
+    ios/SoloCompass/
+      App/         SoloCompassApp (entry)
+      Views/       Map, Experience, Filter, Shared
+      ViewModels/  MapViewModel, ExperienceDetailViewModel
+      Models/      Experience, UserPreferences
+      Services/    Experience, AI, Location, Voice
+      Resources/   Info.plist, Assets, JSON, en.lproj
+      Tests/       SoloCompassTests (XCTest)
+    web/           Next.js
+    bot/           Telegraf
+  packages/        core, ai, data
+  scripts/
+    ralph/         Autonomous AI dev loop (prd.json, ralph.sh)
+    check-swift-parity.ts   TS↔Swift schema parity guard
+    seed-load.ts            Seed loader
+  docs/            PRODUCT_BRIEF, PHASES
+```
 
-### Commit messages
+## Coding Conventions
 
-- Conventional Commits, lowercase scope.
-- Examples in `CONTRIBUTING.md`.
+### TypeScript / Web / Bot
 
-## iOS App Conventions
+- Don't disable `strict` or `noUncheckedIndexedAccess`
+- Branded types for all IDs
+- Coords are `[lon, lat]` — never mix conventions inside one module
 
-### Architecture: `apps/ios/SoloCompass/`
+### Swift / iOS
 
-- SwiftUI + MapKit, target iOS 17.0+, MVVM with `@Observable`
-- Zero third-party deps — Swift native APIs only
-- Structure: `App/`, `Views/{Map,Experience,Filter,Shared}`, `Models/`, `Services/`, `ViewModels/`, `Resources/`
+- `@MainActor final class` for services and view models
+- `guard let` / `throws` — no force-unwraps in production paths
+- SwiftUI `#Preview` for every view
+- ViewModels and Services should have unit tests (`apps/ios/SoloCompass/Tests/`)
+- All user-facing strings via `NSLocalizedString`
 
-### Code Standards (iOS/Swift)
-
-- Use `guard let` and `throws`, NO force unwraps in production paths
-- SwiftUI previews for every view
-- Unit tests for ViewModels and Services
-- Localization-ready: use `NSLocalizedString` from day 1
-- All user-facing strings in `Resources/en.lproj/Localizable.strings`
-
-### CI/CD (GitHub Actions)
-
-- `.github/workflows/ios-ci.yml`: build + test + SwiftLint on push/PR
-- `scripts/ralph/`: autonomous AI dev loop (`ralph.sh --tool claude`)
-- Ralph uses `prd.json` (12 user stories) with `passes` gates
-
-## How to think about changes
-
-### The three-pillar test
-
-Before suggesting any feature or change, ask:
-
-1. **Does it respect Map-First?** The map is the home screen. Tabs, drawers, side menus, modal flows that take the user away from the map without a strong reason — get pushed back.
-2. **Does it respect Experience-as-Unit?** We don't store "places". We store "things worth doing".
-3. **Does it respect AI-doesn't-decide?** AI filters from many to few. AI explains. Never a single answer with no alternatives.
-
-### The privacy posture
-
-- No real names required. Background location is opt-in.
-- "Other solo travelers nearby" surfaces _count_ and _aggregated traces_, never identities.
-- No photos required. Never asks for emergency contact, government ID, or social graph.
-
-## When stuck or unsure
-
-- Open a GitHub issue describing the question. Don't ship code that depends on an answer the team hasn't given.
-- If you find yourself adding a field to `Experience`, post the proposal as a comment on a tracking issue first. The schema is the moat.
-
-## Things I (Claude) should never do here
-
-- Add a "social feed" of any kind. Add a points/leaderboard system.
-- Add features that pressure the user to share, post, invite, or rate.
-- Optimize for "engagement metrics." Optimize for week-1 retention.
-- Generate seed experiences and commit them to the public repo. Seeds are curated and live in a private repo.
-
-## Useful commands
+## Useful Commands
 
 ```bash
-pnpm install          # install TS workspace
-pnpm typecheck        # type-check whole graph
-pnpm format           # format
+# TS workspace
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm format
+pnpm parity:check        # verify TS↔Swift schema parity
+
+# iOS
+cd apps/ios
+xcodegen                 # regenerate SoloCompass.xcodeproj from project.yml
+xcodebuild build \
+  -project SoloCompass.xcodeproj -scheme SoloCompass \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+xcodebuild test \
+  -project SoloCompass.xcodeproj -scheme SoloCompass \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
 
 # Ralph autonomous dev
 cd scripts/ralph && ./ralph.sh --tool claude 12
 ```
+
+## CI
+
+- `.github/workflows/ios-ci.yml` — schema parity → build → test on `macos-latest`
+- `.github/workflows/ci.yml` — TS lint / typecheck / test
+- `.github/workflows/testflight.yml` — TestFlight upload on tagged release
+- `.github/workflows/update-changelog.yml` — auto changelog
+
+## Testing
+
+**iOS**: XCTest target `SoloCompassTests` (default sim: iPhone 16 Pro, iOS latest). Always start the Simulator in the background — never let it occupy the foreground terminal.
+
+**TS**: per-package `pnpm test` via turbo.
+
+Before marking a task complete:
+1. Build affected target (`pnpm typecheck` for TS, `xcodebuild build` for iOS)
+2. Run the relevant tests
+3. For schema changes touching `packages/core/src/experience.ts`, run `pnpm parity:check`
+4. For iOS UI changes, launch in Simulator and verify visually — `#Preview` alone is insufficient
+
+## Skill Routing
+
+When the user's request matches an available skill, invoke it via the Skill tool as your FIRST action.
+
+| Trigger | Skill |
+|---|---|
+| Product ideas, brainstorming, "is this worth building" | `office-hours` |
+| Bugs, errors, "why is this broken" | `investigate` |
+| Ship, deploy, push, create PR | `ship` |
+| QA, find bugs, test the site | `qa` |
+| Code review, check my diff | `review` |
+| Update docs after shipping | `document-release` |
+| Architecture review | `plan-eng-review` |
+| Visual audit, design polish | `design-review` |
+| Save / resume progress | `context-save` / `context-restore` |
+| Code quality, health check | `health` |
