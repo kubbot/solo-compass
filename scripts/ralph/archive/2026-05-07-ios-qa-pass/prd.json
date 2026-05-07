@@ -1,0 +1,103 @@
+{
+  "branchName": "feat/ralph-qa",
+  "project": "Solo Compass iOS MVP — Quality Pass",
+  "created": "2026-05-04",
+  "stories": [
+    {
+      "id": "1",
+      "name": "Map-First Full-Screen Map",
+      "priority": 1,
+      "description": "Verify and harden: map rendering, warm beige style, location permission flow, scroll/zoom, no tabs/drawer.",
+      "acceptance": "map fills screen, location permission flow works, warm beige base visible, no UI chrome beyond filter+info bar",
+      "passes": false
+    },
+    {
+      "id": "2",
+      "name": "Experience Markers — 6 visual states + edge cases",
+      "priority": 2,
+      "description": "Verify all 6 states render correctly. Edge cases: 0 experiences, 50+ experiences, cluster behavior, overlapping markers, rapid state transitions.",
+      "acceptance": "All 6 marker states distinct and correct. Map handles 0 and 50+ gracefully. No crash on rapid tap.",
+      "passes": false
+    },
+    {
+      "id": "3",
+      "name": "Filter Bar — polish + edge cases",
+      "priority": 3,
+      "description": "Verify: Now/All toggle, category filtering, empty state after filter, filter+scroll combination, rapid filter switching, accessibility labels.",
+      "acceptance": "All filters work. Empty state handled. Rapid switching doesn't crash. VoiceOver labels correct.",
+      "passes": false
+    },
+    {
+      "id": "4",
+      "name": "Experience Card — animation + haptics",
+      "priority": 4,
+      "description": "Polish card animation, haptic feedback, swipe gesture responsiveness, card content overflow handling (long titles, many inconveniences), dark mode.",
+      "acceptance": "Card slides smoothly. Haptic on open. Swipe works from any position. Long content scrolls. Dark mode looks correct.",
+      "passes": false
+    },
+    {
+      "id": "5",
+      "name": "Experience Detail — completeness check",
+      "priority": 5,
+      "description": "Verify all sections render: hero, whyItMatters, howTo (checkable), inconveniences, soloScore, bestTimes, sources, nearby, action buttons. Handle missing optional fields.",
+      "acceptance": "Every section renders. Optional fields gracefully hidden. Favorite/MarkDone toggle and persist. Nearby carousel scrolls.",
+      "passes": false
+    },
+    {
+      "id": "6",
+      "name": "Bottom Info Bar — real time simulation",
+      "priority": 6,
+      "description": "Verify dynamic text for all 4 time periods (morning/afternoon/evening/night). Smooth transitions. Solo count display. Weather-aware text if implemented.",
+      "acceptance": "All 4 time periods show correct text. Text transitions animate. Solo count updates. Graceful when location unavailable.",
+      "passes": false
+    },
+    {
+      "id": "7",
+      "name": "Voice Button — full flow test",
+      "priority": 7,
+      "description": "Verify: permission denied flow, recording animation, transcript capture, AI intent parsing, map refresh after voice. Error states: no internet, no permission, silent recording.",
+      "acceptance": "Permission flow works. Recording animation pulses. Transcript captured. Map refreshes post-voice. All error states handled.",
+      "passes": false
+    },
+    {
+      "id": "8",
+      "name": "GPS Check-in — geofence + feedback loop",
+      "priority": 8,
+      "description": "Verify: geofence triggers on arrival, timer starts, departure detection, feedback prompt, 30s voice capture, background mode.",
+      "acceptance": "Arrival detected. Feedback prompt on departure. Voice captured. Location permission denied handled gracefully.",
+      "passes": false
+    },
+    {
+      "id": "9",
+      "name": "User Share — long-press map flow",
+      "priority": 9,
+      "description": "Verify: long press triggers prompt, coordinate capture, voice recording, AI structuring, candidate marker appears, distinct icon.",
+      "acceptance": "Long press shows prompt. Voice recording works. Candidate marker appears with distinct icon. Error handling for failed AI structuring.",
+      "passes": false
+    },
+    {
+      "id": "10",
+      "name": "AI Layer — error handling + retry + caching",
+      "priority": 10,
+      "description": "Add: retry logic with exponential backoff, response caching (5min TTL), error states in UI (no network, rate limited, invalid key), loading skeletons.",
+      "acceptance": "Retry on transient failure. Cache prevents redundant calls. Error states shown in UI (not crashes). Loading states present.",
+      "passes": false
+    },
+    {
+      "id": "11",
+      "name": "Confidence Display — tap detail + signal breakdown",
+      "priority": 11,
+      "description": "Verify confidence dot renders on all views. Tap gesture shows signal breakdown. Health status color mapping correct. Age-based fading works.",
+      "acceptance": "Confidence dot visible on markers and cards. Tap shows signal count. Colors match health status. 'mayBeGone' after 60d.",
+      "passes": false
+    },
+    {
+      "id": "12",
+      "name": "CI/CD hardening + Xcode project gen",
+      "priority": 12,
+      "description": "Fix CI to handle missing Xcode project (generate placeholder). Add project.yml for XcodeGen. Ensure TS CI only runs on packages/* changes. Add cache for pnpm.",
+      "acceptance": "CI green when billing unlocked. XcodeGen config creates valid project. TS CI skips for iOS-only changes. pnpm cache speeds up runs.",
+      "passes": false
+    }
+  ]
+}
