@@ -25,17 +25,14 @@ const NEARBY_PAYLOAD: NearbySearchResponse = {
       priceLevel: "PRICE_LEVEL_FREE",
       primaryTypeDisplayName: { text: "Place of worship" },
       regularOpeningHours: {
-        weekdayDescriptions: [
-          "Monday: 6:00 AM – 6:00 PM",
-          "Tuesday: 6:00 AM – 6:00 PM",
-        ],
+        weekdayDescriptions: ["Monday: 6:00 AM – 6:00 PM", "Tuesday: 6:00 AM – 6:00 PM"],
       },
     },
     {
       name: "places/ChIJxyz456",
       id: "ChIJxyz456",
       displayName: { text: "Ristr8to Coffee" },
-      location: { latitude: 18.80, longitude: 98.98 },
+      location: { latitude: 18.8, longitude: 98.98 },
       rating: 4.8,
       userRatingCount: 680,
       priceLevel: "PRICE_LEVEL_MODERATE",
@@ -49,9 +46,7 @@ describe("GooglePlacesAdapter", () => {
     it("throws when no API key is provided", () => {
       const orig = process.env["GOOGLE_PLACES_API_KEY"];
       delete process.env["GOOGLE_PLACES_API_KEY"];
-      expect(() => new GooglePlacesAdapter()).toThrow(
-        "GOOGLE_PLACES_API_KEY is required",
-      );
+      expect(() => new GooglePlacesAdapter()).toThrow("GOOGLE_PLACES_API_KEY is required");
       if (orig !== undefined) process.env["GOOGLE_PLACES_API_KEY"] = orig;
     });
 
@@ -128,9 +123,7 @@ describe("GooglePlacesAdapter", () => {
 
       const result = await adapter.fetchNearby(18.79, 98.97, 1000);
       expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("daily budget cap reached"),
-      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("daily budget cap reached"));
       expect(mockFetch).not.toHaveBeenCalled();
       warnSpy.mockRestore();
     });
@@ -184,9 +177,7 @@ describe("GooglePlacesAdapter", () => {
       });
 
       await adapter.fetchNearby(18.79, 98.97, 1000);
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining("cost $0.0170"),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("cost $0.0170"));
       logSpy.mockRestore();
     });
   });
@@ -204,7 +195,7 @@ describe("GooglePlacesAdapter", () => {
           minLon: 98.96,
           minLat: 18.78,
           maxLon: 98.98,
-          maxLat: 18.80,
+          maxLat: 18.8,
         },
       });
 

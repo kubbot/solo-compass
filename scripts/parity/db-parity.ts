@@ -170,7 +170,7 @@ export function checkDbParity(rootDir: string, verbose: boolean): DbParityResult
 
   if (dbColumns.size === 0) {
     throw new Error(
-      'No columns extracted from experiences table — check packages/db/src/schema/experiences.ts',
+      "No columns extracted from experiences table — check packages/db/src/schema/experiences.ts",
     );
   }
 
@@ -185,7 +185,9 @@ export function checkDbParity(rootDir: string, verbose: boolean): DbParityResult
 
   if (verbose) {
     console.log(`   DB columns (${dbColumns.size}): ${[...dbColumns].join(", ")}`);
-    console.log(`   Experience fields (${experienceFields.length}): ${experienceFields.join(", ")}`);
+    console.log(
+      `   Experience fields (${experienceFields.length}): ${experienceFields.join(", ")}`,
+    );
   }
 
   const mismatches: DbParityMismatch[] = [];
@@ -250,14 +252,16 @@ export function formatDbParityReport(result: DbParityResult): string {
   if (missingInCore.length > 0) {
     lines.push("Drizzle columns with no corresponding Experience field:");
     for (const m of missingInCore) {
-      lines.push(`  • column: ${m.dbColumn}  [add to DB_ONLY_COLUMNS or FIELD_TO_COLUMN if intentional]`);
+      lines.push(
+        `  • column: ${m.dbColumn}  [add to DB_ONLY_COLUMNS or FIELD_TO_COLUMN if intentional]`,
+      );
     }
     lines.push("");
   }
 
   lines.push(
     "Fix: add missing columns to packages/db/src/schema/experiences.ts,\n" +
-    "  or update FIELD_TO_COLUMN / DB_ONLY_COLUMNS in scripts/parity/db-parity.ts.",
+      "  or update FIELD_TO_COLUMN / DB_ONLY_COLUMNS in scripts/parity/db-parity.ts.",
   );
   return lines.join("\n");
 }

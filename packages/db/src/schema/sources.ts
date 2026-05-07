@@ -1,11 +1,7 @@
 import { pgTable, pgEnum, uuid, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { experiences } from "./experiences.js";
 
-export const sourceTypeEnum = pgEnum("source_type", [
-  "wikivoyage",
-  "osm",
-  "google_places",
-]);
+export const sourceTypeEnum = pgEnum("source_type", ["wikivoyage", "osm", "google_places"]);
 
 export const sources = pgTable("sources", {
   id: uuid("id").primaryKey().defaultRandom(),

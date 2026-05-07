@@ -5,8 +5,7 @@ import {
   type NearbySearchResponse,
 } from "./types.js";
 
-const NEARBY_SEARCH_URL =
-  "https://places.googleapis.com/v1/places:searchNearby";
+const NEARBY_SEARCH_URL = "https://places.googleapis.com/v1/places:searchNearby";
 
 /** Redacts the API key from a URL or string for safe logging. */
 export function redactKey(value: string): string {
@@ -52,9 +51,7 @@ export async function nearbySearch(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Google Places nearbySearch failed: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Google Places nearbySearch failed: ${response.status} ${response.statusText}`);
   }
 
   const data = (await response.json()) as NearbySearchResponse;

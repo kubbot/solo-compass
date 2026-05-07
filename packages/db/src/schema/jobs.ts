@@ -1,13 +1,4 @@
-import {
-  pgTable,
-  pgEnum,
-  uuid,
-  text,
-  integer,
-  timestamp,
-  jsonb,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { experiences } from "./experiences.js";
 
 export const compilationJobStatusEnum = pgEnum("compilation_job_status", [

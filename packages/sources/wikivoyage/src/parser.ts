@@ -13,10 +13,7 @@ interface RawPoi {
   sectionUrl: string;
 }
 
-function extractCoordinates(
-  el: any,
-  $: cheerio.CheerioAPI,
-): readonly [number, number] | undefined {
+function extractCoordinates(el: any, $: cheerio.CheerioAPI): readonly [number, number] | undefined {
   // Wikivoyage embeds geo data as class="geo" spans or data-lat/data-lon attributes
   const geoSpan = $(el).find(".geo").first().text().trim();
   if (geoSpan) {
@@ -100,11 +97,7 @@ export function parseWikivoyageHtml(html: string, articleUrl: string): RawPoi[] 
 /**
  * Converts raw POIs from a city article into Candidates ready for the pipeline.
  */
-export function toCandidates(
-  pois: RawPoi[],
-  citySlug: string,
-  articleUrl: string,
-): Candidate[] {
+export function toCandidates(pois: RawPoi[], citySlug: string, articleUrl: string): Candidate[] {
   const fetchedAt = new Date().toISOString();
 
   return pois.map((poi, index) => {

@@ -52,12 +52,8 @@ describe("dedup", () => {
     const merged = result.merged[0]!;
     expect(merged.evidence).toHaveLength(3);
     expect(merged.sourceUrls).toHaveLength(3);
-    expect(merged.sourceUrls).toContain(
-      "https://en.wikivoyage.org/wiki/Bangkok#Wat_Phra_Kaew",
-    );
-    expect(merged.sourceUrls).toContain(
-      "https://www.openstreetmap.org/node/12345",
-    );
+    expect(merged.sourceUrls).toContain("https://en.wikivoyage.org/wiki/Bangkok#Wat_Phra_Kaew");
+    expect(merged.sourceUrls).toContain("https://www.openstreetmap.org/node/12345");
     expect(merged.sourceUrls).toContain("https://maps.google.com/?cid=99999");
   });
 

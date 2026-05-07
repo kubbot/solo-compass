@@ -9,11 +9,7 @@ export const DEFAULT_AMENITY_TYPES = [
 ] as const;
 
 /** OSM tourism types fetched by default. */
-export const DEFAULT_TOURISM_TYPES = [
-  "attraction",
-  "viewpoint",
-  "museum",
-] as const;
+export const DEFAULT_TOURISM_TYPES = ["attraction", "viewpoint", "museum"] as const;
 
 export type AmenityType = (typeof DEFAULT_AMENITY_TYPES)[number];
 export type TourismType = (typeof DEFAULT_TOURISM_TYPES)[number];

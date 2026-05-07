@@ -94,12 +94,7 @@
     "public.experience_status": {
       "name": "experience_status",
       "schema": "public",
-      "values": [
-        "candidate",
-        "active",
-        "stale",
-        "retired"
-      ]
+      "values": ["candidate", "active", "stale", "retired"]
     }
   },
   "schemas": {},

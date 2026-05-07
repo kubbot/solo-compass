@@ -91,9 +91,7 @@ function bboxCacheKey(
   ].join("|");
 }
 
-function elementCoords(
-  el: OverpassElement,
-): readonly [number, number] | undefined {
+function elementCoords(el: OverpassElement): readonly [number, number] | undefined {
   if (el.lat !== undefined && el.lon !== undefined) {
     return [el.lon, el.lat]; // GeoJSON: [longitude, latitude]
   }
@@ -109,19 +107,14 @@ function elementTitle(tags: Record<string, string>): string {
 
 function elementDescription(tags: Record<string, string>): string {
   const parts: string[] = [];
-  const category =
-    tags["amenity"] ?? tags["tourism"] ?? tags["leisure"] ?? tags["shop"];
+  const category = tags["amenity"] ?? tags["tourism"] ?? tags["leisure"] ?? tags["shop"];
   if (category) parts.push(`Type: ${category}`);
   if (tags["description"]) parts.push(tags["description"]);
   if (tags["opening_hours"]) parts.push(`Hours: ${tags["opening_hours"]}`);
   if (tags["website"]) parts.push(`Website: ${tags["website"]}`);
   if (tags["phone"]) parts.push(`Phone: ${tags["phone"]}`);
   if (tags["addr:street"]) {
-    const addr = [
-      tags["addr:housenumber"],
-      tags["addr:street"],
-      tags["addr:city"],
-    ]
+    const addr = [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]]
       .filter(Boolean)
       .join(" ");
     parts.push(`Address: ${addr}`);
@@ -129,9 +122,7 @@ function elementDescription(tags: Record<string, string>): string {
   return parts.join("\n");
 }
 
-function elementsToCandidates(
-  elements: readonly OverpassElement[],
-): Candidate[] {
+function elementsToCandidates(elements: readonly OverpassElement[]): Candidate[] {
   const fetchedAt = new Date().toISOString();
 
   return elements

@@ -177,7 +177,7 @@ describe("OsmAdapter — default types", () => {
 
 describe("OsmAdapter.healthCheck", () => {
   it("returns true when fetch succeeds", async () => {
-    const fetchFn = vi.fn(async () => ({ elements: [] } as OverpassResponse));
+    const fetchFn = vi.fn(async () => ({ elements: [] }) as OverpassResponse);
     const adapter = new OsmAdapter({ fetchFn });
     expect(await adapter.healthCheck()).toBe(true);
   });

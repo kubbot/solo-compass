@@ -5,8 +5,6 @@ export default defineConfig({
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url:
-      process.env["DATABASE_URL"] ??
-      "postgres://solo:solo@localhost:5432/solocompass",
+    url: process.env["DATABASE_URL"] ?? "postgres://solo:solo@localhost:5432/solocompass",
   },
 });

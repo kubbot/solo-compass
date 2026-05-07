@@ -1,19 +1,7 @@
-import {
-  pgTable,
-  pgEnum,
-  uuid,
-  text,
-  timestamp,
-  jsonb,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { experiences } from "./experiences.js";
 
-export const signalTypeEnum = pgEnum("signal_type", [
-  "gps_dwell",
-  "micro_survey",
-  "user_report",
-]);
+export const signalTypeEnum = pgEnum("signal_type", ["gps_dwell", "micro_survey", "user_report"]);
 
 export const userSignals = pgTable(
   "user_signals",
@@ -25,13 +13,9 @@ export const userSignals = pgTable(
     anonymousDeviceId: text("anonymous_device_id").notNull(),
     signalType: signalTypeEnum("signal_type").notNull(),
     payload: jsonb("payload"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_user_signals_experience_signal").on(t.experienceId, t.signalType),
-  ],
+  (t) => [index("idx_user_signals_experience_signal").on(t.experienceId, t.signalType)],
 );
 
 export const auditLog = pgTable("audit_log", {

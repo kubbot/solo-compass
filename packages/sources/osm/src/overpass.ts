@@ -38,10 +38,7 @@ export function buildOverpassQuery(
 }
 
 /** Default fetch implementation — POST to Overpass interpreter. */
-export async function fetchOverpass(
-  url: string,
-  body: string,
-): Promise<OverpassResponse> {
+export async function fetchOverpass(url: string, body: string): Promise<OverpassResponse> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -52,9 +49,7 @@ export async function fetchOverpass(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Overpass request failed: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Overpass request failed: ${response.status} ${response.statusText}`);
   }
 
   return response.json() as Promise<OverpassResponse>;

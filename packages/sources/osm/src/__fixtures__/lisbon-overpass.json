@@ -86,7 +86,7 @@
     {
       "type": "node",
       "id": 831024576,
-      "lat": 38.6970,
+      "lat": 38.697,
       "lon": -9.2091,
       "tags": {
         "tourism": "viewpoint",
@@ -97,8 +97,8 @@
     {
       "type": "node",
       "id": 912837465,
-      "lat": 38.7080,
-      "lon": -9.1350,
+      "lat": 38.708,
+      "lon": -9.135,
       "tags": {
         "amenity": "bar",
         "name": "Park Bar",
@@ -137,8 +137,8 @@
     {
       "type": "node",
       "id": 9999999999,
-      "lat": 38.7100,
-      "lon": -9.1400,
+      "lat": 38.71,
+      "lon": -9.14,
       "tags": {
         "amenity": "cafe"
       }

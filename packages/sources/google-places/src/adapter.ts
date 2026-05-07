@@ -24,21 +24,14 @@ export class GooglePlacesAdapter implements SourceAdapter {
   private readonly fetchFn: (url: string, init: RequestInit) => Promise<Response>;
 
   constructor(options: GooglePlacesAdapterOptions = {}) {
-    const key =
-      options.apiKey ??
-      process.env["GOOGLE_PLACES_API_KEY"] ??
-      "";
+    const key = options.apiKey ?? process.env["GOOGLE_PLACES_API_KEY"] ?? "";
     if (!key) {
-      throw new Error(
-        "GooglePlacesAdapter: GOOGLE_PLACES_API_KEY is required",
-      );
+      throw new Error("GooglePlacesAdapter: GOOGLE_PLACES_API_KEY is required");
     }
     this.apiKey = key;
 
     const capEnv = process.env["GOOGLE_PLACES_DAILY_CAP_USD"];
-    const capUsd =
-      options.dailyCapUsd ??
-      (capEnv !== undefined ? parseFloat(capEnv) : 50);
+    const capUsd = options.dailyCapUsd ?? (capEnv !== undefined ? parseFloat(capEnv) : 50);
 
     this.placeTypes = options.placeTypes ?? DEFAULT_PLACE_TYPES;
     this.budget = new BudgetTracker(capUsd);
@@ -53,11 +46,7 @@ export class GooglePlacesAdapter implements SourceAdapter {
    * Fetch nearby place candidates.
    * Results cached 6 h. Budget checked before every API call.
    */
-  async fetchNearby(
-    lat: number,
-    lon: number,
-    radiusM: number,
-  ): Promise<Candidate[]> {
+  async fetchNearby(lat: number, lon: number, radiusM: number): Promise<Candidate[]> {
     const cacheKey = `nearby:${lat.toFixed(4)}:${lon.toFixed(4)}:${radiusM}`;
     const cached = this.nearbyCache.get<Candidate[]>(cacheKey);
     if (cached !== undefined) return cached;
@@ -128,15 +117,11 @@ function parsePriceLevel(raw: string | undefined): number | undefined {
 function extractSignals(place: GooglePlaceNearby): PlaceSignals {
   const loc = place.location;
   const coords: readonly [number, number] =
-    loc !== undefined
-      ? ([loc.longitude, loc.latitude] as const)
-      : ([0, 0] as const);
+    loc !== undefined ? ([loc.longitude, loc.latitude] as const) : ([0, 0] as const);
 
   const weekdays = place.regularOpeningHours?.weekdayDescriptions;
   const openingHoursSummary =
-    weekdays !== undefined && weekdays.length > 0
-      ? weekdays.join("; ")
-      : undefined;
+    weekdays !== undefined && weekdays.length > 0 ? weekdays.join("; ") : undefined;
 
   return {
     placeId: place.id,
