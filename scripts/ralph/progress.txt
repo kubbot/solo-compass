@@ -5,3 +5,4 @@ Branch: ralph/data-engine-v2
 PRD: tasks/prd-data-engine-v2.md
 Stories: 45
 ---
+[2026-05-07T10:17:28Z] Story #US-001: Bootstrap packages/db with Drizzle + Postgres — PASSED
