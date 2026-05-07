@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { extractTSStructs, SCHEMA_INTERFACES } from "./parity/ts-extractor.js";
 import { extractSwiftStructs } from "./parity/swift-extractor.js";
 import { compareStructs, formatReport } from "./parity/comparator.js";
+import { checkDbParity, formatDbParityReport } from "./parity/db-parity.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -40,6 +41,8 @@ const SWIFT_GLOBS = ["apps/ios/SoloCompass/Models/*.swift"];
 // ---------------------------------------------------------------------------
 
 function main(): void {
+  // ── TS ↔ Swift parity ────────────────────────────────────────────────────
+
   if (VERBOSE) {
     console.log("🔍 Extracting TypeScript interfaces...");
   }
@@ -81,12 +84,29 @@ function main(): void {
     }
   }
 
-  const result = compareStructs(tsStructs, swiftStructs, SCHEMA_INTERFACES);
-  const report = formatReport(result);
+  const swiftResult = compareStructs(tsStructs, swiftStructs, SCHEMA_INTERFACES);
+  process.stdout.write(formatReport(swiftResult));
 
-  process.stdout.write(report);
+  // ── TS ↔ DB (Drizzle) parity ─────────────────────────────────────────────
 
-  if (!result.ok) {
+  if (VERBOSE) {
+    console.log("🔍 Checking TS↔DB (Drizzle) parity...");
+  }
+
+  let dbResult;
+  try {
+    dbResult = checkDbParity(ROOT, VERBOSE);
+  } catch (err) {
+    console.error("❌ Failed to run DB parity check:");
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+
+  process.stdout.write(formatDbParityReport(dbResult));
+
+  // ── Exit ─────────────────────────────────────────────────────────────────
+
+  if (!swiftResult.ok || !dbResult.ok) {
     process.exit(1);
   }
 }
