@@ -5,6 +5,8 @@ import {
   text,
   integer,
   timestamp,
+  doublePrecision,
+  jsonb,
   customType,
 } from "drizzle-orm/pg-core";
 
@@ -35,4 +37,16 @@ export const experiences = pgTable("experiences", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   lastCompiledAt: timestamp("last_compiled_at", { withTimezone: true }),
+  // Flattened duration range (minutes)
+  durationMin: integer("duration_min"),
+  durationMax: integer("duration_max"),
+  // Denormalized stats
+  completionCount: integer("completion_count").notNull().default(0),
+  averageRating: doublePrecision("average_rating"),
+  // JSONB blobs for complex nested shapes
+  bestTimes: jsonb("best_times"),
+  howTo: jsonb("how_to"),
+  realInconveniences: jsonb("real_inconveniences"),
+  soloScore: jsonb("solo_score"),
+  sources: jsonb("sources"),
 });

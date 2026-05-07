@@ -14,7 +14,7 @@ interface RawPoi {
 }
 
 function extractCoordinates(
-  el: cheerio.Element,
+  el: any,
   $: cheerio.CheerioAPI,
 ): readonly [number, number] | undefined {
   // Wikivoyage embeds geo data as class="geo" spans or data-lat/data-lon attributes
