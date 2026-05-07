@@ -26,7 +26,7 @@ import {
   type HealthStatus,
 } from "@solo-compass/core";
 import { getExperiencesRepo } from "@/lib/repos";
-import { WEB_DEMO_EXPERIENCES } from "@/data/demo-experiences";
+import { demoExperiences as WEB_DEMO_EXPERIENCES } from "@/data/demo-experiences";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
