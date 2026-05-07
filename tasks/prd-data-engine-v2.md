@@ -33,11 +33,11 @@ PRD v1 assumed a curated seed dataset would expand city-by-city through human cu
 
 The resolution is a **three-leg data engine** that decouples three concerns:
 
-| Concern | Solved by |
-|---|---|
-| Coverage (everywhere on earth) | AI compilation pipeline ingesting public sources |
-| Quality (Solo Compass voice + judgment) | Editorial review queue with internal admin app |
-| Differentiation (solo-traveler signal) | User behavior + micro-survey aggregation |
+| Concern                                 | Solved by                                        |
+| --------------------------------------- | ------------------------------------------------ |
+| Coverage (everywhere on earth)          | AI compilation pipeline ingesting public sources |
+| Quality (Solo Compass voice + judgment) | Editorial review queue with internal admin app   |
+| Differentiation (solo-traveler signal)  | User behavior + micro-survey aggregation         |
 
 No leg works alone. Together they form the product's moat.
 
@@ -46,6 +46,7 @@ No leg works alone. Together they form the product's moat.
 The iOS frontend work (US-001 camera follow, US-002 onboarding, US-004 settings, US-006 favorites, US-007 check-in inbox, US-011/012 background location + push) remains valid. v1 §3 stories US-001 through US-007 and US-011 through US-013 are **carried forward unchanged**.
 
 This PRD replaces v1's:
+
 - US-003 (city switcher) — concept of "cities" is demoted from a primary navigation construct to a search facet
 - US-008 (backend API) — replaced by US-D08 below with new endpoints
 - US-009 (Postgres schema) — extended significantly with sources/evidence/audit tables
@@ -146,14 +147,14 @@ These principles override convenience throughout the PRD. When you face a tradeo
 
 ### 2.1 Confidence tiers (visible in UI)
 
-| Tier | Label | Source | UI badge |
-|---|---|---|---|
-| 5 | `userVerified` | ≥5 user surveys agree | 🟢 Green ring + "Verified by N solo travelers" |
-| 4 | `editorVerified` | Editor approved + ≥1 user signal | 🟢 Green ring |
-| 3 | `editorApproved` | Editor approved, no user signal yet | 🟢 Green ring + "Recently added" |
-| 2 | `aiCompiled_multiSource` | ≥3 sources, ≥10 weight, no editor yet | 🟡 Yellow ring + "AI compiled, awaiting review" |
-| 1 | `aiCompiled_singleSource` | <3 sources or <10 weight | 🔴 Red ring + "Speculative — please verify" |
-| 0 | `candidate` | User-submitted via long-press | ⚪ Gray dashed ring |
+| Tier | Label                     | Source                                | UI badge                                        |
+| ---- | ------------------------- | ------------------------------------- | ----------------------------------------------- |
+| 5    | `userVerified`            | ≥5 user surveys agree                 | 🟢 Green ring + "Verified by N solo travelers"  |
+| 4    | `editorVerified`          | Editor approved + ≥1 user signal      | 🟢 Green ring                                   |
+| 3    | `editorApproved`          | Editor approved, no user signal yet   | 🟢 Green ring + "Recently added"                |
+| 2    | `aiCompiled_multiSource`  | ≥3 sources, ≥10 weight, no editor yet | 🟡 Yellow ring + "AI compiled, awaiting review" |
+| 1    | `aiCompiled_singleSource` | <3 sources or <10 weight              | 🔴 Red ring + "Speculative — please verify"     |
+| 0    | `candidate`               | User-submitted via long-press         | ⚪ Gray dashed ring                             |
 
 **Rule**: tier 1 is **never returned by default** — only when user opts into "Show speculative" in Settings.
 
@@ -164,17 +165,21 @@ These principles override convenience throughout the PRD. When you face a tradeo
 Walk through one concrete case: a user opens the app in Lisbon, no existing data within 5km.
 
 ### 3.1 Trigger
+
 - iOS calls `GET /v1/experiences?lat=38.7223&lon=-9.1393&radiusKm=5`
 - Backend returns `[]` (empty) but enqueues a `compilation_job`
 
 ### 3.2 Source collection (parallel, with timeouts)
+
 - Wikivoyage Lisbon page → 47 candidate POIs extracted
 - OSM Overpass `[amenity=cafe|restaurant|place_of_worship]` within 5km → 312 nodes
 - Google Places `nearbysearch` → 60 results (paginated 3x for 180 max)
 - **Total candidates after dedup by name+location: ~85**
 
 ### 3.3 Per-candidate evidence aggregation
+
 For each candidate, compute:
+
 ```
 evidence = {
   wikivoyage: { weight: 3, raw: "...", verifiedAt: now },
@@ -187,7 +192,9 @@ sources_count = 3
 ```
 
 ### 3.4 AI compilation (per candidate)
+
 Prompt to Claude Opus 4.7:
+
 ```
 You are writing for Solo Compass — an app for solo travelers.
 Voice: sensory, specific, no superlatives. "You" not "tourists".
@@ -203,27 +210,32 @@ Constraints:
 ```
 
 ### 3.5 Quality gate
+
 - LLM returns invalid JSON → retry once → if fail, reject candidate, log
 - LLM returns valid JSON but `oneLiner` mentions "amazing/best/must-see" → reject (voice violation)
 - LLM returns valid JSON but `whyItMatters` < 80 words → reject (depth violation)
 
 ### 3.6 Persist + enqueue review
+
 - Insert into `experiences` with `status = 'awaiting_review'`, `confidence.level = 2`
 - Insert per-source rows into `sources` table linked by `experience_id`
 - Insert `evidence_snapshot` row (full raw evidence, for editor reference)
 - Push to `editor_queue` topic
 
 ### 3.7 User immediately benefits
+
 - When the iOS app polls again 30s later, `GET /v1/experiences?lat=...&lon=...` returns the new tier-2 experiences with yellow rings
 - User sees "AI compiled, awaiting editor review" badge — transparent
 
 ### 3.8 Editor reviews (within hours)
+
 - Editor opens `apps/admin/queue` → sees the 85 new candidates sorted by potential value (signal weight × population proximity)
 - Per candidate: side-by-side view (raw evidence | AI output | editable form)
 - Actions: **Approve** (→ tier 3), **Edit & approve** (→ tier 3 with diff stored), **Reject** (→ archived with reason)
 - Approved Experiences are immediately served at tier 3
 
 ### 3.9 First user visits and completes
+
 - User taps "Mark as done" → micro-survey appears
 - 3 questions:
   1. "Did you feel comfortable here alone?" (1-5)
@@ -233,6 +245,7 @@ Constraints:
 - When `verified_user_count >= 5`, recompute `soloScore` from user data, bump tier to 4 → 5
 
 ### 3.10 Re-compilation cycle
+
 - Cron job nightly: `SELECT id FROM experiences WHERE last_compiled_at < now() - 90 days`
 - For each: re-run §3.2–§3.6, generate diff, push to editor with "REFRESH" label
 - Editor compares old vs new, decides if update warranted
@@ -266,9 +279,11 @@ Constraints:
 ### Section A — Source Adapters (Phase 1)
 
 #### US-D01: Wikivoyage source adapter
+
 **Description:** As the data engine, I need to extract candidate POIs from Wikivoyage articles so I have voice-rich primary content.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/sources/wikivoyage`
 - [ ] `fetchCity(cityName: string): Promise<Candidate[]>` — pulls Wikivoyage article, parses sections (See/Do/Eat/Drink/Sleep)
 - [ ] Each Candidate has: `name`, `description`, `location` (geocoded if Wikivoyage gives coords, else null), `source_url`, `extracted_at`
@@ -278,9 +293,11 @@ Constraints:
 - [ ] Unit tests with fixture HTML for Lisbon, Tokyo, Chiang Mai
 
 #### US-D02: OpenStreetMap + Overpass source adapter
+
 **Description:** As the data engine, I need POI metadata (coords, type, hours) from OSM.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/sources/osm`
 - [ ] `fetchPOIs(bbox: BBox, types: string[]): Promise<Candidate[]>`
 - [ ] Default types: `amenity={cafe,restaurant,bar,place_of_worship,library,bookshop}`, `tourism={attraction,viewpoint,artwork,museum}`, `leisure={park,garden}`, `natural={beach}`
@@ -290,9 +307,11 @@ Constraints:
 - [ ] Unit tests with recorded Overpass responses
 
 #### US-D03: Google Places API source adapter
+
 **Description:** As the data engine, I need authoritative opening hours, ratings, and recent photos.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/sources/google-places`
 - [ ] `fetchNearby(lat, lon, radiusM): Promise<Candidate[]>`
 - [ ] `fetchDetails(placeId): Promise<CandidateDetail>`
@@ -303,9 +322,11 @@ Constraints:
 - [ ] **Compliance**: store only place_id + signals derived from data, NOT raw Google fields (per Google ToS)
 
 #### US-D04: Source adapter contract + registry
+
 **Description:** As the data engine, I need a uniform interface so adding new sources doesn't require pipeline changes.
 
 **Acceptance Criteria:**
+
 - [ ] `packages/sources/core/SourceAdapter.ts` defines the interface
 - [ ] All adapters implement `name`, `weight`, `fetch(query: SourceQuery): Promise<Candidate[]>`, `healthCheck()`
 - [ ] Registry: `getActiveAdapters(): SourceAdapter[]` reads from config + feature flags
@@ -315,9 +336,11 @@ Constraints:
 ### Section B — Cross-Verification & Compilation
 
 #### US-D05: Candidate deduplication
+
 **Description:** As the data engine, I need to identify when 3 sources reference the same physical location and merge them into one Candidate.
 
 **Acceptance Criteria:**
+
 - [ ] `dedup(candidates: Candidate[]): MergedCandidate[]`
 - [ ] Match on (name fuzzy ≥0.85 similarity) AND (coordinates within 50m)
 - [ ] When merged: combine evidence array, preserve all source URLs, take most-recent name
@@ -325,9 +348,11 @@ Constraints:
 - [ ] Unit test: "Wat Suan Dok" from Wikivoyage + "วัดสวนดอก" from OSM at same coords → 1 merged candidate
 
 #### US-D06: Evidence weight scoring
+
 **Description:** As the data engine, I need to compute total evidence weight per candidate to decide whether it's worth AI-compiling.
 
 **Acceptance Criteria:**
+
 - [ ] Per-source weights configurable in `packages/db/sources_config`:
   - wikivoyage: 3
   - osm: 2
@@ -340,9 +365,11 @@ Constraints:
 - [ ] Below-threshold candidates stored in `dropped_candidates` with reason
 
 #### US-D07: AI compilation service
+
 **Description:** As the data engine, I need to convert merged evidence into a fully-formed Experience JSON.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/ai/compilation`
 - [ ] `compile(candidate: MergedCandidate): Promise<Experience | RejectReason>`
 - [ ] Uses Claude Opus 4.7 via Anthropic SDK
@@ -356,9 +383,11 @@ Constraints:
 - [ ] All compilations logged with input + output + verdict
 
 #### US-D08: Backend API
+
 **Description:** As iOS, I need geo-aware endpoints that trigger backfill when coverage is thin.
 
 **Acceptance Criteria:**
+
 - [ ] `GET /v1/experiences?lat={}&lon={}&radiusKm={}&minTier={1-5,default 2}` returns experiences sorted by `(confidence.level desc, distance asc)`
 - [ ] `GET /v1/experiences?bbox=...&minTier=` for map pan queries
 - [ ] `GET /v1/experiences/{id}` returns single experience with full evidence chain
@@ -372,9 +401,11 @@ Constraints:
 ### Section C — Database & Schema
 
 #### US-D09: Postgres + PostGIS schema
+
 **Description:** As the data engine, I need a schema that supports geo queries, source attribution, evidence chain, and audit history.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/db` using Drizzle ORM
 - [ ] Tables (sketched, finalize in implementation):
   - `experiences` (id, location: geography(POINT, 4326), title, oneLiner, whyItMatters, category, confidence_level, status, created_at, updated_at, last_compiled_at)
@@ -393,9 +424,11 @@ Constraints:
 - [ ] Schema parity check extended: TS ↔ Swift ↔ DB all aligned in CI
 
 #### US-D10: Anonymous device ID
+
 **Description:** As the system, I need to attribute user signals without requiring sign-up.
 
 **Acceptance Criteria:**
+
 - [ ] iOS generates UUIDv4 on first launch, persists in Keychain (survives reinstall? open question)
 - [ ] Sent as `X-Device-ID` header on all signal-writing requests
 - [ ] Server stores device_id in `user_signals` (not in `experiences`)
@@ -405,9 +438,11 @@ Constraints:
 ### Section D — Editorial Admin App
 
 #### US-D11: Admin app scaffold
+
 **Description:** As an editor, I need a web app to triage AI candidates.
 
 **Acceptance Criteria:**
+
 - [ ] New app `apps/admin` (Next.js, App Router, share `packages/core` types)
 - [ ] Auth: simple email magic-link (Supabase Auth) restricted to allowlist (env var)
 - [ ] Routes: `/queue`, `/queue/[id]`, `/published`, `/dropped`, `/sources`, `/metrics`
@@ -415,9 +450,11 @@ Constraints:
 - [ ] Dark mode default (editors' eyes)
 
 #### US-D12: Review queue UI
+
 **Description:** As an editor, I want to see and prioritize candidates needing review.
 
 **Acceptance Criteria:**
+
 - [ ] `/queue` lists candidates with `status = 'awaiting_review'`, sorted by:
   - Population proximity (more potential users → higher priority)
   - Evidence weight (higher → higher)
@@ -427,9 +464,11 @@ Constraints:
 - [ ] "Claim" button locks a candidate to current editor for 30 min (prevents double-review)
 
 #### US-D13: Side-by-side review UI
+
 **Description:** As an editor, I want to compare raw evidence vs AI output and edit before approving.
 
 **Acceptance Criteria:**
+
 - [ ] `/queue/[id]` three-pane view:
   - Left: raw evidence (collapsible per source)
   - Center: AI-generated Experience (read-only diff vs default)
@@ -440,9 +479,11 @@ Constraints:
 - [ ] After action: queue advances to next candidate automatically
 
 #### US-D14: Editor metrics & audit
+
 **Description:** As an operator, I want to see editorial throughput and individual editor patterns.
 
 **Acceptance Criteria:**
+
 - [ ] `/metrics` shows: queue depth, throughput per editor (per day/week), approval rate, edit rate, reject reasons distribution
 - [ ] `/published` lists recently approved with editor attribution
 - [ ] `/dropped` lists rejected with reason; bulk re-queue option for false-rejects
@@ -451,9 +492,11 @@ Constraints:
 ### Section E — User Signal Aggregation
 
 #### US-D15: Passive GPS dwell signal
+
 **Description:** As the system, I need to detect when a user actually visited an experience.
 
 **Acceptance Criteria:**
+
 - [ ] iOS `LocationService` already monitors regions (200m radius, ≤20 simultaneously)
 - [ ] On `didEnterRegion`, start dwell timer; on `didExitRegion`, compute duration
 - [ ] If duration >= 15 minutes: POST `/v1/experiences/{id}/signals` with `signal_type: 'gps_dwell'`, `payload: { duration_seconds }`
@@ -461,9 +504,11 @@ Constraints:
 - [ ] Privacy: only experience_id + duration sent, never coordinates
 
 #### US-D16: Active micro-survey on completion
+
 **Description:** As a user marking an experience as done, I'm asked 3 quick questions.
 
 **Acceptance Criteria:**
+
 - [ ] After tapping "Mark as done", a sheet appears with 3 questions:
   1. "Did you feel comfortable here alone?" (1-5 stars)
   2. "Did staff/patrons make you feel out of place?" (1-5, inverted)
@@ -475,9 +520,11 @@ Constraints:
 - [ ] Localized survey copy
 
 #### US-D17: Aggregation worker
+
 **Description:** As the system, I need to recompute `soloScore` and `confidence.level` as signals accumulate.
 
 **Acceptance Criteria:**
+
 - [ ] Background job (Supabase Edge Function or cron) runs hourly
 - [ ] For each experience with `pending_signal_aggregation = true`:
   - Pull all `user_signals` where `signal_type = 'micro_survey'`
@@ -490,9 +537,11 @@ Constraints:
 ### Section F — Re-compilation & Freshness
 
 #### US-D18: Staleness detection
+
 **Description:** As the system, I need to surface experiences whose data may be outdated.
 
 **Acceptance Criteria:**
+
 - [ ] Nightly cron: select experiences where `last_compiled_at < now() - 90 days`
 - [ ] For each: re-run §3.2–§3.6, generate new revision
 - [ ] Compare old vs new: if material changes (closed, moved, hours changed), push to editor queue with REFRESH label
@@ -500,9 +549,11 @@ Constraints:
 - [ ] Soft-delete experiences confirmed permanently closed (status = 'closed')
 
 #### US-D19: User-reported issues
+
 **Description:** As a user, I want to report when an experience is wrong/closed/different.
 
 **Acceptance Criteria:**
+
 - [ ] Report button on `ExperienceDetailView`
 - [ ] Reasons (single-select): closed permanently, moved, hours wrong, vibe different, factually wrong, other
 - [ ] Optional free-text (max 200 chars)
@@ -513,27 +564,33 @@ Constraints:
 ### Section G — Cost & Health Monitoring
 
 #### US-D20: Per-source cost tracking
+
 **Description:** As an operator, I need real-time visibility into spend.
 
 **Acceptance Criteria:**
+
 - [ ] `apps/admin/metrics` shows daily/monthly spend per source
 - [ ] Hard caps configurable per source; pipeline degrades gracefully when cap hit (skip that source)
 - [ ] Slack/email alert when 80% of daily cap hit
 - [ ] Monthly export to CSV for accounting
 
 #### US-D21: Pipeline health dashboard
+
 **Description:** As an operator, I need to see pipeline status at a glance.
 
 **Acceptance Criteria:**
+
 - [ ] `/metrics` shows: jobs queued / running / completed / failed last 24h
 - [ ] Per-adapter health: success rate, latency p50/p95, error reasons
 - [ ] Compilation success rate (passed all gates)
 - [ ] Editor queue depth + age of oldest item
 
 #### US-D22: Abuse detection
+
 **Description:** As the system, I need to detect signal abuse (e.g. one device spam-rating to manipulate score).
 
 **Acceptance Criteria:**
+
 - [ ] Per-device rate limit: max 10 micro-surveys/day, max 5 reports/day
 - [ ] Detect coordinated patterns (N devices submitting identical surveys within minutes)
 - [ ] Suspicious signals quarantined, not counted toward aggregation
@@ -542,18 +599,22 @@ Constraints:
 ### Section H — Bootstrap & Phase 0
 
 #### US-D23: Bootstrap pipeline run
+
 **Description:** As the team, we need an initial dataset to ship a non-empty product on day one.
 
 **Acceptance Criteria:**
+
 - [ ] Pre-launch script runs compilation pipeline against 20 cities (list curated by team)
 - [ ] Editorial team reviews before launch; only `editorApproved` (tier 3+) experiences shipped
 - [ ] Target: ≥30 published experiences per city before launch
 - [ ] Launch checklist documents each city's coverage before going live
 
 #### US-D24: Confidence-tier UI
+
 **Description:** As a user, I want to immediately understand which experiences are battle-tested vs AI-guessed.
 
 **Acceptance Criteria:**
+
 - [ ] Map markers visually distinguish confidence tier (per §2.1 table)
 - [ ] Detail view shows confidence tier explicitly with explanation
 - [ ] Help screen (linked from any tier badge) explains the system in 100 words
@@ -565,11 +626,13 @@ Constraints:
 ## 7. Functional Requirements
 
 ### Source layer
+
 - **FR-D1**: Each adapter is independently failure-isolated; pipeline produces output even with N-1 adapters down
 - **FR-D2**: Adapter responses cached per source-specific TTL (Wikivoyage 7d, OSM 24h, Google 6h)
 - **FR-D3**: Adapter responses include attribution metadata; downstream stages preserve attribution
 
 ### Compilation layer
+
 - **FR-D4**: Cross-verification computes `total_weight` and `sources_count` per candidate
 - **FR-D5**: Compilation only runs when `total_weight >= 5 AND sources_count >= 2`
 - **FR-D6**: AI compilation rejects outputs failing voice gate or depth gate; no auto-publish
@@ -577,24 +640,28 @@ Constraints:
 - **FR-D8**: AI compilation respects daily cost cap; degrades gracefully when hit
 
 ### Persistence layer
+
 - **FR-D9**: Every Experience mutation creates an `experience_revision` row
 - **FR-D10**: Original AI-derived score is never lost when overridden by user-derived score
 - **FR-D11**: All editor and system actions logged in `audit_log`
 - **FR-D12**: PostGIS GIST index on `experiences.location` enables sub-100ms bbox queries up to 10k results
 
 ### API layer
+
 - **FR-D13**: `GET /v1/experiences` triggers async backfill when coverage thin; never blocks user
 - **FR-D14**: API responses include `meta.compilationStatus` so client can show progress indicator
 - **FR-D15**: `minTier` parameter defaults to 2; tier 1 only returned on explicit opt-in
 - **FR-D16**: Anonymous device ID required for signal-writing endpoints
 
 ### Admin layer
+
 - **FR-D17**: Editor queue prioritizes by population proximity × evidence weight × age
 - **FR-D18**: Side-by-side review highlights voice violations
 - **FR-D19**: All editor actions are auditable
 - **FR-D20**: Editor metrics visible to operators
 
 ### User signal layer
+
 - **FR-D21**: Passive GPS dwell signals reported only with experience_id + duration (no coords)
 - **FR-D22**: Micro-survey skip respected for 30 days after 3 consecutive skips
 - **FR-D23**: When `verified_user_count >= 5`, user-derived `soloScore` overrides AI-derived
@@ -621,18 +688,21 @@ Constraints:
 ## 9. Design Considerations
 
 ### UI for confidence transparency
+
 - Confidence tier is a **first-class visual element**, not buried in a detail field
 - Map marker rings color-coded per §2.1 table
 - Detail view header includes tier badge + one-line explanation
 - Help center explains the tiering system in plain language
 
 ### Editor UX
+
 - Single-screen review (no tab switching) reduces fatigue
 - Keyboard shortcuts: `A` approve, `E` edit, `R` reject, `↓` next
 - Auto-save edit draft every 5 seconds
 - Bulk operations for similar candidates (e.g. "approve all OSM-only cafes in this batch")
 
 ### iOS interactions with confidence tiers
+
 - Default filter: tier ≥ 2 (excludes "speculative")
 - Tier 1 reveal toggle in Settings (requires explicit acknowledgment of risk)
 - Empty state when filter excludes too much: "Loosen filter to show {N} more"
@@ -643,22 +713,24 @@ Constraints:
 
 ### Architecture decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Backend platform | Supabase | Managed PostGIS + Auth + Edge Functions, single vendor for MVP speed |
-| ORM | Drizzle | TypeScript-first, plays well with monorepo, lighter than Prisma |
-| Pipeline orchestration | Supabase Edge Functions + pg_cron for v2 | Avoids new infra; revisit (Inngest/Trigger.dev) if it doesn't scale |
-| AI provider | Anthropic Claude Opus 4.7 | Already used in iOS; voice quality required |
-| Admin app | Next.js App Router in `apps/admin` | Reuses monorepo conventions |
-| Auth (admin) | Supabase Magic Link + allowlist | Zero implementation cost |
-| Anonymous user ID | UUIDv4 in Keychain | Stable across reinstall on same device |
-| Cost cap enforcement | Per-source daily caps in DB; checked before each call | Hard ceiling > soft monitoring |
+| Decision               | Choice                                                | Rationale                                                            |
+| ---------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| Backend platform       | Supabase                                              | Managed PostGIS + Auth + Edge Functions, single vendor for MVP speed |
+| ORM                    | Drizzle                                               | TypeScript-first, plays well with monorepo, lighter than Prisma      |
+| Pipeline orchestration | Supabase Edge Functions + pg_cron for v2              | Avoids new infra; revisit (Inngest/Trigger.dev) if it doesn't scale  |
+| AI provider            | Anthropic Claude Opus 4.7                             | Already used in iOS; voice quality required                          |
+| Admin app              | Next.js App Router in `apps/admin`                    | Reuses monorepo conventions                                          |
+| Auth (admin)           | Supabase Magic Link + allowlist                       | Zero implementation cost                                             |
+| Anonymous user ID      | UUIDv4 in Keychain                                    | Stable across reinstall on same device                               |
+| Cost cap enforcement   | Per-source daily caps in DB; checked before each call | Hard ceiling > soft monitoring                                       |
 
 ### Schema parity
+
 - Existing TS↔Swift parity check (`pnpm parity:check`) extended to also validate Drizzle schema matches `packages/core/src/experience.ts`
 - CI fails on any drift between three layers
 
 ### Testing
+
 - **Unit**: each source adapter, dedup, evidence weight, voice gate, depth gate
 - **Integration**: full pipeline run with recorded fixtures (no real API calls in CI)
 - **Contract**: API tests validate request/response against OpenAPI
@@ -666,6 +738,7 @@ Constraints:
 - **End-to-end**: bootstrap pipeline against 1 city in staging; verify ≥10 published
 
 ### Observability
+
 - Structured logging (JSON) to Supabase Logs
 - Per-stage metrics (sources fetched, candidates merged, compilations attempted/passed/failed, editor queue depth)
 - Alerting on: cost cap hit, queue depth > 500, error rate > 5%
@@ -674,17 +747,17 @@ Constraints:
 
 ## 11. Phased Rollout
 
-| Phase | Weeks | Scope | Issues |
-|---|---|---|---|
-| 0 — Foundation | 1–2 | DB schema, Supabase setup, source adapter contract, OpenAPI skeleton | US-D04, US-D09, US-D10 |
-| 1 — First source + compilation | 3–5 | Wikivoyage adapter, dedup, evidence scoring, AI compile | US-D01, US-D05, US-D06, US-D07 |
-| 2 — Add OSM + Google + API | 6–8 | OSM, Google Places, full API endpoints | US-D02, US-D03, US-D08 |
-| 3 — Admin app | 9–11 | Admin scaffold, queue, side-by-side review, metrics | US-D11, US-D12, US-D13, US-D14 |
-| 4 — User signals | 12–13 | GPS dwell, micro-survey, aggregation worker | US-D15, US-D16, US-D17 |
-| 5 — Re-compilation + reports | 14–15 | Staleness detection, user report flow | US-D18, US-D19 |
-| 6 — Cost + health + abuse | 16–17 | Per-source cost, pipeline health, abuse detection | US-D20, US-D21, US-D22 |
-| 7 — Bootstrap + confidence UI | 18–19 | Run bootstrap pipeline against 20 cities, ship confidence-tier UI | US-D23, US-D24 |
-| 8 — iOS frontend integration | 20–22 | Wire iOS to new API, ship onboarding/settings/favorites/checkin from PRD v1 | (v1 carryover) |
+| Phase                          | Weeks | Scope                                                                       | Issues                         |
+| ------------------------------ | ----- | --------------------------------------------------------------------------- | ------------------------------ |
+| 0 — Foundation                 | 1–2   | DB schema, Supabase setup, source adapter contract, OpenAPI skeleton        | US-D04, US-D09, US-D10         |
+| 1 — First source + compilation | 3–5   | Wikivoyage adapter, dedup, evidence scoring, AI compile                     | US-D01, US-D05, US-D06, US-D07 |
+| 2 — Add OSM + Google + API     | 6–8   | OSM, Google Places, full API endpoints                                      | US-D02, US-D03, US-D08         |
+| 3 — Admin app                  | 9–11  | Admin scaffold, queue, side-by-side review, metrics                         | US-D11, US-D12, US-D13, US-D14 |
+| 4 — User signals               | 12–13 | GPS dwell, micro-survey, aggregation worker                                 | US-D15, US-D16, US-D17         |
+| 5 — Re-compilation + reports   | 14–15 | Staleness detection, user report flow                                       | US-D18, US-D19                 |
+| 6 — Cost + health + abuse      | 16–17 | Per-source cost, pipeline health, abuse detection                           | US-D20, US-D21, US-D22         |
+| 7 — Bootstrap + confidence UI  | 18–19 | Run bootstrap pipeline against 20 cities, ship confidence-tier UI           | US-D23, US-D24                 |
+| 8 — iOS frontend integration   | 20–22 | Wire iOS to new API, ship onboarding/settings/favorites/checkin from PRD v1 | (v1 carryover)                 |
 
 **Total: ~22 weeks ≈ 5.5 months** for one full-time engineer + one part-time editor.
 Two engineers in parallel can compress to ~14 weeks (~3.5 months).
@@ -693,19 +766,20 @@ Two engineers in parallel can compress to ~14 weeks (~3.5 months).
 
 ## 12. Cost Model (rough, monthly at 10k MAU)
 
-| Item | Estimate |
-|---|---|
-| Supabase Pro (DB + Auth + Edge Functions + Storage) | $25–$200 |
-| PostGIS hosting overage | $50–$200 |
-| Google Places API (capped at $50/day) | $1,500 max |
-| Anthropic Claude Opus 4.7 (compilation, capped $200/day) | $6,000 max |
-| Anthropic Claude (iOS in-app, existing) | $500 |
-| Editor labor (0.5 FTE @ $30/hr × 80h) | $2,400 |
-| Operator alerting (PagerDuty / Slack) | $50 |
-| **Total monthly ceiling** | **~$10,500/mo at hard caps** |
-| **Realistic month 1** | **~$1,500/mo (pipeline ramping up)** |
+| Item                                                     | Estimate                             |
+| -------------------------------------------------------- | ------------------------------------ |
+| Supabase Pro (DB + Auth + Edge Functions + Storage)      | $25–$200                             |
+| PostGIS hosting overage                                  | $50–$200                             |
+| Google Places API (capped at $50/day)                    | $1,500 max                           |
+| Anthropic Claude Opus 4.7 (compilation, capped $200/day) | $6,000 max                           |
+| Anthropic Claude (iOS in-app, existing)                  | $500                                 |
+| Editor labor (0.5 FTE @ $30/hr × 80h)                    | $2,400                               |
+| Operator alerting (PagerDuty / Slack)                    | $50                                  |
+| **Total monthly ceiling**                                | **~$10,500/mo at hard caps**         |
+| **Realistic month 1**                                    | **~$1,500/mo (pipeline ramping up)** |
 
 ### Per-experience marginal cost target
+
 - Sources: $0.05 (mostly free + Google)
 - AI compilation: $0.20
 - Editor time: $0.20 (12 sec @ $60/hr)
@@ -715,18 +789,18 @@ Two engineers in parallel can compress to ~14 weeks (~3.5 months).
 
 ## 13. Risks & Mitigations
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| AI generates plausible-but-wrong content | High | Mandatory editor review before tier 3; voice/depth gates pre-publish |
-| Editorial throughput becomes bottleneck | High | Strong queue prioritization; bulk operations; auto-batch similar candidates |
-| Source ToS violation (esp. Google Places) | High | Store only IDs + derived fields, never raw payload; legal review before launch |
-| AI cost overruns | Medium | Hard daily caps per source; degradation to "no new compilations today" |
-| Cold-start: empty cities at launch | Medium | US-D23 bootstrap run pre-launch covers 20 cities |
-| User signal abuse skews scores | Medium | US-D22 abuse detection + signal quarantine + reputation system |
-| Schema drift across TS/Swift/DB | Medium | Extended parity check in CI; release blocker on drift |
-| Editor burnout | Medium | Track editor metrics; cap shifts at 30 min/day; rotate editors |
-| GDPR / data subject requests | Medium | Anonymous device IDs; user-initiated reset clears all signals; document deletion process |
-| Wikivoyage content licensing (CC-BY-SA) | Low | Always store + display attribution; never claim originality |
+| Risk                                      | Severity | Mitigation                                                                               |
+| ----------------------------------------- | -------- | ---------------------------------------------------------------------------------------- |
+| AI generates plausible-but-wrong content  | High     | Mandatory editor review before tier 3; voice/depth gates pre-publish                     |
+| Editorial throughput becomes bottleneck   | High     | Strong queue prioritization; bulk operations; auto-batch similar candidates              |
+| Source ToS violation (esp. Google Places) | High     | Store only IDs + derived fields, never raw payload; legal review before launch           |
+| AI cost overruns                          | Medium   | Hard daily caps per source; degradation to "no new compilations today"                   |
+| Cold-start: empty cities at launch        | Medium   | US-D23 bootstrap run pre-launch covers 20 cities                                         |
+| User signal abuse skews scores            | Medium   | US-D22 abuse detection + signal quarantine + reputation system                           |
+| Schema drift across TS/Swift/DB           | Medium   | Extended parity check in CI; release blocker on drift                                    |
+| Editor burnout                            | Medium   | Track editor metrics; cap shifts at 30 min/day; rotate editors                           |
+| GDPR / data subject requests              | Medium   | Anonymous device IDs; user-initiated reset clears all signals; document deletion process |
+| Wikivoyage content licensing (CC-BY-SA)   | Low      | Always store + display attribution; never claim originality                              |
 
 ---
 

@@ -8,14 +8,14 @@ Solo Compass: a map-first companion app for solo travelers. The core unit is `Ex
 
 ### Monorepo
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Package manager | **pnpm 9.12.0** workspaces + **turbo** | `engines.node >=20`. iOS app is **not** a workspace member |
-| TypeScript | `strict: true`, `noUncheckedIndexedAccess: true` | Don't relax. `interface` for object shapes, `type` for unions |
-| IDs | **Branded types** (`UserId`, `ExperienceId`) | Never plain `string` |
-| Geo coords | `[longitude, latitude]` (GeoJSON / Mapbox / PostGIS) | Convert at the boundary when integrating Google APIs (`[lat, lng]`) |
-| Time | ISO 8601 UTC at storage; local at display | `bestTimes` uses 0–23 hour ints in the **experience's** local time |
-| Commits | Conventional Commits, lowercase scope | See `CONTRIBUTING.md` |
+| Layer           | Choice                                               | Notes                                                               |
+| --------------- | ---------------------------------------------------- | ------------------------------------------------------------------- |
+| Package manager | **pnpm 9.12.0** workspaces + **turbo**               | `engines.node >=20`. iOS app is **not** a workspace member          |
+| TypeScript      | `strict: true`, `noUncheckedIndexedAccess: true`     | Don't relax. `interface` for object shapes, `type` for unions       |
+| IDs             | **Branded types** (`UserId`, `ExperienceId`)         | Never plain `string`                                                |
+| Geo coords      | `[longitude, latitude]` (GeoJSON / Mapbox / PostGIS) | Convert at the boundary when integrating Google APIs (`[lat, lng]`) |
+| Time            | ISO 8601 UTC at storage; local at display            | `bestTimes` uses 0–23 hour ints in the **experience's** local time  |
+| Commits         | Conventional Commits, lowercase scope                | See `CONTRIBUTING.md`                                               |
 
 ### Apps & Packages
 
@@ -32,18 +32,18 @@ packages/
 
 ### iOS App (`apps/ios/SoloCompass/`)
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Platform | **iOS 17.0+**, Swift 5.10 | Single Xcode target `SoloCompass.app`, **zero third-party deps** |
-| Project gen | **xcodegen** from `apps/ios/project.yml` | Regenerate after editing the yml; don't hand-edit `.xcodeproj` |
-| UI | SwiftUI + **MapKit** | `CompassMapView` is the root — no tabs, no drawer |
-| State | `@Observable` + `@MainActor` services | `SWIFT_STRICT_CONCURRENCY: complete` is on |
-| Architecture | MVVM | `Views/{Map,Experience,Filter,Shared}` / `Models/` / `Services/` / `ViewModels/` |
-| Voice | `SFSpeechRecognizer` + `AVAudioEngine` | `VoiceService.swift` streams partial transcripts via `AsyncThrowingStream` |
-| Location | `CLLocationManager` + `CLCircularRegion` (200m, ≤20 regions) | `LocationService.shared` |
-| AI | Anthropic Messages API direct | `AIService.swift`, model `claude-opus-4-7`, key from `Secrets.plist` or `ANTHROPIC_API_KEY` env. Falls back to Solo-Score ranking when key is absent |
-| Seed data | `Resources/JSON/seed_experiences.json` (bundle) | Falls back to `ExperienceService.hardcodedSeed` for previews/tests |
-| Localization | `NSLocalizedString` from day 1 | All user strings in `Resources/en.lproj/Localizable.strings` |
+| Layer        | Choice                                                       | Notes                                                                                                                                                |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform     | **iOS 17.0+**, Swift 5.10                                    | Single Xcode target `SoloCompass.app`, **zero third-party deps**                                                                                     |
+| Project gen  | **xcodegen** from `apps/ios/project.yml`                     | Regenerate after editing the yml; don't hand-edit `.xcodeproj`                                                                                       |
+| UI           | SwiftUI + **MapKit**                                         | `CompassMapView` is the root — no tabs, no drawer                                                                                                    |
+| State        | `@Observable` + `@MainActor` services                        | `SWIFT_STRICT_CONCURRENCY: complete` is on                                                                                                           |
+| Architecture | MVVM                                                         | `Views/{Map,Experience,Filter,Shared}` / `Models/` / `Services/` / `ViewModels/`                                                                     |
+| Voice        | `SFSpeechRecognizer` + `AVAudioEngine`                       | `VoiceService.swift` streams partial transcripts via `AsyncThrowingStream`                                                                           |
+| Location     | `CLLocationManager` + `CLCircularRegion` (200m, ≤20 regions) | `LocationService.shared`                                                                                                                             |
+| AI           | Anthropic Messages API direct                                | `AIService.swift`, model `claude-opus-4-7`, key from `Secrets.plist` or `ANTHROPIC_API_KEY` env. Falls back to Solo-Score ranking when key is absent |
+| Seed data    | `Resources/JSON/seed_experiences.json` (bundle)              | Falls back to `ExperienceService.hardcodedSeed` for previews/tests                                                                                   |
+| Localization | `NSLocalizedString` from day 1                               | All user strings in `Resources/en.lproj/Localizable.strings`                                                                                         |
 
 ## Project Structure
 
@@ -122,6 +122,7 @@ cd scripts/ralph && ./ralph.sh --tool claude 12
 **TS**: per-package `pnpm test` via turbo.
 
 Before marking a task complete:
+
 1. Build affected target (`pnpm typecheck` for TS, `xcodebuild build` for iOS)
 2. Run the relevant tests
 3. For schema changes touching `packages/core/src/experience.ts`, run `pnpm parity:check`
@@ -131,15 +132,15 @@ Before marking a task complete:
 
 When the user's request matches an available skill, invoke it via the Skill tool as your FIRST action.
 
-| Trigger | Skill |
-|---|---|
-| Product ideas, brainstorming, "is this worth building" | `office-hours` |
-| Bugs, errors, "why is this broken" | `investigate` |
-| Ship, deploy, push, create PR | `ship` |
-| QA, find bugs, test the site | `qa` |
-| Code review, check my diff | `review` |
-| Update docs after shipping | `document-release` |
-| Architecture review | `plan-eng-review` |
-| Visual audit, design polish | `design-review` |
-| Save / resume progress | `context-save` / `context-restore` |
-| Code quality, health check | `health` |
+| Trigger                                                | Skill                              |
+| ------------------------------------------------------ | ---------------------------------- |
+| Product ideas, brainstorming, "is this worth building" | `office-hours`                     |
+| Bugs, errors, "why is this broken"                     | `investigate`                      |
+| Ship, deploy, push, create PR                          | `ship`                             |
+| QA, find bugs, test the site                           | `qa`                               |
+| Code review, check my diff                             | `review`                           |
+| Update docs after shipping                             | `document-release`                 |
+| Architecture review                                    | `plan-eng-review`                  |
+| Visual audit, design polish                            | `design-review`                    |
+| Save / resume progress                                 | `context-save` / `context-restore` |
+| Code quality, health check                             | `health`                           |

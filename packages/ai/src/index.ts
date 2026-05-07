@@ -16,3 +16,6 @@ export type { IntentFilters } from "./parse-intent";
 
 export { trackCost, withCostTracking } from "./cost-tracker";
 export type { CostSnapshot } from "./cost-tracker";
+
+export { dedup } from "./compilation/dedup";
+export type { MergedCandidate, DedupStats, DedupResult } from "./compilation/dedup";

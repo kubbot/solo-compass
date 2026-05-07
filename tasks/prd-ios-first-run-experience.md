@@ -43,6 +43,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user opening the app for the first time, I want the map to center on my actual location after I grant permission, so I'm not staring at a city I'm not in.
 
 **Acceptance Criteria:**
+
 - [ ] `MapViewModel` exposes `bindToLocation()` that recenters the camera once on the first non-nil `currentLocation`
 - [ ] `bindToLocation()` is idempotent (subsequent calls no-op via `hasAutoCentered` flag)
 - [ ] `CompassMapView` invokes `bindToLocation()` via `.onChange(of: locationService.currentLocation)`
@@ -56,6 +57,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a first-time user, I'm walked through a 3-step setup (welcome → permission → city/style) before I see the map, so I never land on a confusing default state.
 
 **Acceptance Criteria:**
+
 - [ ] New view: `Views/Onboarding/OnboardingView.swift`
 - [ ] `UserPreferences.Snapshot` adds `hasCompletedOnboarding: Bool` (default `false`, migrates safely)
 - [ ] Presented as `.fullScreenCover` from `CompassMapView` while `!preferences.hasCompletedOnboarding`
@@ -71,6 +73,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a traveler, I want to browse a city before I'm physically there, and switch between cities I'm interested in.
 
 **Acceptance Criteria:**
+
 - [ ] Top-left of map shows pill button "{currentCity} ▾"
 - [ ] Tap → bottom sheet listing all cities available from backend (see US-008)
 - [ ] Selecting a city: recenters camera to city center + filters `experienceService` by `cityCode`
@@ -85,6 +88,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user, I want to control my discovery preferences (distance, categories, travel style) and reset my data, without needing to reinstall the app.
 
 **Acceptance Criteria:**
+
 - [ ] New view: `Views/Settings/SettingsView.swift`, presented as a sheet
 - [ ] Reachable from a gear icon in the top-right of the map (≤2 taps)
 - [ ] Section "Discovery": distance slider (1/3/5/10/25/50 km snap), travel style picker
@@ -100,6 +104,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user in a city with no nearby experiences, I want clear next-step actions instead of a dead-end "no results" message.
 
 **Acceptance Criteria:**
+
 - [ ] Empty-state overlay in `CompassMapView` replaces text-only with action buttons
 - [ ] Button "Expand to 25km" → updates `preferences.maxDistanceKm = 25` and reloads
 - [ ] Button "Browse {nearestSeededCity}" → recenters to nearest city with content
@@ -112,6 +117,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user, I want to see everything I've favorited in one list, sorted newest first.
 
 **Acceptance Criteria:**
+
 - [ ] New view: `Views/Favorites/FavoritesListView.swift`
 - [ ] Reachable from Settings (US-004) and from a heart icon on the map
 - [ ] `UserPreferences.Snapshot` adds `favoritedAt: [String: Date]` for sort order
@@ -126,6 +132,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user who walked into an experience's geofence, I want a non-intrusive way to confirm "I did this" later.
 
 **Acceptance Criteria:**
+
 - [ ] Badge on map (top-right, near compass) shows `pendingCheckIns.count` when > 0
 - [ ] Tap → bottom sheet listing pending visits with timestamp ("Wat Suan Dok — 2h ago")
 - [ ] Each row: "Mark as done" (calls `markCompleted` + `clearPendingCheckIn`) or "Dismiss" (clears only)
@@ -138,6 +145,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As the iOS app, I need a remote API to fetch experiences by city + bounding box, so I'm not bound to a 5-experience JSON seed.
 
 **Acceptance Criteria:**
+
 - [ ] New service deployed (Vercel or Fly.io, decision in Open Questions)
 - [ ] `GET /v1/cities` → list of `{ code, name, country, center: [lon,lat], experienceCount }`
 - [ ] `GET /v1/experiences?cityCode={code}` → all experiences for a city
@@ -154,6 +162,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a backend engineer, I need a real database with geo indexes to serve experiences efficiently.
 
 **Acceptance Criteria:**
+
 - [ ] New package `packages/db` with Drizzle ORM + Postgres
 - [ ] PostGIS extension enabled
 - [ ] Schema includes tables: `experiences`, `cities`, `experience_sources`, `experience_inconveniences`, `experience_best_times`
@@ -170,6 +179,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As the iOS app, I want to fetch from the backend with offline fallback to bundled seed.
 
 **Acceptance Criteria:**
+
 - [ ] New file: `Services/RemoteExperienceService.swift` (replaces or wraps `ExperienceService`)
 - [ ] Async methods: `fetchCities()`, `fetchExperiences(cityCode:)`, `fetchExperiences(bbox:)`, `fetchExperience(id:)`
 - [ ] Uses `URLSession` with 10s timeout
@@ -184,6 +194,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user opting in, I want the app to wake when I walk near a saved experience, even if I haven't opened it.
 
 **Acceptance Criteria:**
+
 - [ ] `apps/ios/project.yml` adds `NSLocationAlwaysAndWhenInUseUsageDescription` info property
 - [ ] `apps/ios/project.yml` adds `UIBackgroundModes: ["location"]`
 - [ ] `LocationService.requestAlwaysPermission()` follows Apple's two-step pattern (WhenInUse first, then Always)
@@ -198,6 +209,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a user with background location enabled, I want a gentle notification when I'm near an experience, with quiet-hours respect.
 
 **Acceptance Criteria:**
+
 - [ ] `apps/ios/project.yml` enables Push Notifications capability
 - [ ] `UNUserNotificationCenter.requestAuthorization` flow integrated into onboarding (US-002) as optional step
 - [ ] On `didEnterRegion`, schedule a local notification: "{Experience title} is right here. Want to check it out?"
@@ -212,6 +224,7 @@ This is a large body of work spanning iOS, backend, and database. It is split in
 **Description:** As a release manager, I need the app to satisfy App Store privacy and review requirements before background location ships.
 
 **Acceptance Criteria:**
+
 - [ ] Privacy nutrition label updated in App Store Connect: declares precise location collection, both foreground and background, no third-party sharing
 - [ ] In-app privacy explainer screen (linked from Settings → About → Privacy)
 - [ ] Background location is **opt-in only**, asked **after** user has used the app in foreground at least once
@@ -367,15 +380,15 @@ Recommendation pending: **Supabase** for fastest path (managed Postgres + PostGI
 
 ## 10. Suggested Phasing (mapped to issues)
 
-| Phase | Scope | Issues | Estimated effort |
-|---|---|---|---|
-| 1 | Camera follow + onboarding skeleton | #57, parts of #60 | 1 week |
-| 2 | City switcher + empty-state actions | #58, #59 | 1 week |
-| 3 | Settings + Favorites + Check-in inbox | #61, #62 | 1.5 weeks |
-| 4 | Backend + DB foundation | #56 → spawns new backend issues | 2 weeks |
-| 5 | iOS RemoteExperienceService + migration off bundled seed | (extends #59) | 1 week |
-| 6 | Background location (Always) + push | #63 | 1.5 weeks |
-| 7 | Privacy hardening + App Store submission | #63 acceptance | 0.5 week |
+| Phase | Scope                                                    | Issues                          | Estimated effort |
+| ----- | -------------------------------------------------------- | ------------------------------- | ---------------- |
+| 1     | Camera follow + onboarding skeleton                      | #57, parts of #60               | 1 week           |
+| 2     | City switcher + empty-state actions                      | #58, #59                        | 1 week           |
+| 3     | Settings + Favorites + Check-in inbox                    | #61, #62                        | 1.5 weeks        |
+| 4     | Backend + DB foundation                                  | #56 → spawns new backend issues | 2 weeks          |
+| 5     | iOS RemoteExperienceService + migration off bundled seed | (extends #59)                   | 1 week           |
+| 6     | Background location (Always) + push                      | #63                             | 1.5 weeks        |
+| 7     | Privacy hardening + App Store submission                 | #63 acceptance                  | 0.5 week         |
 
 **Total: ~8.5 weeks** for a single full-time engineer. Parallel iOS + backend work can compress this to ~6 weeks.
 
