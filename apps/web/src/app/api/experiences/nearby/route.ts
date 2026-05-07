@@ -26,7 +26,7 @@ import {
   type HealthStatus,
 } from "@solo-compass/core";
 import { getExperiencesRepo } from "@/lib/repos";
-import { demoExperiences as WEB_DEMO_EXPERIENCES } from "@/data/demo-experiences";
+import { demoExperiences } from "@/data/demo-experiences";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,7 +112,7 @@ export async function GET(
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
       console.warn("Using demo fallback data — Supabase unavailable in dev");
-      candidates = [...WEB_DEMO_EXPERIENCES];
+      candidates = [...demoExperiences];
     } else {
       return NextResponse.json({ error: "experience lookup failed" }, { status: 502 });
     }
