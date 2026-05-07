@@ -10,19 +10,19 @@ pnpm parity:check          # exits 0 on match, 1 on mismatch
 
 ## Type mapping rules
 
-| TypeScript | Swift | Notes |
-|---|---|---|
-| `string` | `String` | |
-| `ExperienceId` (branded string) | `String` | Brand stripped at boundary |
-| `number` | `Double` or `Int` | Both accepted |
-| `boolean` | `Bool` | |
-| `readonly [number, number]` / `Coordinates` | `[Double]` | GeoJSON lon/lat tuple |
-| `T[]` / `readonly T[]` / `ReadonlyArray<T>` | `[T]` | Element type mapped recursively |
-| `field?: T` (optional) | `field: T?` | TS optional → Swift optional |
-| `string \| undefined` | `String?` | Same rule |
-| `Date` (string in TS, ISO 8601) | `Date` or `String` | Swift decodes from ISO string |
-| `ConfidenceLevel` (0\|1\|2\|3\|4\|5) | `Int` | Numeric union → Int |
-| Inline `{ ... }` shapes | Nested Swift struct | Checked by struct name match |
+| TypeScript                                  | Swift               | Notes                           |
+| ------------------------------------------- | ------------------- | ------------------------------- |
+| `string`                                    | `String`            |                                 |
+| `ExperienceId` (branded string)             | `String`            | Brand stripped at boundary      |
+| `number`                                    | `Double` or `Int`   | Both accepted                   |
+| `boolean`                                   | `Bool`              |                                 |
+| `readonly [number, number]` / `Coordinates` | `[Double]`          | GeoJSON lon/lat tuple           |
+| `T[]` / `readonly T[]` / `ReadonlyArray<T>` | `[T]`               | Element type mapped recursively |
+| `field?: T` (optional)                      | `field: T?`         | TS optional → Swift optional    |
+| `string \| undefined`                       | `String?`           | Same rule                       |
+| `Date` (string in TS, ISO 8601)             | `Date` or `String`  | Swift decodes from ISO string   |
+| `ConfidenceLevel` (0\|1\|2\|3\|4\|5)        | `Int`               | Numeric union → Int             |
+| Inline `{ ... }` shapes                     | Nested Swift struct | Checked by struct name match    |
 
 ## Optionality rules
 

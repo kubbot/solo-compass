@@ -84,7 +84,16 @@ describe("structureExperience — Wikivoyage Doi Suthep", () => {
     expect(typeof experience.whyItMatters).toBe("string");
 
     // Category enum
-    const validCategories = ["culture", "nature", "food", "coffee", "work", "wellness", "nightlife", "hidden"];
+    const validCategories = [
+      "culture",
+      "nature",
+      "food",
+      "coffee",
+      "work",
+      "wellness",
+      "nightlife",
+      "hidden",
+    ];
     expect(validCategories).toContain(experience.category);
 
     // Location
@@ -114,7 +123,15 @@ describe("structureExperience — Wikivoyage Doi Suthep", () => {
 
     // realInconveniences: ≥1
     expect(experience.realInconveniences.length).toBeGreaterThanOrEqual(1);
-    const validIncCategories = ["scam", "crowds", "logistics", "weather", "etiquette", "safety", "other"];
+    const validIncCategories = [
+      "scam",
+      "crowds",
+      "logistics",
+      "weather",
+      "etiquette",
+      "safety",
+      "other",
+    ];
     for (const inc of experience.realInconveniences) {
       expect(validIncCategories).toContain(inc.category);
       expect(typeof inc.text).toBe("string");

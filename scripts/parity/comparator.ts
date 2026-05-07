@@ -83,7 +83,7 @@ function stringUnionCompatible(swiftType: string): boolean {
  * Known direct TS→Swift type aliases (ts normalised → swift normalised).
  */
 const DIRECT: Record<string, string[]> = {
-  string: ["String", "URL", "Date"],  // Date: Swift decodes ISO 8601 strings
+  string: ["String", "URL", "Date"], // Date: Swift decodes ISO 8601 strings
   number: ["Double", "Int", "Float"],
   boolean: ["Bool"],
   "[number, number]": ["[Double]", "[Double, Double]"],
@@ -284,7 +284,9 @@ export function formatReport(result: ParityResult): string {
           lines.push(`${prefix}  [missing in Swift]   TS: ${m.tsType}${m.tsOptional ? "?" : ""}`);
           break;
         case "missing_in_ts":
-          lines.push(`${prefix}  [missing in TS]      Swift: ${m.swiftType}${m.swiftOptional ? "?" : ""}`);
+          lines.push(
+            `${prefix}  [missing in TS]      Swift: ${m.swiftType}${m.swiftOptional ? "?" : ""}`,
+          );
           break;
         case "type_mismatch":
           lines.push(

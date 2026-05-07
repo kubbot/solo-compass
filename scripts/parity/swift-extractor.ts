@@ -53,7 +53,7 @@ function findClosingBrace(src: string, openIdx: number): number {
 interface StructRange {
   name: string;
   bodyStart: number; // index after the opening `{`
-  bodyEnd: number;   // index of the closing `}`
+  bodyEnd: number; // index of the closing `}`
 }
 
 /**

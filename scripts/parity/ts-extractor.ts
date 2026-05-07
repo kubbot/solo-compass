@@ -3,7 +3,12 @@
  * Uses ts-morph for AST-level accuracy — no regex hacks on TS syntax.
  */
 
-import { Project, SyntaxKind, type InterfaceDeclaration, type TypeAliasDeclaration } from "ts-morph";
+import {
+  Project,
+  SyntaxKind,
+  type InterfaceDeclaration,
+  type TypeAliasDeclaration,
+} from "ts-morph";
 import path from "node:path";
 
 export interface TSField {

@@ -10,23 +10,54 @@
     "placeNameLocal": "วัดพระธาตุดอยสุเทพ",
     "placeNameRomanized": "Wat Phra That Doi Suthep",
     "bestTimes": [
-      { "startHour": 6, "endHour": 8, "note": "Sunrise — mist in valley, monks chanting, minimal crowds" },
+      {
+        "startHour": 6,
+        "endHour": 8,
+        "note": "Sunrise — mist in valley, monks chanting, minimal crowds"
+      },
       { "startHour": 16, "endHour": 18, "note": "Late afternoon light on the chedi before closing" }
     ],
     "durationMin": 60,
     "durationMax": 120,
     "howTo": [
-      { "order": 1, "text": "Board a songthaew at Chang Puak bus terminal or near Chiang Mai University — negotiate 50–80 THB per person and depart by 05:30 to arrive at dawn." },
-      { "order": 2, "text": "Climb the 1,685-step Naga staircase (free) flanked by the seven-headed serpent balustrade, or take the cable car if legs are tired." },
-      { "order": 3, "text": "Pay the 50 THB foreigners' entrance fee and remove your shoes before stepping onto the main terrace." },
-      { "order": 4, "text": "Circumambulate the golden chedi clockwise three times on the lotus-petal terrace — follow local worshippers for the correct pace." },
-      { "order": 5, "text": "Stand at the eastern viewpoint as the mist clears from the valley below and watch the chedi shift from orange to gold in the strengthening light." },
-      { "order": 6, "text": "Leave before 09:00 to beat the tour-bus wave; pick up khao man gai or mango sticky rice (40–60 THB) from the market near the car park on the way out." }
+      {
+        "order": 1,
+        "text": "Board a songthaew at Chang Puak bus terminal or near Chiang Mai University — negotiate 50–80 THB per person and depart by 05:30 to arrive at dawn."
+      },
+      {
+        "order": 2,
+        "text": "Climb the 1,685-step Naga staircase (free) flanked by the seven-headed serpent balustrade, or take the cable car if legs are tired."
+      },
+      {
+        "order": 3,
+        "text": "Pay the 50 THB foreigners' entrance fee and remove your shoes before stepping onto the main terrace."
+      },
+      {
+        "order": 4,
+        "text": "Circumambulate the golden chedi clockwise three times on the lotus-petal terrace — follow local worshippers for the correct pace."
+      },
+      {
+        "order": 5,
+        "text": "Stand at the eastern viewpoint as the mist clears from the valley below and watch the chedi shift from orange to gold in the strengthening light."
+      },
+      {
+        "order": 6,
+        "text": "Leave before 09:00 to beat the tour-bus wave; pick up khao man gai or mango sticky rice (40–60 THB) from the market near the car park on the way out."
+      }
     ],
     "realInconveniences": [
-      { "category": "crowds", "text": "On weekends and Thai public holidays expect 200+ people queuing to photograph the chedi — the dawn window is the only reliable escape." },
-      { "category": "scam", "text": "Songthaew and tuk-tuk drivers routinely overcharge tourists on the mountain road — agree the fare before boarding." },
-      { "category": "etiquette", "text": "Shoulders and knees must be covered; free sarongs are at the gate but enforced strictly — factor this into your outfit." }
+      {
+        "category": "crowds",
+        "text": "On weekends and Thai public holidays expect 200+ people queuing to photograph the chedi — the dawn window is the only reliable escape."
+      },
+      {
+        "category": "scam",
+        "text": "Songthaew and tuk-tuk drivers routinely overcharge tourists on the mountain road — agree the fare before boarding."
+      },
+      {
+        "category": "etiquette",
+        "text": "Shoulders and knees must be covered; free sarongs are at the gate but enforced strictly — factor this into your outfit."
+      }
     ],
     "sources": [
       {

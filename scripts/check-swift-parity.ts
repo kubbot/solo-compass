@@ -54,7 +54,9 @@ function main(): void {
   }
 
   if (VERBOSE) {
-    console.log(`   Found ${tsStructs.length} TS struct(s): ${tsStructs.map((s) => s.name).join(", ")}`);
+    console.log(
+      `   Found ${tsStructs.length} TS struct(s): ${tsStructs.map((s) => s.name).join(", ")}`,
+    );
     console.log("🔍 Extracting Swift structs...");
   }
 
@@ -68,7 +70,9 @@ function main(): void {
   }
 
   if (VERBOSE) {
-    console.log(`   Found ${swiftStructs.length} Swift struct(s): ${swiftStructs.map((s) => s.name).join(", ")}`);
+    console.log(
+      `   Found ${swiftStructs.length} Swift struct(s): ${swiftStructs.map((s) => s.name).join(", ")}`,
+    );
     for (const s of swiftStructs) {
       console.log(`\n   ${s.name} (${s.file}):`);
       for (const f of s.fields) {
