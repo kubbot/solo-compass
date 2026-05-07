@@ -29,6 +29,13 @@
       "when": 1746748800000,
       "tag": "0003_compilation_jobs_editor_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1746835200000,
+      "tag": "0004_user_signals_audit_log",
+      "breakpoints": true
     }
   ]
 }
