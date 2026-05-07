@@ -70,5 +70,6 @@ coverage/
 
 # Claude Code internal prompts (auto-generated)
 .claude/*-prompt.txt
+.claude/worktrees/
 Gemfile.lock
 __pycache__/
