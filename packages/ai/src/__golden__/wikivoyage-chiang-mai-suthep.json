@@ -1,0 +1,41 @@
+{
+  "tool": "emit_experience",
+  "input": {
+    "title": "Watch dawn light the golden chedi at Doi Suthep before the crowds arrive",
+    "oneLiner": "The most sacred moment at northern Thailand's holiest temple belongs to those who arrive at sunrise when mist fills the valley and monks are still chanting.",
+    "whyItMatters": "At 06:00 the gilded 24-metre chedi glows orange-gold against a mist-covered valley — a colour shift you can't manufacture at any other hour. The chanting carries across the open terrace while incense curls around the lotus-petal walkway. By 09:00 the same terrace holds tour buses; this experience only exists in the early window.",
+    "category": "culture",
+    "coordinates": { "longitude": 98.9217, "latitude": 18.8048 },
+    "addressHint": "Doi Suthep mountain, 15 km northwest of Chiang Mai old city",
+    "placeNameLocal": "วัดพระธาตุดอยสุเทพ",
+    "placeNameRomanized": "Wat Phra That Doi Suthep",
+    "bestTimes": [
+      { "startHour": 6, "endHour": 8, "note": "Sunrise — mist in valley, monks chanting, minimal crowds" },
+      { "startHour": 16, "endHour": 18, "note": "Late afternoon light on the chedi before closing" }
+    ],
+    "durationMin": 60,
+    "durationMax": 120,
+    "howTo": [
+      { "order": 1, "text": "Board a songthaew at Chang Puak bus terminal or near Chiang Mai University — negotiate 50–80 THB per person and depart by 05:30 to arrive at dawn." },
+      { "order": 2, "text": "Climb the 1,685-step Naga staircase (free) flanked by the seven-headed serpent balustrade, or take the cable car if legs are tired." },
+      { "order": 3, "text": "Pay the 50 THB foreigners' entrance fee and remove your shoes before stepping onto the main terrace." },
+      { "order": 4, "text": "Circumambulate the golden chedi clockwise three times on the lotus-petal terrace — follow local worshippers for the correct pace." },
+      { "order": 5, "text": "Stand at the eastern viewpoint as the mist clears from the valley below and watch the chedi shift from orange to gold in the strengthening light." },
+      { "order": 6, "text": "Leave before 09:00 to beat the tour-bus wave; pick up khao man gai or mango sticky rice (40–60 THB) from the market near the car park on the way out." }
+    ],
+    "realInconveniences": [
+      { "category": "crowds", "text": "On weekends and Thai public holidays expect 200+ people queuing to photograph the chedi — the dawn window is the only reliable escape." },
+      { "category": "scam", "text": "Songthaew and tuk-tuk drivers routinely overcharge tourists on the mountain road — agree the fare before boarding." },
+      { "category": "etiquette", "text": "Shoulders and knees must be covered; free sarongs are at the gate but enforced strictly — factor this into your outfit." }
+    ],
+    "sources": [
+      {
+        "type": "wikivoyage",
+        "url": "https://en.wikivoyage.org/wiki/Chiang_Mai/Doi_Suthep",
+        "verifiedAt": "2026-05-07T00:00:00Z"
+      }
+    ],
+    "modelConfidence": 0.88
+  },
+  "usage": { "input_tokens": 820, "output_tokens": 610 }
+}
