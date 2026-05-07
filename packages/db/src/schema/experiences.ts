@@ -37,10 +37,10 @@ export const experiences = pgTable("experiences", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   lastCompiledAt: timestamp("last_compiled_at", { withTimezone: true }),
-  // Flattened duration range (minutes)
+  // Flattened sub-fields from Experience.durationMinutes
   durationMin: integer("duration_min"),
   durationMax: integer("duration_max"),
-  // Denormalized stats
+  // Flattened sub-fields from Experience.stats
   completionCount: integer("completion_count").notNull().default(0),
   averageRating: doublePrecision("average_rating"),
   // JSONB blobs for complex nested shapes
