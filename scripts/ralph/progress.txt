@@ -12,3 +12,4 @@ Stories: 45
 [2026-05-07T10:21:59Z] Story #US-005: Define compilation_jobs and editor_queue tables — PASSED
 [2026-05-07T10:23:00Z] Story #US-006: Define user_signals and audit_log tables — PASSED
 [2026-05-07T10:23:03Z] Story #US-006: Define user_signals and audit_log tables — PASSED
+[2026-05-07T10:26:50Z] Story #US-007: Extend pnpm parity:check to validate DB schema vs core types — PASSED
