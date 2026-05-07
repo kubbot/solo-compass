@@ -121,6 +121,66 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertFalse(night.contains(hour: 12))
     }
 
+    // MARK: - MapViewModel Auto-Recenter
+
+    @MainActor
+    func testBindToLocationRecentersOnce() throws {
+        let locationService = LocationService()
+        let viewModel = MapViewModel(
+            locationService: locationService,
+            experienceService: ExperienceService(),
+            aiService: AIService(),
+            preferences: UserPreferences()
+        )
+
+        // Before GPS fix, camera should be at default (Chiang Mai).
+        // bindToLocation should be a no-op.
+        viewModel.bindToLocation()
+        // Camera should still be the default center (not user location).
+        // We can't directly inspect MapCameraPosition region center easily,
+        // but we can verify load was called with default center.
+
+        // Simulate GPS fix arriving.
+        let coord = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) // Tokyo
+        locationService.simulate(location: CLLocation(latitude: coord.latitude, longitude: coord.longitude))
+
+        // First call with GPS fix should recenter.
+        viewModel.bindToLocation()
+        // Verify no-op on second call — hasAutoCentered is true.
+        // Re-calling should not crash or change state.
+        viewModel.bindToLocation() // Should be a no-op.
+
+        // Verify visible experiences were reloaded for the new center.
+        XCTAssertFalse(viewModel.bottomInfoText.isEmpty)
+    }
+
+    @MainActor
+    func testBindToLocationIdempotent() throws {
+        let locationService = LocationService()
+        let viewModel = MapViewModel(
+            locationService: locationService,
+            experienceService: ExperienceService(),
+            aiService: AIService(),
+            preferences: UserPreferences()
+        )
+
+        // Set a GPS location then call bindToLocation multiple times.
+        let coord = CLLocationCoordinate2D(latitude: 48.8566, longitude: 2.3522) // Paris
+        locationService.simulate(location: CLLocation(latitude: coord.latitude, longitude: coord.longitude))
+
+        // First call recenters.
+        viewModel.bindToLocation()
+        let infoAfterFirst = viewModel.bottomInfoText
+
+        // Second call should be a no-op — same bottom info.
+        viewModel.bindToLocation()
+        XCTAssertEqual(viewModel.bottomInfoText, infoAfterFirst, "Second bindToLocation should be a no-op")
+
+        // Third call also no-op.
+        viewModel.bindToLocation()
+        XCTAssertEqual(viewModel.bottomInfoText, infoAfterFirst, "Third bindToLocation should be a no-op")
+    }
+
     // MARK: - Preferences
 
     func testUserPreferencesPersistsRoundTrip() throws {

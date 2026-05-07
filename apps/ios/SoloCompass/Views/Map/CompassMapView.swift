@@ -139,6 +139,9 @@ public struct CompassMapView: View {
                 )
             }
         }
+        .onChange(of: locationService.currentLocation) { _, _ in
+            viewModel?.bindToLocation()
+        }
         .alert(
             NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
             isPresented: Binding(

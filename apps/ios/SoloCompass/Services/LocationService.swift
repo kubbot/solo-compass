@@ -100,6 +100,13 @@ public final class LocationService: NSObject {
         let target = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         return here.distance(from: target)
     }
+
+    /// Test-only: inject a simulated location. Bypasses CLLocationManager so
+    /// tests can exercise ViewModel logic synchronously without real GPS.
+    /// Not called in production code — harmless to ship.
+    public func simulate(location: CLLocation) {
+        self.currentLocation = location
+    }
 }
 
 extension LocationService: CLLocationManagerDelegate {

@@ -24,6 +24,22 @@ public final class MapViewModel {
     private let aiService: AIService
     private let preferences: UserPreferences
 
+    // MARK: - Auto-recenter
+
+    /// Set to true after the first successful auto-recenter so we don't fight
+    /// subsequent user pan/zoom gestures.
+    private var hasAutoCentered = false
+
+    /// Recenter the camera to the user's current location ONCE, on the first
+    /// non-nil GPS fix. Subsequent calls are no-ops so the user's manual
+    /// pan/zoom is preserved.
+    public func bindToLocation() {
+        guard !hasAutoCentered,
+              let coordinate = locationService.currentLocation?.coordinate else { return }
+        hasAutoCentered = true
+        recenter(on: coordinate)
+    }
+
     // MARK: - Published state
     // @ObservationIgnored avoids @Observable macro expanding MapCameraPosition
     // into a synthetic file that lacks `import MapKit`, causing build errors.
