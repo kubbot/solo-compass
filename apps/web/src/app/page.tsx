@@ -1,17 +1,40 @@
 "use client";
 
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MapView } from "@/components/MapView";
 import { ExperienceSheet } from "@/components/ExperienceSheet";
 import { InfoBar } from "@/components/InfoBar";
 import { VoiceIntent } from "@/components/VoiceIntent";
+import { DesktopLayout } from "@/components/DesktopLayout";
 import { useNearby } from "@/lib/use-nearby";
 import { track } from "@/lib/analytics";
+import type { FilterValue } from "@/components/FilterBar";
+
+const CHIANG_MAI: [number, number] = [98.9853, 18.7883];
 
 function HomeInner() {
-  const [center, setCenter] = useState<[number, number] | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Restore state from URL on mount
+  const initialFilter = (searchParams.get("filter") ?? "all") as FilterValue;
+  const initialSel = searchParams.get("sel");
+
+  const [center, setCenter] = useState<[number, number] | null>(CHIANG_MAI);
   const [intent, setIntent] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSel);
+  const [filter, setFilter] = useState<FilterValue>(initialFilter);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Detect desktop breakpoint (>1024px)
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const { data, isLoading } = useNearby({ center, intent: intent ?? undefined });
   const results = data?.results ?? [];
@@ -21,9 +44,22 @@ function HomeInner() {
     [results, selectedId],
   );
 
+  // Sync state → URL (replaceState so browser history captures each distinct change)
+  const pushUrl = useCallback(
+    (nextFilter: FilterValue, nextSel: string | null) => {
+      const params = new URLSearchParams();
+      if (nextFilter !== "all") params.set("filter", nextFilter);
+      if (nextSel) params.set("sel", nextSel);
+      const qs = params.toString();
+      router.push(qs ? `?${qs}` : "/", { scroll: false });
+    },
+    [router],
+  );
+
   const handleSelect = useCallback(
     (id: string | null) => {
       setSelectedId(id);
+      pushUrl(filter, id);
       if (id) {
         const r = results.find((x) => x.experience.id === id);
         if (r) {
@@ -38,7 +74,15 @@ function HomeInner() {
         }
       }
     },
-    [results],
+    [results, filter, pushUrl],
+  );
+
+  const handleFilterChange = useCallback(
+    (f: FilterValue) => {
+      setFilter(f);
+      pushUrl(f, selectedId);
+    },
+    [selectedId, pushUrl],
   );
 
   const handleIntentChange = useCallback((next: string | null) => {
@@ -58,6 +102,35 @@ function HomeInner() {
     track({ name: "checkin", props: { experienceId, rated: rating !== undefined } });
   }, []);
 
+  // Restore selection from URL when results first load
+  useEffect(() => {
+    if (initialSel && results.length > 0 && selectedId === initialSel) return;
+  }, [results, initialSel, selectedId]);
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopLayout
+          results={results}
+          isLoading={isLoading}
+          selectedId={selectedId}
+          filter={filter}
+          onSelect={handleSelect}
+          onCenterChange={setCenter}
+          onFilterChange={handleFilterChange}
+        />
+        {/* ExperienceSheet for desktop — shown as a floating panel via the sheet's own positioning */}
+        <ExperienceSheet
+          key={selectedId ?? "none"}
+          result={selectedResult}
+          onOpenChange={(open) => !open && handleSelect(null)}
+          onCheckin={handleCheckin}
+        />
+      </>
+    );
+  }
+
+  // Mobile layout (unchanged)
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-paper-cream">
       <MapView
@@ -66,16 +139,13 @@ function HomeInner() {
         selectedId={selectedId}
         onCenterChange={setCenter}
       />
-
       <VoiceIntent intent={intent} onIntentChange={handleIntentChange} />
-
       <ExperienceSheet
         key={selectedId ?? "none"}
         result={selectedResult}
-        onOpenChange={(open) => !open && setSelectedId(null)}
+        onOpenChange={(open) => !open && handleSelect(null)}
         onCheckin={handleCheckin}
       />
-
       <InfoBar
         cityName={data?.degraded ? "Paused (AI)" : center ? "Here" : "Loading…"}
         count={results.length}
