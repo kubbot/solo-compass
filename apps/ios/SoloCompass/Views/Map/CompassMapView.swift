@@ -9,8 +9,6 @@ public struct CompassMapView: View {
     @Environment(ExperienceService.self) private var experienceService
     @Environment(AIService.self) private var aiService
     @Environment(UserPreferences.self) private var preferences
-    @Environment(NotificationService.self) private var notificationService
-    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
@@ -18,7 +16,6 @@ public struct CompassMapView: View {
 
     @State private var isShowingCityPicker: Bool = false
     @State private var surveyExperience: Experience? = nil
-    @State private var isShowingFavorites: Bool = false
 
 
     public init() {}
@@ -175,9 +172,6 @@ public struct CompassMapView: View {
                     isShowingCityPicker = true
                 }
             }
-            // Auto-recenter on first GPS fix — handles the case where location
-            // was already authorized before the view appeared (GH #56/#57).
-            viewModel?.bindToLocation()
             viewModel?.checkForPendingCheckIns()
         }
         .onChange(of: locationService.currentLocation) { _, _ in
@@ -186,22 +180,13 @@ public struct CompassMapView: View {
         .onChange(of: preferences.pendingCheckIns) { _, _ in
             viewModel?.checkForPendingCheckIns()
         }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                viewModel?.updateBottomInfo()
-            }
-        }
         // Settings sheet
         .sheet(isPresented: Binding(
             get: { viewModel?.isShowingSettings ?? false },
             set: { if !$0 { viewModel?.isShowingSettings = false } }
         )) {
-            SettingsView(
-                onClose: { viewModel?.isShowingSettings = false },
-                onShowFavorites: { isShowingFavorites = true }
-            )
-            .environment(preferences)
-            .environment(notificationService)
+            SettingsView(onClose: { viewModel?.isShowingSettings = false })
+                .environment(preferences)
         }
         // MicroSurvey sheet (shown after marking an experience done)
         .sheet(item: $surveyExperience) { exp in
@@ -270,27 +255,6 @@ public struct CompassMapView: View {
                     isShowingCityPicker = false
                 }
             }
-        }
-        // Favorites list sheet
-        .sheet(isPresented: $isShowingFavorites) {
-            FavoritesListView { exp in
-                isShowingFavorites = false
-                viewModel?.selectExperience(exp)
-                viewModel?.isShowingDetail = true
-            }
-            .environment(experienceService)
-            .environment(preferences)
-        }
-        // First-run onboarding
-        .fullScreenCover(isPresented: Binding(
-            get: { !preferences.hasCompletedOnboarding },
-            set: { if $0 { } else { preferences.completeOnboarding() } }
-        )) {
-            OnboardingView {
-                // onComplete — preferences.hasCompletedOnboarding already set inside
-            }
-            .environment(locationService)
-            .environment(preferences)
         }
     }
 

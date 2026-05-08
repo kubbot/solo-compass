@@ -4,15 +4,10 @@ import SwiftUI
 /// Accessed via the map's navigation bar settings button.
 public struct SettingsView: View {
     @Environment(UserPreferences.self) private var preferences
-    @Environment(NotificationService.self) private var notificationService
     var onClose: () -> Void
-    var onShowFavorites: (() -> Void)?
 
-    @State private var showingClearConfirm = false
-
-    public init(onClose: @escaping () -> Void = {}, onShowFavorites: (() -> Void)? = nil) {
+    public init(onClose: @escaping () -> Void = {}) {
         self.onClose = onClose
-        self.onShowFavorites = onShowFavorites
     }
 
     public var body: some View {
@@ -22,9 +17,7 @@ public struct SettingsView: View {
                 preferredCategoriesSection
                 dislikedCategoriesSection
                 distanceSection
-                notificationsSection
                 statsSection
-                dataSection
             }
             .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
             .navigationBarTitleDisplayMode(.inline)
@@ -143,88 +136,18 @@ public struct SettingsView: View {
         }
     }
 
-    // MARK: - Notifications
-
-    private var notificationsSection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { preferences.notificationsEnabled },
-                set: { enabled in
-                    preferences.notificationsEnabled = enabled
-                    if enabled {
-                        Task { await notificationService.requestAuthorization() }
-                    }
-                }
-            )) {
-                HStack(spacing: 10) {
-                    Image(systemName: "bell.badge")
-                        .foregroundStyle(.orange)
-                        .frame(width: 28)
-                    Text(NSLocalizedString("settings.notifications", comment: "Notifications"))
-                }
-            }
-        } header: {
-            Text(NSLocalizedString("settings.notifications.header", comment: "Notifications section header"))
-        } footer: {
-            Text(NSLocalizedString("settings.notifications.footer", comment: "Notifications footer"))
-        }
-    }
-
     // MARK: - Stats
 
     private var statsSection: some View {
         Section {
-            Button {
-                onShowFavorites?()
-                onClose()
-            } label: {
-                labelRow(icon: "heart.fill", color: .red,
-                         label: NSLocalizedString("settings.favorites", comment: "Favorites"),
-                         value: "\(preferences.favoritedExperiences.count)")
-            }
-            .foregroundStyle(.primary)
-
             labelRow(icon: "checkmark.circle", color: .green,
                      label: NSLocalizedString("settings.completed", comment: "Completed"),
                      value: "\(preferences.completedExperiences.count)")
+            labelRow(icon: "heart.fill", color: .red,
+                     label: NSLocalizedString("settings.favorites", comment: "Favorites"),
+                     value: "\(preferences.favoritedExperiences.count)")
         } header: {
             Text(NSLocalizedString("settings.stats", comment: "Your Journey"))
-        }
-    }
-
-    // MARK: - Data
-
-    private var dataSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showingClearConfirm = true
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "trash")
-                        .frame(width: 28)
-                    Text(NSLocalizedString("settings.clearData", comment: "Clear all data"))
-                }
-            }
-            .confirmationDialog(
-                NSLocalizedString("settings.clearData.confirm.title", comment: "Clear all data confirm"),
-                isPresented: $showingClearConfirm,
-                titleVisibility: .visible
-            ) {
-                Button(NSLocalizedString("settings.clearData.confirm.action", comment: "Clear"), role: .destructive) {
-                    preferences.completedExperiences = []
-                    preferences.favoritedExperiences = []
-                    preferences.favoritedAt = [:]
-                    preferences.visitHistory = [:]
-                    preferences.pendingCheckIns = [:]
-                    preferences.preferredCategories = []
-                    preferences.dislikedCategories = []
-                }
-                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
-            } message: {
-                Text(NSLocalizedString("settings.clearData.confirm.message", comment: "Clear all data message"))
-            }
-        } header: {
-            Text(NSLocalizedString("settings.data.header", comment: "Data section header"))
         }
     }
 
