@@ -158,7 +158,7 @@
         "Workflow runs in under 30 seconds on a typical push"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
