@@ -13,6 +13,7 @@ public struct CompassMapView: View {
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
     @State private var dismissedAIError: String? = nil
+    @State private var isShowingCityPicker: Bool = false
 
     public init() {}
 
@@ -23,6 +24,13 @@ public struct CompassMapView: View {
                     .ignoresSafeArea()
 
                 VStack {
+                    HStack {
+                        cityPill(viewModel: viewModel)
+                            .padding(.leading, 12)
+                            .padding(.top, 8)
+                        Spacer()
+                    }
+
                     FilterBarView(
                         selectedCategory: viewModel.selectedCategory,
                         isNowSelected: viewModel.isNowFilter,
@@ -107,20 +115,11 @@ public struct CompassMapView: View {
                 }
 
                 if viewModel.visibleExperiences.isEmpty {
-                    VStack(spacing: 6) {
-                        Image(systemName: "mappin.slash")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                        Text(NSLocalizedString("map.empty.title", comment: "No experiences nearby"))
-                            .font(.subheadline.weight(.medium))
-                        Text(NSLocalizedString("map.empty.hint", comment: "Try adjusting filters or zooming out"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(16)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-                    .padding(.horizontal, 32)
-                    .accessibilityElement(children: .combine)
+                    EmptyStateOverlay(
+                        viewModel: viewModel,
+                        preferences: preferences,
+                        locationService: locationService
+                    )
                 }
             } else {
                 ProgressView()
@@ -131,12 +130,17 @@ public struct CompassMapView: View {
         .onAppear {
             locationService.requestPermission()
             if viewModel == nil {
-                viewModel = MapViewModel(
+                let vm = MapViewModel(
                     locationService: locationService,
                     experienceService: experienceService,
                     aiService: aiService,
                     preferences: preferences
                 )
+                viewModel = vm
+                // On first launch with no saved city and no GPS, prompt city picker.
+                if preferences.lastSelectedCity == nil && locationService.currentLocation == nil {
+                    isShowingCityPicker = true
+                }
             }
         }
         .onChange(of: locationService.currentLocation) { _, _ in
@@ -194,6 +198,43 @@ public struct CompassMapView: View {
                 }
             }
         }
+        .sheet(isPresented: $isShowingCityPicker) {
+            if let vm = viewModel {
+                CityPickerSheet(viewModel: vm) {
+                    isShowingCityPicker = false
+                }
+            }
+        }
+    }
+
+    // MARK: - City pill
+
+    @ViewBuilder
+    private func cityPill(viewModel: MapViewModel) -> some View {
+        let cityName: String = {
+            if let code = viewModel.selectedCity,
+               let city = viewModel.availableCities.first(where: { $0.code == code }) {
+                return city.name
+            }
+            return NSLocalizedString("city.all", comment: "All cities option")
+        }()
+
+        Button {
+            isShowingCityPicker = true
+        } label: {
+            HStack(spacing: 4) {
+                Text(cityName)
+                    .font(.subheadline.weight(.medium))
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: Capsule())
+        }
+        .accessibilityLabel(Text(cityName))
+        .accessibilityHint(Text(NSLocalizedString("city.picker.title", comment: "City picker sheet title")))
     }
 
     @ViewBuilder
@@ -279,4 +320,72 @@ public struct CompassMapView: View {
         .environment(ExperienceService())
         .environment(AIService())
         .environment(UserPreferences())
+}
+
+private struct EmptyStateOverlay: View {
+    var viewModel: MapViewModel
+    var preferences: UserPreferences
+    var locationService: LocationService
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "mappin.slash")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            Text(NSLocalizedString("map.empty.title", comment: "No experiences nearby"))
+                .font(.subheadline.weight(.medium))
+            Text(String(
+                format: NSLocalizedString("map.empty.radius", comment: "No experiences within radius"),
+                preferences.maxDistanceKm
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                Button {
+                    preferences.maxDistanceKm = 25
+                    viewModel.loadNearbyExperiences()
+                    viewModel.updateBottomInfo()
+                } label: {
+                    Text(NSLocalizedString("map.empty.expand", comment: "Expand search radius to 25km"))
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+
+                if let nearestCode = viewModel.nearestSeededCity(
+                    to: locationService.currentLocation?.coordinate ?? viewModel.defaultCenterForSelectedCity
+                ),
+                   let nearestCity = viewModel.availableCities.first(where: { $0.code == nearestCode }) {
+                    Button {
+                        viewModel.selectCity(nearestCode)
+                    } label: {
+                        Text(String(
+                            format: NSLocalizedString("map.empty.browse", comment: "Browse nearest city"),
+                            nearestCity.name
+                        ))
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                }
+
+                Button {
+                    viewModel.clearFilters()
+                } label: {
+                    Text(NSLocalizedString("map.empty.clearFilters", comment: "Clear all filters"))
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 32)
+        .accessibilityElement(children: .combine)
+    }
 }

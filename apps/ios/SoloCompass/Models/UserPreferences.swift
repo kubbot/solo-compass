@@ -24,6 +24,13 @@ public final class UserPreferences {
         var completedExperiences: Set<String> = []
         var favoritedExperiences: Set<String> = []
         var pendingCheckIns: [String: Date] = [:]
+        var lastSelectedCity: String? = nil
+
+        enum CodingKeys: String, CodingKey {
+            case preferredCategories, dislikedCategories, soloTravelStyle, maxDistanceKm
+            case visitHistory, completedExperiences, favoritedExperiences, pendingCheckIns
+            case lastSelectedCity
+        }
 
         init() {}
 
@@ -35,7 +42,8 @@ public final class UserPreferences {
             visitHistory: [String: Date],
             completedExperiences: Set<String>,
             favoritedExperiences: Set<String>,
-            pendingCheckIns: [String: Date]
+            pendingCheckIns: [String: Date],
+            lastSelectedCity: String?
         ) {
             self.preferredCategories = preferredCategories
             self.dislikedCategories = dislikedCategories
@@ -45,6 +53,7 @@ public final class UserPreferences {
             self.completedExperiences = completedExperiences
             self.favoritedExperiences = favoritedExperiences
             self.pendingCheckIns = pendingCheckIns
+            self.lastSelectedCity = lastSelectedCity
         }
 
         init(from decoder: Decoder) throws {
@@ -57,6 +66,7 @@ public final class UserPreferences {
             self.completedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .completedExperiences) ?? []
             self.favoritedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .favoritedExperiences) ?? []
             self.pendingCheckIns = try c.decodeIfPresent([String: Date].self, forKey: .pendingCheckIns) ?? [:]
+            self.lastSelectedCity = try c.decodeIfPresent(String.self, forKey: .lastSelectedCity)
         }
     }
 
@@ -68,6 +78,7 @@ public final class UserPreferences {
     public var completedExperiences: Set<String> { didSet { persist() } }
     public var favoritedExperiences: Set<String> { didSet { persist() } }
     public var pendingCheckIns: [String: Date] { didSet { persist() } }
+    public var lastSelectedCity: String? { didSet { persist() } }
 
     private static let storageKey = "com.solocompass.userPreferences.v1"
     private let defaults: UserDefaults
@@ -83,6 +94,7 @@ public final class UserPreferences {
         self.completedExperiences = snapshot.completedExperiences
         self.favoritedExperiences = snapshot.favoritedExperiences
         self.pendingCheckIns = snapshot.pendingCheckIns
+        self.lastSelectedCity = snapshot.lastSelectedCity
     }
 
     private static func load(from defaults: UserDefaults) -> Snapshot {
@@ -106,7 +118,8 @@ public final class UserPreferences {
             visitHistory: visitHistory,
             completedExperiences: completedExperiences,
             favoritedExperiences: favoritedExperiences,
-            pendingCheckIns: pendingCheckIns
+            pendingCheckIns: pendingCheckIns,
+            lastSelectedCity: lastSelectedCity
         )
         do {
             let data = try JSONEncoder.iso8601Encoder.encode(snapshot)
