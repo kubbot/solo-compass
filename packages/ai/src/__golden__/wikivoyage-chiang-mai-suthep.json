@@ -1,6 +1,7 @@
 {
-  "tool": "emit_experience",
-  "input": {
+  "action": "emit",
+  "content": {
+    "action": "emit",
     "title": "Watch dawn light the golden chedi at Doi Suthep before the crowds arrive",
     "oneLiner": "The most sacred moment at northern Thailand's holiest temple belongs to those who arrive at sunrise when mist fills the valley and monks are still chanting.",
     "whyItMatters": "At 06:00 the gilded 24-metre chedi glows orange-gold against a mist-covered valley — a colour shift you can't manufacture at any other hour. The chanting carries across the open terrace while incense curls around the lotus-petal walkway. By 09:00 the same terrace holds tour buses; this experience only exists in the early window.",
@@ -63,10 +64,11 @@
       {
         "type": "wikivoyage",
         "url": "https://en.wikivoyage.org/wiki/Chiang_Mai/Doi_Suthep",
+        "attribution": null,
         "verifiedAt": "2026-05-07T00:00:00Z"
       }
     ],
     "modelConfidence": 0.88
   },
-  "usage": { "input_tokens": 820, "output_tokens": 610 }
+  "usage": { "prompt_tokens": 820, "completion_tokens": 610, "total_tokens": 1430 }
 }

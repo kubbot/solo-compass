@@ -1,14 +1,14 @@
 /**
  * E2E extraction tests for structureExperience.
  *
- * All tests use golden-replay mocks — no ANTHROPIC_API_KEY needed.
+ * All tests use golden-replay mocks — no DEEPSEEK_API_KEY needed.
  * Run `pnpm test:live` to re-run against the real API.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 import { structureExperience } from "./prompts/structure-experience";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -21,31 +21,27 @@ function loadFixture(name: string): string {
 }
 
 interface GoldenReplay {
-  tool: string;
-  input: Record<string, unknown>;
-  usage: { input_tokens: number; output_tokens: number };
+  action: "emit" | "refuse";
+  content: Record<string, unknown>;
+  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
 
 function loadGolden(name: string): GoldenReplay {
   return JSON.parse(readFileSync(join(GOLDEN_DIR, name), "utf8")) as GoldenReplay;
 }
 
-function makeMockClient(golden: GoldenReplay): Anthropic {
+function makeMockClient(golden: GoldenReplay): OpenAI {
   return {
-    messages: {
-      create: vi.fn().mockResolvedValue({
-        content: [
-          {
-            type: "tool_use",
-            name: golden.tool,
-            input: golden.input,
-          },
-        ],
-        usage: golden.usage,
-        model: "claude-opus-4-7",
-      }),
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { content: JSON.stringify(golden.content) } }],
+          usage: golden.usage,
+          model: "deepseek-v4-pro",
+        }),
+      },
     },
-  } as unknown as Anthropic;
+  } as unknown as OpenAI;
 }
 
 // ─── Fixture 1: Wikivoyage — rich cultural experience ─────────────────────────
@@ -155,7 +151,6 @@ describe("structureExperience — Wikivoyage Doi Suthep", () => {
     if (!experience) return;
 
     // Title should contain a verb (action word) — not just a noun phrase
-    // Simple heuristic: contains at least one space and isn't all title-case nouns
     expect(experience.title).not.toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/);
     expect(experience.title.split(" ").length).toBeGreaterThanOrEqual(4);
   });
@@ -297,16 +292,18 @@ describe("structureExperience — insufficient blurb (refusal)", () => {
 // ─── Edge cases ───────────────────────────────────────────────────────────────
 
 describe("structureExperience — edge cases", () => {
-  it("handles model returning no tool call — returns null with reason", async () => {
+  it("handles model returning invalid JSON — returns null with reason", async () => {
     const mockClient = {
-      messages: {
-        create: vi.fn().mockResolvedValue({
-          content: [{ type: "text", text: "I cannot help with that." }],
-          usage: { input_tokens: 50, output_tokens: 10 },
-          model: "claude-opus-4-7",
-        }),
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: "not valid json at all" } }],
+            usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+            model: "deepseek-v4-pro",
+          }),
+        },
       },
-    } as unknown as Anthropic;
+    } as unknown as OpenAI;
 
     const result = await structureExperience(
       { rawText: "some text", cityCode: "cmi", cityName: "Chiang Mai" },
@@ -318,22 +315,18 @@ describe("structureExperience — edge cases", () => {
     expect(result.modelConfidence).toBe(0);
   });
 
-  it("handles unknown tool name — returns null with reason", async () => {
+  it("handles unexpected action value — returns null with reason", async () => {
     const mockClient = {
-      messages: {
-        create: vi.fn().mockResolvedValue({
-          content: [
-            {
-              type: "tool_use",
-              name: "some_unknown_tool",
-              input: { data: "whatever" },
-            },
-          ],
-          usage: { input_tokens: 50, output_tokens: 20 },
-          model: "claude-opus-4-7",
-        }),
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ action: "unknown_action" }) } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20, total_tokens: 70 },
+            model: "deepseek-v4-pro",
+          }),
+        },
       },
-    } as unknown as Anthropic;
+    } as unknown as OpenAI;
 
     const result = await structureExperience(
       { rawText: "some text", cityCode: "cmi", cityName: "Chiang Mai" },
@@ -341,16 +334,18 @@ describe("structureExperience — edge cases", () => {
     );
 
     expect(result.experience).toBeNull();
-    expect(result.refusalReason).toContain("some_unknown_tool");
+    expect(result.refusalReason).toContain("unknown_action");
     expect(result.modelConfidence).toBe(0);
   });
 
   it("handles API rejection (thrown error) — propagates exception", async () => {
     const mockClient = {
-      messages: {
-        create: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+      chat: {
+        completions: {
+          create: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+        },
       },
-    } as unknown as Anthropic;
+    } as unknown as OpenAI;
 
     await expect(
       structureExperience(
@@ -420,5 +415,65 @@ describe("structureExperience — edge cases", () => {
     );
 
     expect(result.experience?.nearbyExperienceIds).toEqual([]);
+  });
+
+  it("model confidence is 0 on refuse action", async () => {
+    const mockClient = {
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    action: "refuse",
+                    reason: "Source is too thin to extract a verifiable experience.",
+                  }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+            model: "deepseek-v4-pro",
+          }),
+        },
+      },
+    } as unknown as OpenAI;
+
+    const result = await structureExperience(
+      { rawText: "Short blurb.", cityCode: "cmi", cityName: "Chiang Mai" },
+      mockClient,
+    );
+
+    expect(result.experience).toBeNull();
+    expect(result.modelConfidence).toBe(0);
+    expect(result.refusalReason).toContain("too thin");
+  });
+
+  it("strips markdown fences from model output before JSON parsing", async () => {
+    const golden = loadGolden("wikivoyage-chiang-mai-suthep.json");
+    const fencedContent = "```json\n" + JSON.stringify(golden.content) + "\n```";
+
+    const mockClient = {
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: fencedContent } }],
+            usage: { prompt_tokens: 820, completion_tokens: 610, total_tokens: 1430 },
+            model: "deepseek-v4-pro",
+          }),
+        },
+      },
+    } as unknown as OpenAI;
+
+    const result = await structureExperience(
+      {
+        rawText: loadFixture("wikivoyage-chiang-mai-suthep.txt"),
+        cityCode: "cmi",
+        cityName: "Chiang Mai",
+      },
+      mockClient,
+    );
+
+    expect(result.experience).not.toBeNull();
   });
 });

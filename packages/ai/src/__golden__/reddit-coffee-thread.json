@@ -1,12 +1,14 @@
 {
-  "tool": "emit_experience",
-  "input": {
+  "action": "emit",
+  "content": {
+    "action": "emit",
     "title": "Order single-origin micro-lots in the 8-seat Lab at Ristr8to before stocks run out",
     "oneLiner": "A basement coffee lab where the barista explains the altitude difference between two Doi Chaang farms while you sip one of the best natural-processed espressos in Southeast Asia.",
     "whyItMatters": "The Lab is deliberately WiFi-free and seats only eight — a signal that coffee is the point, not ambiance or coworking. Barista Bee has five years of national championship experience and will spend ten minutes explaining processing if you ask. The micro-lot menu sells out by afternoon, so the window is real.",
     "category": "coffee",
     "coordinates": { "longitude": 98.9665, "latitude": 18.7966 },
     "addressHint": "15/3 Nimman Soi 3, Suthep, Chiang Mai — downstairs Lab section",
+    "placeNameLocal": null,
     "placeNameRomanized": "Ristr8to Lab",
     "bestTimes": [
       {
@@ -60,5 +62,5 @@
     ],
     "modelConfidence": 0.91
   },
-  "usage": { "input_tokens": 740, "output_tokens": 530 }
+  "usage": { "prompt_tokens": 740, "completion_tokens": 530, "total_tokens": 1270 }
 }
