@@ -15,6 +15,7 @@ public final class LocationService: NSObject {
     /// Optional preferences sink — when set, geofence enter events record
     /// pending check-ins so the app can prompt the user later.
     public weak var preferences: UserPreferences?
+    public weak var notificationService: NotificationService?
     public var onRegionEnter: ((String) -> Void)?
     public var onRegionExit: ((String) -> Void)?
 
@@ -39,8 +40,13 @@ public final class LocationService: NSObject {
         switch manager.authorizationStatus {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse, .authorizedAlways:
+        case .authorizedWhenInUse:
+            // Two-step pattern required by Apple: WhenInUse must be granted before requesting Always.
+            manager.requestAlwaysAuthorization()
             startUpdating()
+        case .authorizedAlways:
+            startUpdating()
+            enableBackgroundUpdates()
         default:
             break
         }
@@ -51,6 +57,11 @@ public final class LocationService: NSObject {
             return
         }
         manager.startUpdatingLocation()
+    }
+
+    private func enableBackgroundUpdates() {
+        manager.allowsBackgroundLocationUpdates = true
+        manager.pausesLocationUpdatesAutomatically = true
     }
 
     public func stopUpdating() {
@@ -114,8 +125,14 @@ extension LocationService: CLLocationManagerDelegate {
         let status = manager.authorizationStatus
         Task { @MainActor in
             self.authorizationStatus = status
-            if status == .authorizedWhenInUse || status == .authorizedAlways {
+            switch status {
+            case .authorizedAlways:
                 self.startUpdating()
+                self.enableBackgroundUpdates()
+            case .authorizedWhenInUse:
+                self.startUpdating()
+            default:
+                break
             }
         }
     }
@@ -135,9 +152,17 @@ extension LocationService: CLLocationManagerDelegate {
 
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         guard monitoredIdentifiers.contains(region.identifier) else { return }
+        let expTitle = monitoredVisits[region.identifier]?.title ?? region.identifier
         Task { @MainActor in
             self.preferences?.recordPendingCheckIn(region.identifier)
             self.onRegionEnter?(region.identifier)
+            if let prefs = self.preferences, let ns = self.notificationService {
+                await ns.scheduleCheckInPrompt(
+                    experienceId: region.identifier,
+                    experienceTitle: expTitle,
+                    preferences: prefs
+                )
+            }
         }
     }
 

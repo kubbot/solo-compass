@@ -23,13 +23,19 @@ public final class UserPreferences {
         var visitHistory: [String: Date] = [:]
         var completedExperiences: Set<String> = []
         var favoritedExperiences: Set<String> = []
+        var favoritedAt: [String: Date] = [:]
         var pendingCheckIns: [String: Date] = [:]
         var lastSelectedCity: String? = nil
+        var hasCompletedOnboarding: Bool = false
+        var notificationsEnabled: Bool = false
+        var quietHoursStart: Int = 22
+        var quietHoursEnd: Int = 8
 
         enum CodingKeys: String, CodingKey {
             case preferredCategories, dislikedCategories, soloTravelStyle, maxDistanceKm
-            case visitHistory, completedExperiences, favoritedExperiences, pendingCheckIns
-            case lastSelectedCity
+            case visitHistory, completedExperiences, favoritedExperiences, favoritedAt, pendingCheckIns
+            case lastSelectedCity, hasCompletedOnboarding, notificationsEnabled
+            case quietHoursStart, quietHoursEnd
         }
 
         init() {}
@@ -42,8 +48,13 @@ public final class UserPreferences {
             visitHistory: [String: Date],
             completedExperiences: Set<String>,
             favoritedExperiences: Set<String>,
+            favoritedAt: [String: Date],
             pendingCheckIns: [String: Date],
-            lastSelectedCity: String?
+            lastSelectedCity: String?,
+            hasCompletedOnboarding: Bool,
+            notificationsEnabled: Bool,
+            quietHoursStart: Int,
+            quietHoursEnd: Int
         ) {
             self.preferredCategories = preferredCategories
             self.dislikedCategories = dislikedCategories
@@ -52,8 +63,13 @@ public final class UserPreferences {
             self.visitHistory = visitHistory
             self.completedExperiences = completedExperiences
             self.favoritedExperiences = favoritedExperiences
+            self.favoritedAt = favoritedAt
             self.pendingCheckIns = pendingCheckIns
             self.lastSelectedCity = lastSelectedCity
+            self.hasCompletedOnboarding = hasCompletedOnboarding
+            self.notificationsEnabled = notificationsEnabled
+            self.quietHoursStart = quietHoursStart
+            self.quietHoursEnd = quietHoursEnd
         }
 
         init(from decoder: Decoder) throws {
@@ -65,8 +81,13 @@ public final class UserPreferences {
             self.visitHistory = try c.decodeIfPresent([String: Date].self, forKey: .visitHistory) ?? [:]
             self.completedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .completedExperiences) ?? []
             self.favoritedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .favoritedExperiences) ?? []
+            self.favoritedAt = try c.decodeIfPresent([String: Date].self, forKey: .favoritedAt) ?? [:]
             self.pendingCheckIns = try c.decodeIfPresent([String: Date].self, forKey: .pendingCheckIns) ?? [:]
             self.lastSelectedCity = try c.decodeIfPresent(String.self, forKey: .lastSelectedCity)
+            self.hasCompletedOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+            self.notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
+            self.quietHoursStart = try c.decodeIfPresent(Int.self, forKey: .quietHoursStart) ?? 22
+            self.quietHoursEnd = try c.decodeIfPresent(Int.self, forKey: .quietHoursEnd) ?? 8
         }
     }
 
@@ -77,8 +98,13 @@ public final class UserPreferences {
     public var visitHistory: [String: Date] { didSet { persist() } }
     public var completedExperiences: Set<String> { didSet { persist() } }
     public var favoritedExperiences: Set<String> { didSet { persist() } }
+    public var favoritedAt: [String: Date] { didSet { persist() } }
     public var pendingCheckIns: [String: Date] { didSet { persist() } }
     public var lastSelectedCity: String? { didSet { persist() } }
+    public var hasCompletedOnboarding: Bool { didSet { persist() } }
+    public var notificationsEnabled: Bool { didSet { persist() } }
+    public var quietHoursStart: Int { didSet { persist() } }
+    public var quietHoursEnd: Int { didSet { persist() } }
 
     private static let storageKey = "com.solocompass.userPreferences.v1"
     private let defaults: UserDefaults
@@ -93,8 +119,13 @@ public final class UserPreferences {
         self.visitHistory = snapshot.visitHistory
         self.completedExperiences = snapshot.completedExperiences
         self.favoritedExperiences = snapshot.favoritedExperiences
+        self.favoritedAt = snapshot.favoritedAt
         self.pendingCheckIns = snapshot.pendingCheckIns
         self.lastSelectedCity = snapshot.lastSelectedCity
+        self.hasCompletedOnboarding = snapshot.hasCompletedOnboarding
+        self.notificationsEnabled = snapshot.notificationsEnabled
+        self.quietHoursStart = snapshot.quietHoursStart
+        self.quietHoursEnd = snapshot.quietHoursEnd
     }
 
     private static func load(from defaults: UserDefaults) -> Snapshot {
@@ -118,8 +149,13 @@ public final class UserPreferences {
             visitHistory: visitHistory,
             completedExperiences: completedExperiences,
             favoritedExperiences: favoritedExperiences,
+            favoritedAt: favoritedAt,
             pendingCheckIns: pendingCheckIns,
-            lastSelectedCity: lastSelectedCity
+            lastSelectedCity: lastSelectedCity,
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            notificationsEnabled: notificationsEnabled,
+            quietHoursStart: quietHoursStart,
+            quietHoursEnd: quietHoursEnd
         )
         do {
             let data = try JSONEncoder.iso8601Encoder.encode(snapshot)
@@ -138,11 +174,35 @@ public final class UserPreferences {
         visitHistory[id] = date
     }
 
-    public func toggleFavorite(_ id: String) {
+    public func toggleFavorite(_ id: String, at date: Date = Date()) {
         if favoritedExperiences.contains(id) {
             favoritedExperiences.remove(id)
+            favoritedAt.removeValue(forKey: id)
         } else {
             favoritedExperiences.insert(id)
+            favoritedAt[id] = date
+        }
+    }
+
+    public func completeOnboarding() {
+        hasCompletedOnboarding = true
+    }
+
+    /// Auto-clear pending check-ins older than 7 days.
+    public func pruneStaleCheckIns(olderThan days: Int = 7) {
+        let cutoff = Date().addingTimeInterval(Double(-days) * 86_400)
+        for (id, date) in pendingCheckIns where date < cutoff {
+            pendingCheckIns.removeValue(forKey: id)
+        }
+    }
+
+    /// True if current hour is inside the quiet-hours window.
+    public var isQuietHours: Bool {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if quietHoursStart > quietHoursEnd {
+            return hour >= quietHoursStart || hour < quietHoursEnd
+        } else {
+            return hour >= quietHoursStart && hour < quietHoursEnd
         }
     }
 
