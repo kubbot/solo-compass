@@ -52,6 +52,10 @@ apps/ios/*.xcworkspace/xcuserdata/
 apps/ios/**/xcuserdata/
 *.xcuserstate
 
+# Generated from .env at build time — never commit
+apps/ios/SoloCompass/Config/GeneratedSecrets.swift
+apps/ios/SoloCompass/Resources/Secrets.plist
+
 # Data caches (large, regenerable)
 .cache/
 seeds/raw/
