@@ -123,6 +123,32 @@ What we keep proprietary (in private repos):
 
 ---
 
+## Secret scanning
+
+Every push and pull request is automatically scanned for accidentally committed secrets using [gitleaks](https://github.com/gitleaks/gitleaks).
+
+**Run locally before pushing:**
+
+```bash
+# Install gitleaks (macOS)
+brew install gitleaks
+
+# Scan the working tree (no git history required)
+gitleaks detect --source . --no-git
+```
+
+**What the `.gitleaks.toml` allowlist exempts — and why:**
+
+| Pattern | File | Reason |
+|---|---|---|
+| `pk.eyJ…` | `.env.example` | Mapbox public-token placeholder; not a real secret, intentionally shown as a format hint |
+| `xxxxx.supabase.co` | `.env.example` | Supabase placeholder URL; `xxxxx` is obviously not a real project ID |
+| `sk-replace-me` | `.env.example` | Literal placeholder string; not a key that could authenticate against any API |
+
+Real values must never be committed. Copy `.env.example` to `.env` (gitignored) and fill in actual keys there.
+
+---
+
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).
