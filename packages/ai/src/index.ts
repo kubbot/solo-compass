@@ -19,3 +19,5 @@ export type { CostSnapshot } from "./cost-tracker";
 
 export { dedup } from "./compilation/dedup";
 export type { MergedCandidate, DedupStats, DedupResult } from "./compilation/dedup";
+
+export { createDeepseekClient, deepseekModel, deepseekBaseURL } from "./client";
