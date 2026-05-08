@@ -23,7 +23,7 @@ public struct CityPickerSheet: View {
                         Spacer()
                         if viewModel.selectedCity == nil {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.accentColor)
+                                .foregroundStyle(.tint)
                                 .font(.body.weight(.semibold))
                         }
                     }
@@ -49,7 +49,7 @@ public struct CityPickerSheet: View {
                             Spacer()
                             if viewModel.selectedCity == city.code {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.accentColor)
+                                    .foregroundStyle(.tint)
                                     .font(.body.weight(.semibold))
                             }
                         }
