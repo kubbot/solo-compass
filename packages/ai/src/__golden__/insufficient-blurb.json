@@ -1,8 +1,0 @@
-{
-  "action": "refuse",
-  "content": {
-    "action": "refuse",
-    "reason": "Source is a generic tourist-brochure summary (~60 words) with no specific experience, no how-to steps, no sensory details, no inconveniences, and no verifiable coordinates or hours. Extracting an experience would require fabrication."
-  },
-  "usage": { "prompt_tokens": 310, "completion_tokens": 45, "total_tokens": 355 }
-}
