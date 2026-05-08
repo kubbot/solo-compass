@@ -134,6 +134,40 @@ public final class MapViewModel {
     // True when a "Now" filter is active (best-now experiences only).
     public var isNowFilter: Bool = false
 
+    // MARK: - Settings
+
+    public var isShowingSettings: Bool = false
+
+    // MARK: - Pending check-in
+
+    /// Non-nil while a geofence-triggered check-in prompt is pending.
+    public var pendingCheckIn: (id: String, title: String)?
+
+    /// Call on appear and when preferences.pendingCheckIns changes.
+    public func checkForPendingCheckIns() {
+        guard pendingCheckIn == nil,
+              let (id, _) = preferences.pendingCheckIns.first else { return }
+        let title = visibleExperiences.first { $0.id == id }?.title
+            ?? experienceService.getExperience(id: id)?.title
+            ?? id
+        pendingCheckIn = (id: id, title: title)
+    }
+
+    public func confirmCheckIn() {
+        guard let pending = pendingCheckIn else { return }
+        preferences.markCompleted(pending.id)
+        preferences.clearPendingCheckIn(pending.id)
+        pendingCheckIn = nil
+        checkForPendingCheckIns()
+    }
+
+    public func dismissCheckIn() {
+        guard let pending = pendingCheckIn else { return }
+        preferences.clearPendingCheckIn(pending.id)
+        pendingCheckIn = nil
+        checkForPendingCheckIns()
+    }
+
     // MARK: - Add-experience flow (long-press on map)
 
     /// Coordinate the user long-pressed; non-nil while we're prompting to confirm.

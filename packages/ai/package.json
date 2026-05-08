@@ -11,9 +11,9 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
     "@solo-compass/core": "workspace:*",
     "@solo-compass/sources-core": "workspace:*",
-    "@anthropic-ai/sdk": "^0.32.0",
     "fast-levenshtein": "^3.0.0"
   },
   "devDependencies": {

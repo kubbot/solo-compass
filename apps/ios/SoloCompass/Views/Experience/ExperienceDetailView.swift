@@ -6,10 +6,18 @@ import SwiftUI
 public struct ExperienceDetailView: View {
     @State var viewModel: ExperienceDetailViewModel
     var onClose: () -> Void
+    var onMarkDone: ((_ experience: Experience) -> Void)?
 
-    public init(viewModel: ExperienceDetailViewModel, onClose: @escaping () -> Void = {}) {
+    @State private var isShowingReport: Bool = false
+
+    public init(
+        viewModel: ExperienceDetailViewModel,
+        onClose: @escaping () -> Void = {},
+        onMarkDone: ((_ experience: Experience) -> Void)? = nil
+    ) {
         self.viewModel = viewModel
         self.onClose = onClose
+        self.onMarkDone = onMarkDone
     }
 
     public var body: some View {
@@ -50,6 +58,28 @@ public struct ExperienceDetailView: View {
                 }
                 .accessibilityLabel(Text(NSLocalizedString("action.close", comment: "Close detail sheet")))
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(role: .destructive) {
+                        isShowingReport = true
+                    } label: {
+                        Label(
+                            NSLocalizedString("detail.report", comment: "Report an issue"),
+                            systemImage: "exclamationmark.triangle"
+                        )
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel(Text(NSLocalizedString("detail.more", comment: "More options")))
+            }
+        }
+        .sheet(isPresented: $isShowingReport) {
+            ReportIssueSheet(
+                experience: viewModel.experience,
+                onSubmit: { _, _ in isShowingReport = false },
+                onCancel: { isShowingReport = false }
+            )
         }
         .task { await viewModel.loadAIExplanation() }
     }
@@ -261,8 +291,13 @@ public struct ExperienceDetailView: View {
                 : NSLocalizedString("action.favorite", comment: "Add favorite")))
 
             Button {
+                let wasCompleted = viewModel.isCompleted
                 viewModel.toggleComplete()
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                // Show micro-survey only when marking done (not when un-marking).
+                if !wasCompleted {
+                    onMarkDone?(viewModel.experience)
+                }
             } label: {
                 HStack {
                     Image(systemName: viewModel.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
