@@ -69,10 +69,12 @@ function scan(diff: string): Hit[] {
     if (raw.includes("anti-pattern-lint:allow")) continue;
 
     // Skip the lint script itself — it legitimately mentions every keyword.
+    // Skip archived Ralph runs — frozen historical artefacts, not shipped product.
     if (
       currentFile === "scripts/anti-pattern-lint.ts" ||
       currentFile === "docs/PRIVACY.md" ||
-      currentFile === "CLAUDE.md"
+      currentFile === "CLAUDE.md" ||
+      currentFile.startsWith("scripts/ralph/archive/")
     ) {
       continue;
     }
