@@ -11,3 +11,4 @@ Stories: 10
 [2026-05-08T09:35:43Z] Story #US-003: Update packages/ai index.ts exports for DeepSeek — PASSED
 [2026-05-08T09:37:04Z] Story #US-004: Rewrite rank-experiences.test.ts to mock OpenAI shape — PASSED
 [2026-05-08T09:39:31Z] Story #US-005: Rewrite structure-experience.test.ts to mock OpenAI shape and delete obsolete __golden__ files — PASSED
+[2026-05-08T09:41:25Z] Story #US-006: Add retry-with-backoff helper for DeepSeek calls — PASSED
