@@ -1,11 +1,11 @@
 /**
  * Anti-hallucination unit tests for rankExperiences.
  *
- * All tests pass a mock Anthropic client — no real API calls are made.
+ * All tests pass a mock OpenAI client — no real API calls are made.
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 import { rankExperiences } from "../prompts/rank-experiences";
 import type { Experience, ExperienceId } from "@solo-compass/core";
 
@@ -65,22 +65,19 @@ function makeExperience(id: string, title: string): Experience {
 
 function makeMockClient(
   rankedItems: Array<{ experienceId: string; score: number; reason: string }>,
-): Anthropic {
+): OpenAI {
+  const content = JSON.stringify({ ranked: rankedItems });
   return {
-    messages: {
-      create: vi.fn().mockResolvedValue({
-        content: [
-          {
-            type: "tool_use",
-            name: "emit_ranking",
-            input: { ranked: rankedItems },
-          },
-        ],
-        usage: { input_tokens: 100, output_tokens: 50 },
-        model: "claude-opus-4-7",
-      }),
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { content } }],
+          usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+          model: "deepseek-v4-pro",
+        }),
+      },
     },
-  } as unknown as Anthropic;
+  } as unknown as OpenAI;
 }
 
 const BASE_INPUT = {
@@ -159,11 +156,11 @@ describe("rankExperiences — anti-hallucination", () => {
     expect(result.ranked.length).toBeLessThanOrEqual(3);
   });
 
-  it("returns empty ranked array for empty availableExperiences without calling Anthropic", async () => {
+  it("returns empty ranked array for empty availableExperiences without calling DeepSeek", async () => {
     const createMock = vi.fn();
     const mockClient = {
-      messages: { create: createMock },
-    } as unknown as Anthropic;
+      chat: { completions: { create: createMock } },
+    } as unknown as OpenAI;
 
     const result = await rankExperiences({ ...BASE_INPUT, availableExperiences: [] }, mockClient);
 
@@ -185,5 +182,51 @@ describe("rankExperiences — anti-hallucination", () => {
 
     expect(result.ranked).toHaveLength(1);
     expect(result.ranked[0]?.reason).toBe(expectedReason);
+  });
+
+  it("handles fence-wrapped JSON response gracefully", async () => {
+    const exp = makeExperience("exp_cmi_fence", "Fence Test");
+    const content = '```json\n{"ranked":[{"experienceId":"exp_cmi_fence","score":75,"reason":"Good match."}]}\n```';
+    const mockClient = {
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content } }],
+            usage: { prompt_tokens: 50, completion_tokens: 25, total_tokens: 75 },
+            model: "deepseek-v4-pro",
+          }),
+        },
+      },
+    } as unknown as OpenAI;
+
+    const result = await rankExperiences(
+      { ...BASE_INPUT, availableExperiences: [exp] },
+      mockClient,
+    );
+
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0]?.score).toBe(75);
+  });
+
+  it("returns empty ranked array when response is invalid JSON", async () => {
+    const exp = makeExperience("exp_cmi_bad", "Bad JSON Test");
+    const mockClient = {
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: "not json at all" } }],
+            usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+            model: "deepseek-v4-pro",
+          }),
+        },
+      },
+    } as unknown as OpenAI;
+
+    const result = await rankExperiences(
+      { ...BASE_INPUT, availableExperiences: [exp] },
+      mockClient,
+    );
+
+    expect(result.ranked).toHaveLength(0);
   });
 });
