@@ -175,6 +175,9 @@ public struct CompassMapView: View {
                     isShowingCityPicker = true
                 }
             }
+            // Auto-recenter on first GPS fix — handles the case where location
+            // was already authorized before the view appeared (GH #56/#57).
+            viewModel?.bindToLocation()
             viewModel?.checkForPendingCheckIns()
         }
         .onChange(of: locationService.currentLocation) { _, _ in
