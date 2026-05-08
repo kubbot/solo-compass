@@ -10,7 +10,6 @@ public struct CompassMapView: View {
     @Environment(AIService.self) private var aiService
     @Environment(UserPreferences.self) private var preferences
     @Environment(NotificationService.self) private var notificationService
-    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
@@ -175,9 +174,6 @@ public struct CompassMapView: View {
                     isShowingCityPicker = true
                 }
             }
-            // Auto-recenter on first GPS fix — handles the case where location
-            // was already authorized before the view appeared (GH #56/#57).
-            viewModel?.bindToLocation()
             viewModel?.checkForPendingCheckIns()
         }
         .onChange(of: locationService.currentLocation) { _, _ in
@@ -185,11 +181,6 @@ public struct CompassMapView: View {
         }
         .onChange(of: preferences.pendingCheckIns) { _, _ in
             viewModel?.checkForPendingCheckIns()
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                viewModel?.updateBottomInfo()
-            }
         }
         // Settings sheet
         .sheet(isPresented: Binding(

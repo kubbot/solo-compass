@@ -1,18 +1,17 @@
 /**
- * Cost monitoring wrapper for Anthropic API calls.
+ * Cost monitoring wrapper for DeepSeek (OpenAI-compatible) chat-completions.
  *
- * Logs a structured JSON line to stdout on every call so Vercel / Railway log
- * drains can aggregate spend without a dedicated metrics backend.
+ * Logs a structured JSON line to stdout on every call so log drains can
+ * aggregate spend without a dedicated metrics backend.
  */
 
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 
-// ─── Pricing constants — claude-opus-4-7, per million tokens, in cents ────────
+// ─── Pricing constants — deepseek-v4-pro, per million tokens, in cents ────────
+// Approximate; keep in sync with https://platform.deepseek.com pricing.
 const PRICE_PER_M = {
-  input: 1500,
-  output: 7500,
-  cache_read: 150,
-  cache_write: 1875,
+  input: 27, // $0.27 / M
+  output: 110, // $1.10 / M
 } as const;
 
 const WARNING_THRESHOLD_CENTS = 500; // $5 per single call
@@ -22,8 +21,6 @@ const WARNING_THRESHOLD_CENTS = 500; // $5 per single call
 export interface CostSnapshot {
   inputTokens: number;
   outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
   /** Integer cents. */
   estimatedUsdCents: number;
   model: string;
@@ -42,8 +39,6 @@ export function trackCost(snapshot: CostSnapshot): void {
     model: snapshot.model,
     input_tokens: snapshot.inputTokens,
     output_tokens: snapshot.outputTokens,
-    cache_read_tokens: snapshot.cacheReadTokens,
-    cache_write_tokens: snapshot.cacheWriteTokens,
     duration_ms: snapshot.durationMs,
   };
   console.log(JSON.stringify(logEntry));
@@ -56,48 +51,27 @@ export function trackCost(snapshot: CostSnapshot): void {
   }
 }
 
-// ─── Internal helper: read optional cache token fields ───────────────────────
-// The SDK's Usage type (v0.32.x) doesn't declare cache token fields, but the
-// API returns them when prompt caching is active. We access them safely via
-// unknown to stay compatible with both old and new SDK versions.
-
-function getCacheTokens(usage: Anthropic.Usage): { read: number; write: number } {
-  const u = usage as unknown as Record<string, unknown>;
-  const read = typeof u["cache_read_input_tokens"] === "number" ? u["cache_read_input_tokens"] : 0;
-  const write =
-    typeof u["cache_creation_input_tokens"] === "number" ? u["cache_creation_input_tokens"] : 0;
-  return { read, write };
-}
-
 // ─── estimateCents ────────────────────────────────────────────────────────────
 
-function estimateCents(usage: Anthropic.Usage): number {
-  const inputCents = (usage.input_tokens / 1_000_000) * PRICE_PER_M.input;
-  const outputCents = (usage.output_tokens / 1_000_000) * PRICE_PER_M.output;
-  const { read, write } = getCacheTokens(usage);
-  const cacheReadCents = (read / 1_000_000) * PRICE_PER_M.cache_read;
-  const cacheWriteCents = (write / 1_000_000) * PRICE_PER_M.cache_write;
-
-  return Math.round(inputCents + outputCents + cacheReadCents + cacheWriteCents);
+function estimateCents(usage: OpenAI.CompletionUsage): number {
+  const inputCents = (usage.prompt_tokens / 1_000_000) * PRICE_PER_M.input;
+  const outputCents = (usage.completion_tokens / 1_000_000) * PRICE_PER_M.output;
+  return Math.round(inputCents + outputCents);
 }
 
 // ─── withCostTracking ─────────────────────────────────────────────────────────
 
 export async function withCostTracking<T>(
   route: string,
-  fn: () => Promise<{ result: T; usage: Anthropic.Usage; model: string }>,
+  fn: () => Promise<{ result: T; usage: OpenAI.CompletionUsage; model: string }>,
 ): Promise<T> {
   const startMs = Date.now();
   const { result, usage, model } = await fn();
   const durationMs = Date.now() - startMs;
 
-  const { read: cacheReadTokens, write: cacheWriteTokens } = getCacheTokens(usage);
-
   const snapshot: CostSnapshot = {
-    inputTokens: usage.input_tokens,
-    outputTokens: usage.output_tokens,
-    cacheReadTokens,
-    cacheWriteTokens,
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
     estimatedUsdCents: estimateCents(usage),
     model,
     route,
