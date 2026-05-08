@@ -123,7 +123,7 @@
         "Typecheck passes for both apps (run: pnpm --filter @solo-compass/bot typecheck && pnpm --filter @solo-compass/web typecheck)"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
