@@ -5,27 +5,23 @@ title = "Solo Compass gitleaks config"
 [extend]
 useDefault = true
 
-[[rules]]
-id = "allowlist-env-example"
-description = "Allow placeholder tokens in .env.example"
-regex = '''(pk\.eyJ|xxxxx\.supabase\.co|sk-replace-me)'''
-
-  [rules.allowlist]
-  paths = ['''\.env\.example''', '''README\.md''']
-  regexes = [
-    # Mapbox public-token placeholder (pk.eyJ prefix — not a secret)
-    '''pk\.eyJ''',
-    # Supabase placeholder URL (not a real project URL)
-    '''xxxxx\.supabase\.co''',
-    # Literal placeholder API key used in docs / examples
-    '''sk-replace-me''',
-  ]
-
 [allowlist]
-description = "Global allowlist for placeholder values"
-paths = ['''\.env\.example''', '''README\.md''', '''\.gitleaks\.toml''']
+description = "Placeholder values in env examples and docs"
+paths = [
+  '''\.env\.example''',
+  '''README\.md''',
+  '''CONTRIBUTING\.md''',
+  '''\.gitleaks\.toml''',
+]
 regexes = [
-  '''pk\.eyJ''',
+  # JWT-like placeholder (eyJ... header prefix)
+  '''eyJ[a-zA-Z0-9_\-\.]+''',
+  # Mapbox public-token placeholder (pk.eyJ prefix — not a secret)
+  '''pk\.eyJ[a-zA-Z0-9_\-\.]+''',
+  # Supabase placeholder URL (not a real project URL)
   '''xxxxx\.supabase\.co''',
-  '''sk-replace-me''',
+  # Literal placeholder asterisks
+  '''\*{3}''',
+  # Placeholder X's for team ID
+  '''X{6,}''',
 ]

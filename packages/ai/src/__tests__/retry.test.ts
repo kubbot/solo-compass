@@ -3,7 +3,7 @@ import { withRetry } from "../retry";
 
 function apiError(status: number): Error {
   const err = new Error(`HTTP ${status}`) as Error & { status: number };
-  (err as Record<string, unknown>)["status"] = status;
+  (err as unknown as Record<string, unknown>)["status"] = status;
   return err;
 }
 
