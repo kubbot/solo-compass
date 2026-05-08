@@ -40,6 +40,73 @@ public final class MapViewModel {
         recenter(on: coordinate)
     }
 
+    // MARK: - City selection
+
+    /// Currently selected city code (e.g. "cmi"), nil = all cities.
+    public var selectedCity: String?
+
+    /// All cities derived from seed data: unique cityCode + centroid of their experiences.
+    public var availableCities: [(code: String, name: String, center: CLLocationCoordinate2D)] {
+        var cityExperiences: [String: [CLLocationCoordinate2D]] = [:]
+        for exp in experienceService.allExperiences {
+            guard let coord = exp.coordinate else { continue }
+            let code = exp.location.cityCode
+            cityExperiences[code, default: []].append(coord)
+        }
+        let nameMap = cityNameMap
+        return cityExperiences.compactMap { code, coords -> (String, String, CLLocationCoordinate2D)? in
+            guard !coords.isEmpty else { return nil }
+            let avgLat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+            let avgLon = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+            let name = nameMap[code] ?? code
+            return (code, name, CLLocationCoordinate2D(latitude: avgLat, longitude: avgLon))
+        }
+        .sorted { $0.1 < $1.1 }
+    }
+
+    /// Human-readable city names keyed by city code.
+    private let cityNameMap: [String: String] = [
+        "cmi": "Chiang Mai",
+    ]
+
+    /// Center coordinate for the selected city, or the default if none selected.
+    public var defaultCenterForSelectedCity: CLLocationCoordinate2D {
+        guard let code = selectedCity,
+              let city = availableCities.first(where: { $0.code == code }) else {
+            return Self.defaultCenter
+        }
+        return city.center
+    }
+
+    /// Selects a city, recenters the map, and reloads experiences.
+    public func selectCity(_ cityCode: String?) {
+        selectedCity = cityCode
+        preferences.lastSelectedCity = cityCode
+        let center = defaultCenterForSelectedCity
+        cameraPosition = .region(MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)
+        ))
+        loadNearbyExperiences()
+        updateBottomInfo()
+    }
+
+    /// Returns the city code whose experiences are collectively closest to the given coordinate.
+    public func nearestSeededCity(to coordinate: CLLocationCoordinate2D) -> String? {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        var bestCode: String?
+        var bestDistance = Double.infinity
+        for city in availableCities {
+            let cityLoc = CLLocation(latitude: city.center.latitude, longitude: city.center.longitude)
+            let d = location.distance(from: cityLoc)
+            if d < bestDistance {
+                bestDistance = d
+                bestCode = city.code
+            }
+        }
+        return bestCode
+    }
+
     // MARK: - Published state
     // @ObservationIgnored avoids @Observable macro expanding MapCameraPosition
     // into a synthetic file that lacks `import MapKit`, causing build errors.
@@ -87,8 +154,28 @@ public final class MapViewModel {
         self.experienceService = experienceService
         self.aiService = aiService
         self.preferences = preferences
+        self.selectedCity = preferences.lastSelectedCity
+        let initialCenter: CLLocationCoordinate2D
+        if let savedCity = preferences.lastSelectedCity {
+            // Resolve center lazily — availableCities depends on experienceService which is set above.
+            // We compute inline here since computed properties aren't accessible before init ends.
+            var cityExps: [String: [CLLocationCoordinate2D]] = [:]
+            for exp in experienceService.allExperiences {
+                guard let coord = exp.coordinate else { continue }
+                cityExps[exp.location.cityCode, default: []].append(coord)
+            }
+            if let coords = cityExps[savedCity], !coords.isEmpty {
+                let avgLat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+                let avgLon = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+                initialCenter = CLLocationCoordinate2D(latitude: avgLat, longitude: avgLon)
+            } else {
+                initialCenter = Self.defaultCenter
+            }
+        } else {
+            initialCenter = Self.defaultCenter
+        }
         self._cameraPosition = .region(MKCoordinateRegion(
-            center: Self.defaultCenter,
+            center: initialCenter,
             span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)
         ))
         loadNearbyExperiences()
@@ -98,9 +185,13 @@ public final class MapViewModel {
     // MARK: - Loading
 
     public func loadNearbyExperiences() {
-        let center = locationService.currentLocation?.coordinate ?? Self.defaultCenter
+        let center = locationService.currentLocation?.coordinate ?? defaultCenterForSelectedCity
         let radiusKm = max(1.0, preferences.maxDistanceKm)
         var nearby = experienceService.getExperiences(near: center, radiusKm: radiusKm)
+
+        if let cityCode = selectedCity {
+            nearby = nearby.filter { $0.location.cityCode == cityCode }
+        }
 
         if let category = selectedCategory {
             nearby = nearby.filter { $0.category == category }
@@ -164,6 +255,10 @@ public final class MapViewModel {
     public func refreshForLocation(_ coordinate: CLLocationCoordinate2D) {
         let radiusKm = max(1.0, preferences.maxDistanceKm)
         var nearby = experienceService.getExperiences(near: coordinate, radiusKm: radiusKm)
+
+        if let cityCode = selectedCity {
+            nearby = nearby.filter { $0.location.cityCode == cityCode }
+        }
 
         if let category = selectedCategory {
             nearby = nearby.filter { $0.category == category }
@@ -353,6 +448,11 @@ public final class MapViewModel {
             // Keep current state on error; record for UI to optionally surface.
             lastAIError = error.localizedDescription
         }
+    }
+
+    /// Number of experiences in a given city (for the city picker row subtitle).
+    public func experienceCount(for cityCode: String) -> Int {
+        experienceService.allExperiences.filter { $0.location.cityCode == cityCode }.count
     }
 
     // MARK: - Helpers
