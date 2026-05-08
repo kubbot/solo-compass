@@ -1,11 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 import {
   type Coordinates,
   type Experience,
   distanceMeters,
   walkingMinutes,
 } from "@solo-compass/core";
+import { createDeepseekClient, deepseekModel } from "../client";
 import { withCostTracking } from "../cost-tracker";
+import { withRetry } from "../retry";
 
 export interface RankExperiencesInput {
   /** [longitude, latitude] — GeoJSON order. */
@@ -34,45 +36,6 @@ export interface RankExperiencesResult {
   ranked: RankedExperience[];
 }
 
-const RANK_TOOL: Anthropic.Tool = {
-  name: "emit_ranking",
-  description:
-    "Emit the top 3 experiences ranked by how well they match the user's intent, time of day, proximity, and solo-friendliness.",
-  input_schema: {
-    type: "object" as const,
-    required: ["ranked"],
-    properties: {
-      ranked: {
-        type: "array",
-        description:
-          "Exactly 3 experiences, ordered best-first. Use the experienceId from the candidate list. Never invent ids.",
-        items: {
-          type: "object",
-          required: ["experienceId", "score", "reason"],
-          properties: {
-            experienceId: {
-              type: "string",
-              description: "The id field of one of the candidate experiences.",
-            },
-            score: {
-              type: "number",
-              minimum: 0,
-              maximum: 100,
-              description:
-                "0–100. Composite of intent fit, time fit, proximity, solo-friendliness.",
-            },
-            reason: {
-              type: "string",
-              description:
-                "One sentence (≤140 chars) explaining the match. Concrete, not generic. No emojis.",
-            },
-          },
-        },
-      },
-    },
-  },
-};
-
 const SYSTEM_PROMPT = `You rank solo-travel experiences for a single user request.
 
 PRINCIPLES (in priority order):
@@ -82,10 +45,15 @@ PRINCIPLES (in priority order):
 4. Solo-friendliness — soloScore.overall matters; never recommend something that pressures couples/groups.
 
 OUTPUT RULES:
-- Return EXACTLY 3 ranked items via emit_ranking. If fewer than 3 candidates exist, return what you have.
+- Output ONLY a JSON object with NO markdown fences, NO extra text.
+- The JSON object must have exactly one key: "ranked" — an array of up to 3 items ordered best-first.
+- Each item: { "experienceId": string, "score": number (0-100), "reason": string (≤140 chars, specific, no emojis) }
 - Use the experienceId field exactly as given. Never invent ids.
-- The reason must be specific to *this* experience and *this* intent — not generic.
-- Voice is calm and factual. No "amazing", no "you'll love", no exclamation marks.`;
+- If fewer than 3 candidates exist, return what you have.
+- Voice is calm and factual. No "amazing", no "you'll love", no exclamation marks.
+
+Example output (use this exact shape):
+{"ranked":[{"experienceId":"exp_abc","score":87,"reason":"Quiet temple courtyard perfect for a solo morning walk away from crowds."}]}`;
 
 function summarizeExperience(exp: Experience, walkMin: number): string {
   const bestTimes =
@@ -113,9 +81,17 @@ function summarizeExperience(exp: Experience, walkMin: number): string {
     .join("\n");
 }
 
+/** Strip ```json ... ``` or ``` ... ``` fences that some models emit despite instructions. */
+function stripFences(raw: string): string {
+  return raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+}
+
 export async function rankExperiences(
   input: RankExperiencesInput,
-  client?: Anthropic,
+  client?: OpenAI,
 ): Promise<RankExperiencesResult> {
   const { userLocation, userIntent, availableExperiences, currentHour, route = "rank" } = input;
 
@@ -146,34 +122,41 @@ Candidate experiences (already filtered to nearest ~20):
 
 ${candidatesText}
 
-Rank the top 3 best matches. Use emit_ranking.`;
+Rank the top 3 best matches. Output ONLY the JSON object.`;
 
-  const anthropic = client ?? new Anthropic();
+  const deepseek = client ?? createDeepseekClient();
 
-  const response = await withCostTracking(route, async () => {
-    const msg = await anthropic.messages.create({
-      model: "claude-opus-4-7",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      tools: [RANK_TOOL],
-      tool_choice: { type: "tool", name: "emit_ranking" },
-      messages: [{ role: "user", content: userMessage }],
-    });
-    return { result: msg, usage: msg.usage, model: msg.model };
-  });
+  const response = await withRetry(() =>
+    withCostTracking(route, async () => {
+      const msg = await deepseek.chat.completions.create({
+        model: deepseekModel(),
+        max_tokens: 1024,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+      });
+      const usage = msg.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      return { result: msg, usage, model: msg.model };
+    }),
+  );
 
-  const toolUse = response.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use" || toolUse.name !== "emit_ranking") {
+  const raw = response.choices[0]?.message.content ?? "";
+  let parsed: { ranked: Array<{ experienceId: string; score: number; reason: string }> };
+  try {
+    parsed = JSON.parse(stripFences(raw)) as typeof parsed;
+  } catch {
     return { ranked: [] };
   }
 
-  const args = toolUse.input as {
-    ranked: Array<{ experienceId: string; score: number; reason: string }>;
-  };
+  if (!Array.isArray(parsed.ranked)) {
+    return { ranked: [] };
+  }
 
   const byId = new Map(withWalking.map((c) => [c.exp.id as string, c]));
   const ranked: RankedExperience[] = [];
-  for (const item of args.ranked) {
+  for (const item of parsed.ranked) {
     const match = byId.get(item.experienceId);
     if (!match) continue;
     ranked.push({

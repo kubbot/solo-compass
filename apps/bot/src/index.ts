@@ -1,3 +1,15 @@
+import * as Sentry from "@sentry/node";
+
+// Instrument Sentry before any other import so all modules are patched.
+// If SENTRY_DSN is absent, skip silently — never throw.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    environment: process.env.NODE_ENV ?? "development",
+  });
+}
+
 import { Telegraf, Markup, type Context } from "telegraf";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
@@ -7,7 +19,7 @@ import type { Experience } from "@solo-compass/core";
 import { DEMO_EXPERIENCES } from "./demo-experiences.js";
 import { getSession, resetSession } from "./session.js";
 import { track, optOut, isOptedOut } from "./lib/analytics.js";
-import { initSentry, captureException } from "./lib/sentry.js";
+import { captureException } from "./lib/sentry.js";
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -33,7 +45,6 @@ const VOICE_MAX_SECONDS = 30;
 
 // ─── Clients ───────────────────────────────────────────────────────────────────
 
-initSentry();
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 

@@ -1,0 +1,27 @@
+# Extends gitleaks' built-in ruleset. Only adds allowlist entries for
+# known placeholder values in .env.example that are not real secrets.
+title = "Solo Compass gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder values in env examples and docs"
+paths = [
+  '''\.env\.example''',
+  '''README\.md''',
+  '''CONTRIBUTING\.md''',
+  '''\.gitleaks\.toml''',
+]
+regexes = [
+  # JWT-like placeholder (eyJ... header prefix)
+  '''eyJ[a-zA-Z0-9_\-\.]+''',
+  # Mapbox public-token placeholder (pk.eyJ prefix — not a secret)
+  '''pk\.eyJ[a-zA-Z0-9_\-\.]+''',
+  # Supabase placeholder URL (not a real project URL)
+  '''xxxxx\.supabase\.co''',
+  # Literal placeholder asterisks
+  '''\*{3}''',
+  # Placeholder X's for team ID
+  '''X{6,}''',
+]

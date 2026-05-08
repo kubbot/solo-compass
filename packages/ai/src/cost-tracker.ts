@@ -6,6 +6,7 @@
  */
 
 import type OpenAI from "openai";
+import { PostHog } from "posthog-node";
 
 // ─── Pricing constants — deepseek-v4-pro, per million tokens, in cents ────────
 // Approximate; keep in sync with https://platform.deepseek.com pricing.
@@ -15,6 +16,21 @@ const PRICE_PER_M = {
 } as const;
 
 const WARNING_THRESHOLD_CENTS = 500; // $5 per single call
+
+// ─── PostHog client (lazy, module-scoped) ─────────────────────────────────────
+
+let _posthog: PostHog | null = null;
+
+function getPostHog(): PostHog | null {
+  const apiKey = process.env["POSTHOG_API_KEY"];
+  if (!apiKey) return null;
+  if (!_posthog) {
+    _posthog = new PostHog(apiKey, {
+      host: process.env["POSTHOG_HOST"] ?? "https://app.posthog.com",
+    });
+  }
+  return _posthog;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +64,26 @@ export function trackCost(snapshot: CostSnapshot): void {
       `[ai_cost WARNING] Single call exceeded $${(WARNING_THRESHOLD_CENTS / 100).toFixed(2)}: ` +
         `route=${snapshot.route} usd_cents=${snapshot.estimatedUsdCents}`,
     );
+  }
+
+  const ph = getPostHog();
+  if (ph) {
+    try {
+      ph.capture({
+        distinctId: "system",
+        event: "ai_cost",
+        properties: {
+          route: snapshot.route,
+          usd_cents: snapshot.estimatedUsdCents,
+          model: snapshot.model,
+          input_tokens: snapshot.inputTokens,
+          output_tokens: snapshot.outputTokens,
+          duration_ms: snapshot.durationMs,
+        },
+      });
+    } catch (err) {
+      console.warn("[ai_cost] PostHog capture failed:", err);
+    }
   }
 }
 
