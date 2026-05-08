@@ -203,3 +203,32 @@
 /* Experience detail overflow */
 "detail.report" = "Report an issue";
 "detail.more" = "More options";
+
+/* Onboarding */
+"onboarding.welcome.title" = "Places worth being alone.";
+"onboarding.welcome.subtitle" = "A map of things worth doing solo, wherever you are.";
+"onboarding.welcome.cta" = "Find me on the map";
+"onboarding.welcome.skip" = "Browse first";
+"onboarding.style.title" = "How do you travel?";
+"onboarding.style.subtitle" = "This shapes which experiences float to the top. You can change it anytime.";
+"onboarding.style.cta" = "Start exploring";
+"onboarding.style.skip" = "Decide later";
+
+/* Favorites list */
+"favorites.title" = "Favorites";
+"favorites.empty.title" = "No favorites yet";
+"favorites.empty.hint" = "Tap the heart on any experience to save it here.";
+
+/* Notifications */
+"settings.notifications" = "Notify me when I'm nearby";
+"settings.notifications.header" = "Notifications";
+"settings.notifications.footer" = "Solo Compass sends a quiet nudge when you walk past a saved experience. No marketing, ever.";
+"notification.checkin.title" = "You're nearby";
+"notification.checkin.body" = "You're standing near %@. Want to check it out?";
+
+/* Settings data */
+"settings.data.header" = "My Data";
+"settings.clearData" = "Clear all data";
+"settings.clearData.confirm.title" = "Clear all data?";
+"settings.clearData.confirm.action" = "Clear everything";
+"settings.clearData.confirm.message" = "This removes your completed experiences, favorites, and preferences. It cannot be undone.";
