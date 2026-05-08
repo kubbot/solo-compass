@@ -132,3 +132,74 @@
 "voice.error.title" = "Voice recognition error";
 "voice.error.permission" = "Microphone or speech recognition permission was denied. Please allow access in Settings.";
 "voice.error.unavailable" = "Speech recognition is unavailable on this device.";
+
+/* Settings */
+"settings.title" = "Preferences";
+"settings.done" = "Done";
+"settings.travelStyle" = "Travel Style";
+"settings.travelStyle.footer" = "Your style shapes which experiences float to the top.";
+"settings.preferences" = "Category Preferences";
+"settings.preferences.footer" = "Tap to love a category. Swipe left to hide it.";
+"settings.hidden" = "Hidden Categories";
+"settings.hide" = "Hide";
+"settings.maxDistance" = "Max Distance";
+"settings.distance" = "Discovery Radius";
+"settings.distance.footer" = "Only experiences within this radius appear on the map.";
+"settings.completed" = "Completed";
+"settings.favorites" = "Favorites";
+"settings.stats" = "Your Journey";
+
+/* Travel styles */
+"style.explorer.title" = "Explorer";
+"style.explorer.description" = "I wander and discover — surprise me";
+"style.worker.title" = "Remote Worker";
+"style.worker.description" = "I need quiet spots with good WiFi";
+"style.foodie.title" = "Foodie";
+"style.foodie.description" = "Great meals and coffee are my priority";
+"style.cultureSeeker.title" = "Culture Seeker";
+"style.cultureSeeker.description" = "History, temples, ceremonies, hidden layers";
+
+/* MicroSurvey */
+"survey.title" = "Quick check-in";
+"survey.comfort.question" = "How comfortable did you feel as a solo traveler?";
+"survey.comfort.1" = "Very uncomfortable";
+"survey.comfort.2" = "Slightly uncomfortable";
+"survey.comfort.3" = "Neutral";
+"survey.comfort.4" = "Comfortable";
+"survey.comfort.5" = "Very comfortable";
+"survey.pressure.question" = "How pushy was the staff / vendors? (more stars = less pressure)";
+"survey.pressure.1" = "Very pushy";
+"survey.pressure.2" = "Somewhat pushy";
+"survey.pressure.3" = "Neutral";
+"survey.pressure.4" = "Relaxed vibe";
+"survey.pressure.5" = "No pressure at all";
+"survey.recommend.question" = "Would you recommend this to another solo traveler?";
+"survey.recommend.yes" = "Yes";
+"survey.recommend.depends" = "Depends";
+"survey.recommend.no" = "No";
+"survey.submit" = "Send feedback";
+"survey.skip" = "Skip";
+"survey.stars" = "stars";
+
+/* ReportIssue */
+"report.title" = "Report an Issue";
+"report.cancel" = "Cancel";
+"report.submit" = "Submit";
+"report.reason.header" = "What's wrong?";
+"report.detail.header" = "Additional details (optional)";
+"report.detail.placeholder" = "Add more context… (200 chars max)";
+"report.reason.closed_permanently" = "Permanently closed";
+"report.reason.moved" = "It has moved";
+"report.reason.hours_wrong" = "Hours are wrong";
+"report.reason.vibe_different" = "Vibe is very different";
+"report.reason.factually_wrong" = "Factually incorrect";
+"report.reason.other" = "Something else";
+
+/* Pending check-in banner */
+"checkin.banner.title" = "Did you visit?";
+"checkin.banner.yes" = "Yes!";
+"checkin.banner.a11y" = "Did you visit %@?";
+
+/* Experience detail overflow */
+"detail.report" = "Report an issue";
+"detail.more" = "More options";

@@ -13,7 +13,10 @@ public struct CompassMapView: View {
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
     @State private var dismissedAIError: String? = nil
+
     @State private var isShowingCityPicker: Bool = false
+    @State private var surveyExperience: Experience? = nil
+
 
     public init() {}
 
@@ -87,12 +90,39 @@ public struct CompassMapView: View {
 
                     BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
                         .padding(.bottom, 8)
+
+                    // Pending check-in banner (geofence fired while user was nearby)
+                    if let pending = viewModel.pendingCheckIn {
+                        PendingCheckInBanner(
+                            experienceTitle: pending.title,
+                            onConfirm: { viewModel.confirmCheckIn() },
+                            onDismiss: { viewModel.dismissCheckIn() }
+                        )
+                        .padding(.bottom, 4)
+                        .animation(.spring(response: 0.4), value: viewModel.pendingCheckIn != nil)
+                    }
                 }
 
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(alignment: .bottom) {
+                        // Settings button (bottom-left)
+                        Button {
+                            viewModel.isShowingSettings = true
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.title3)
+                                .frame(width: 48, height: 48)
+                                .background(Circle().fill(.regularMaterial))
+                                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 20)
+                        .padding(.bottom, 80)
+                        .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
+
                         Spacer()
+
                         VoiceButton(voiceService: voiceService) { transcript in
                             Task { await viewModel.handleVoiceTranscript(transcript) }
                         }
@@ -142,9 +172,29 @@ public struct CompassMapView: View {
                     isShowingCityPicker = true
                 }
             }
+            viewModel?.checkForPendingCheckIns()
         }
         .onChange(of: locationService.currentLocation) { _, _ in
             viewModel?.bindToLocation()
+        }
+        .onChange(of: preferences.pendingCheckIns) { _, _ in
+            viewModel?.checkForPendingCheckIns()
+        }
+        // Settings sheet
+        .sheet(isPresented: Binding(
+            get: { viewModel?.isShowingSettings ?? false },
+            set: { if !$0 { viewModel?.isShowingSettings = false } }
+        )) {
+            SettingsView(onClose: { viewModel?.isShowingSettings = false })
+                .environment(preferences)
+        }
+        // MicroSurvey sheet (shown after marking an experience done)
+        .sheet(item: $surveyExperience) { exp in
+            MicroSurveySheet(
+                experience: exp,
+                onSubmit: { _, _, _ in surveyExperience = nil },
+                onSkip: { surveyExperience = nil }
+            )
         }
         .alert(
             NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
@@ -193,7 +243,8 @@ public struct CompassMapView: View {
                             aiService: aiService,
                             preferences: preferences
                         ),
-                        onClose: { viewModel?.dismissDetail() }
+                        onClose: { viewModel?.dismissDetail() },
+                        onMarkDone: { experience in surveyExperience = experience }
                     )
                 }
             }
