@@ -21,3 +21,6 @@ export { dedup } from "./compilation/dedup";
 export type { MergedCandidate, DedupStats, DedupResult } from "./compilation/dedup";
 
 export { createDeepseekClient, deepseekModel, deepseekBaseURL } from "./client";
+
+export { withRetry } from "./retry";
+export type { RetryOptions } from "./retry";

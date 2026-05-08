@@ -7,6 +7,7 @@ import {
 } from "@solo-compass/core";
 import { createDeepseekClient, deepseekModel } from "../client";
 import { withCostTracking } from "../cost-tracker";
+import { withRetry } from "../retry";
 
 export interface RankExperiencesInput {
   /** [longitude, latitude] — GeoJSON order. */
@@ -122,19 +123,21 @@ Rank the top 3 best matches. Output ONLY the JSON object.`;
 
   const deepseek = client ?? createDeepseekClient();
 
-  const response = await withCostTracking(route, async () => {
-    const msg = await deepseek.chat.completions.create({
-      model: deepseekModel(),
-      max_tokens: 1024,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-    });
-    const usage = msg.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-    return { result: msg, usage, model: msg.model };
-  });
+  const response = await withRetry(() =>
+    withCostTracking(route, async () => {
+      const msg = await deepseek.chat.completions.create({
+        model: deepseekModel(),
+        max_tokens: 1024,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+      });
+      const usage = msg.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      return { result: msg, usage, model: msg.model };
+    }),
+  );
 
   const raw = response.choices[0]?.message.content ?? "";
   let parsed: { ranked: Array<{ experienceId: string; score: number; reason: string }> };

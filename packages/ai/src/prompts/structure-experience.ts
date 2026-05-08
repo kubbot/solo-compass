@@ -10,6 +10,7 @@ import type {
 } from "@solo-compass/core";
 import { createDeepseekClient, deepseekModel } from "../client";
 import { withCostTracking } from "../cost-tracker";
+import { withRetry } from "../retry";
 
 // ─── Input / Output ────────────────────────────────────────────────────────────
 
@@ -124,19 +125,21 @@ ${input.rawText}
 
 Extract one concrete experience from the text above, or refuse if the material is too thin. Output ONLY the JSON object.`;
 
-  const response = await withCostTracking(route, async () => {
-    const msg = await deepseek.chat.completions.create({
-      model: deepseekModel(),
-      max_tokens: 2048,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: buildSystemPrompt(input.cityName) },
-        { role: "user", content: userMessage },
-      ],
-    });
-    const usage = msg.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-    return { result: msg, usage, model: msg.model };
-  });
+  const response = await withRetry(() =>
+    withCostTracking(route, async () => {
+      const msg = await deepseek.chat.completions.create({
+        model: deepseekModel(),
+        max_tokens: 2048,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: buildSystemPrompt(input.cityName) },
+          { role: "user", content: userMessage },
+        ],
+      });
+      const usage = msg.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      return { result: msg, usage, model: msg.model };
+    }),
+  );
 
   const rawContent = response.choices[0]?.message.content ?? "";
   let parsed: Record<string, unknown>;
