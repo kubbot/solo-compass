@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import Observation
+import SwiftData
 
 /// Talks to the public Overpass API (OpenStreetMap) to fetch real-world POIs
 /// near a coordinate. Used by the "Explore here" feature so users in cities
@@ -60,20 +61,51 @@ public final class OverpassService {
     private let session: URLSession
     private let endpoint = URL(string: "https://overpass-api.de/api/interpreter")
     private let maxResults: Int
+    private let modelContext: ModelContext?
 
-    public init(session: URLSession = .shared, maxResults: Int = 30) {
+    /// Cache TTL — 14 days. Outside this window we re-fetch from
+    /// Overpass. (See PRD US-B1.)
+    public static let cacheTTLSeconds: TimeInterval = 14 * 86_400
+
+    public init(
+        session: URLSession = .shared,
+        maxResults: Int = 30,
+        modelContext: ModelContext? = nil
+    ) {
         self.session = session
         self.maxResults = maxResults
+        self.modelContext = modelContext
+    }
+
+    /// Convenience init that uses the shared SwiftData container's main
+    /// context for caching. Pass `nil` (default of designated init) in
+    /// tests if you want cache disabled.
+    public convenience init(session: URLSession = .shared, maxResults: Int = 30, useSharedCache: Bool) {
+        let ctx: ModelContext? = useSharedCache
+            ? ModelContext(SoloCompassModelContainer.shared)
+            : nil
+        self.init(session: session, maxResults: maxResults, modelContext: ctx)
     }
 
     // MARK: - Public
 
     /// Fetch up to `maxResults` POIs within `radiusMeters` of the coordinate.
-    /// Retries once on network/5xx failure.
+    /// Cache hit: returns persisted POIs without HTTP. Cache miss:
+    /// performs a real fetch with 1 retry, writes through to cache.
     public func fetchPOIs(
         near coordinate: CLLocationCoordinate2D,
         radiusMeters: Int = 3000
     ) async throws -> [POI] {
+        let regionKey = Self.regionKey(
+            lat: coordinate.latitude,
+            lon: coordinate.longitude,
+            radiusMeters: radiusMeters
+        )
+
+        if let cached = await loadCached(regionKey: regionKey) {
+            return cached
+        }
+
         guard let endpoint else { throw OverpassError.invalidURL }
         await MainActor.run { self.isFetching = true }
         defer { Task { @MainActor [weak self] in self?.isFetching = false } }
@@ -86,6 +118,34 @@ public final class OverpassService {
         request.timeoutInterval = 20
         request.httpBody = "data=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")".data(using: .utf8)
 
+        let (raw, pois) = try await fetchAndDecode(request)
+        await writeCache(regionKey: regionKey, raw: raw, poiCount: pois.count)
+        return pois
+    }
+
+    /// Public cache-clear; used by Settings → Storage.
+    @MainActor
+    public func clearExploreCache() {
+        guard let context = modelContext else { return }
+        try? context.delete(model: ExploreCacheRecord.self)
+        try? context.save()
+    }
+
+    /// Deterministic key for a (lat, lon, radius) cell. Rounding to
+    /// 0.01° (~1.1 km) means small map pans still hit the same cache
+    /// row.
+    public static func regionKey(lat: Double, lon: Double, radiusMeters: Int) -> String {
+        let roundedLat = (lat * 100).rounded() / 100
+        let roundedLon = (lon * 100).rounded() / 100
+        return String(format: "%.2f_%.2f_%d", roundedLat, roundedLon, radiusMeters)
+    }
+
+    // MARK: - HTTP
+
+    /// One-attempt-with-retry fetch that returns the raw JSON and the
+    /// decoded POIs together — we want both: POIs for the caller, raw
+    /// JSON for cache write-through.
+    private func fetchAndDecode(_ request: URLRequest) async throws -> (Data, [POI]) {
         do {
             return try await performAndDecode(request)
         } catch {
@@ -94,9 +154,7 @@ public final class OverpassService {
         }
     }
 
-    // MARK: - HTTP
-
-    private func performAndDecode(_ request: URLRequest) async throws -> [POI] {
+    private func performAndDecode(_ request: URLRequest) async throws -> (Data, [POI]) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw OverpassError.requestFailed(status: 0)
@@ -104,7 +162,46 @@ public final class OverpassService {
         guard (200..<300).contains(http.statusCode) else {
             throw OverpassError.requestFailed(status: http.statusCode)
         }
-        return try Self.decodePOIs(from: data)
+        return (data, try Self.decodePOIs(from: data))
+    }
+
+    // MARK: - Cache
+
+    /// async-bridge: fetchPOIs is nonisolated, ModelContext is MainActor.
+    private func loadCached(regionKey key: String) async -> [POI]? {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return nil }
+            let descriptor = FetchDescriptor<ExploreCacheRecord>(
+                predicate: #Predicate { $0.regionKey == key }
+            )
+            guard let row = (try? context.fetch(descriptor))?.first else { return nil }
+            let age = Date().timeIntervalSince(row.fetchedAt)
+            guard age < Self.cacheTTLSeconds else { return nil }
+            return try? Self.decodePOIs(from: row.osmJSON)
+        }
+    }
+
+    private func writeCache(regionKey key: String, raw: Data, poiCount: Int) async {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return }
+            // Delete-then-insert keeps semantics explicit and side-steps
+            // SwiftData's silent upsert behaviour on @Attribute(.unique).
+            let descriptor = FetchDescriptor<ExploreCacheRecord>(
+                predicate: #Predicate { $0.regionKey == key }
+            )
+            if let existing = (try? context.fetch(descriptor))?.first {
+                context.delete(existing)
+            }
+            context.insert(
+                ExploreCacheRecord(
+                    regionKey: key,
+                    osmJSON: raw,
+                    fetchedAt: Date(),
+                    poiCount: poiCount
+                )
+            )
+            try? context.save()
+        }
     }
 
     // MARK: - Query
