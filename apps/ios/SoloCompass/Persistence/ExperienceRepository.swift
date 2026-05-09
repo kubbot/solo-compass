@@ -208,6 +208,120 @@ public final class ExperienceRepository {
         return ((try? context.fetch(descriptor)) ?? []).map(\.experienceId)
     }
 
+    // MARK: - Micro-survey writeback (Epic C US-020)
+
+    /// Record one micro-survey row. Comfort/pressure/recommend are all
+    /// independent dimensions; we don't pre-aggregate at write time so
+    /// later changes to the formula don't require migrating rows.
+    public func recordSurvey(
+        experienceId: String,
+        comfort: Int,
+        pressure: Int,
+        recommend: String,
+        anonDeviceId: String,
+        at date: Date = Date()
+    ) {
+        context.insert(
+            MicroSurveyRecord(
+                experienceId: experienceId,
+                comfort: comfort,
+                pressure: pressure,
+                recommend: recommend,
+                submittedAt: date,
+                anonDeviceId: anonDeviceId
+            )
+        )
+        try? context.save()
+    }
+
+    public func surveyCount(experienceId: String) -> Int {
+        let id = experienceId
+        let descriptor = FetchDescriptor<MicroSurveyRecord>(
+            predicate: #Predicate { $0.experienceId == id }
+        )
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    /// Aggregate the local survey signals into a Solo-Score-like value.
+    /// Formula: localSurveyMean = mean of (comfort + pressure) / 2, on a
+    /// 0–10 scale (raw 1–5 doubled). recommendBoost = +0.5 when ≥ 50 %
+    /// of recommendations are "yes". Final = clamp(0...10, original/2 +
+    /// localSurveyMean/2 + recommendBoost). Returns `nil` if no surveys
+    /// exist (caller falls back to the seed/AI score). Cached for 60 s
+    /// per experience id to avoid recomputing on every render.
+    public func aggregatedSoloScore(
+        experienceId: String,
+        seedOverall: Double
+    ) -> (overall: Double, count: Int)? {
+        if let cached = aggregatedScoreCache[experienceId],
+           Date().timeIntervalSince(cached.cachedAt) < 60 {
+            return (cached.overall, cached.count)
+        }
+        let id = experienceId
+        let descriptor = FetchDescriptor<MicroSurveyRecord>(
+            predicate: #Predicate { $0.experienceId == id }
+        )
+        guard let surveys = try? context.fetch(descriptor), !surveys.isEmpty else {
+            return nil
+        }
+        let comfortAvg = Double(surveys.map(\.comfort).reduce(0, +)) / Double(surveys.count)
+        let pressureAvg = Double(surveys.map(\.pressure).reduce(0, +)) / Double(surveys.count)
+        // 1–5 → 0–10 scale: ((comfort + pressure) / 2) * 2
+        let localOnTen = ((comfortAvg + pressureAvg) / 2.0) * 2.0
+        let yesCount = surveys.filter { $0.recommend == "yes" }.count
+        let recommendBoost = (Double(yesCount) / Double(surveys.count)) >= 0.5 ? 0.5 : 0.0
+        let blended = (seedOverall * 0.5 + localOnTen * 0.5) + recommendBoost
+        let clamped = max(0.0, min(10.0, blended))
+        aggregatedScoreCache[experienceId] = (clamped, surveys.count, Date())
+        return (clamped, surveys.count)
+    }
+
+    /// 60-second per-experience cache for aggregatedSoloScore. Cleared
+    /// on app foreground (caller responsibility) so a freshly synced
+    /// signal lights up.
+    private var aggregatedScoreCache: [String: (overall: Double, count: Int, cachedAt: Date)] = [:]
+
+    // MARK: - Discovered cities (Epic C US-016/017)
+
+    /// Upsert a discovered city. Idempotent by `cityCode`.
+    public func recordDiscoveredCity(
+        cityCode: String,
+        name: String,
+        countryCode: String,
+        center: (lat: Double, lon: Double)
+    ) {
+        let descriptor = FetchDescriptor<DiscoveredCityRecord>(
+            predicate: #Predicate { $0.cityCode == cityCode }
+        )
+        if let existing = (try? context.fetch(descriptor))?.first {
+            // Refresh fields if metadata changed (e.g. localized name in
+            // a new locale).
+            existing.name = name
+            existing.countryCode = countryCode
+            existing.centerLat = center.lat
+            existing.centerLon = center.lon
+            try? context.save()
+            return
+        }
+        context.insert(
+            DiscoveredCityRecord(
+                cityCode: cityCode,
+                name: name,
+                countryCode: countryCode,
+                centerLat: center.lat,
+                centerLon: center.lon
+            )
+        )
+        try? context.save()
+    }
+
+    public func allDiscoveredCities() -> [DiscoveredCityRecord] {
+        let descriptor = FetchDescriptor<DiscoveredCityRecord>(
+            sortBy: [SortDescriptor(\.discoveredAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     // MARK: - Bulk operations
 
     /// Wipe every user-data row. Does NOT delete experiences (they reseed

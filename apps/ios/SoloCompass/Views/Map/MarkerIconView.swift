@@ -3,21 +3,38 @@ import SwiftUI
 /// Custom marker icon, 44x44 tap target. The visual changes with marker state;
 /// the surrounding circle is always the category color, plus state-specific
 /// adornments (gold glow, checkmark, heart, countdown, footprint).
+///
+/// `confidenceLevel` (0–5) drives a visual downgrade: level <= 1 uses a
+/// dashed border, 70% fill opacity, no shadow, and a smaller 28×28 dot,
+/// so AI-generated entries (Epic C US-018) are clearly distinguishable
+/// from curated content at a glance.
 public struct MarkerIconView: View {
     let category: ExperienceCategory
     let state: ExperienceMarkerState
+    let confidenceLevel: Int
 
     @State private var pulse = false
 
-    public init(category: ExperienceCategory, state: ExperienceMarkerState) {
+    public init(
+        category: ExperienceCategory,
+        state: ExperienceMarkerState,
+        confidenceLevel: Int = 5
+    ) {
         self.category = category
         self.state = state
+        self.confidenceLevel = confidenceLevel
     }
+
+    /// True when this marker should render in "AI-generated, low
+    /// confidence" mode. Currently fires only at level 0–1 (Epic A US-A1
+    /// reserves level 1 for AI-synthesized OSM entries).
+    var isLowConfidence: Bool { confidenceLevel <= 1 }
 
     public var body: some View {
         ZStack {
-            // Pulse ring for "best now"
-            if case .bestNow = state {
+            // Pulse ring for "best now" (suppress on low-confidence — we
+            // don't want AI-guessed entries imitating verified excitement)
+            if case .bestNow = state, !isLowConfidence {
                 Circle()
                     .fill(Color(red: 0xD4/255, green: 0xA8/255, blue: 0x43/255).opacity(0.4))
                     .frame(width: 56, height: 56)
@@ -29,15 +46,13 @@ public struct MarkerIconView: View {
 
             Circle()
                 .fill(fillColor)
-                .frame(width: 36, height: 36)
-                .overlay(
-                    Circle().stroke(.white, lineWidth: 2)
-                )
+                .frame(width: dotSize, height: dotSize)
+                .overlay(borderOverlay)
                 .shadow(color: shadowColor, radius: shadowRadius)
                 .opacity(opacity)
 
             Image(systemName: category.symbol)
-                .font(.subheadline.weight(.semibold))
+                .font(iconFont)
                 .foregroundStyle(.white)
                 .opacity(opacity)
 
@@ -45,6 +60,26 @@ public struct MarkerIconView: View {
         }
         .frame(width: 44, height: 44)
         .accessibilityLabel(Text(accessibilityLabel))
+    }
+
+    private var dotSize: CGFloat { isLowConfidence ? 28 : 36 }
+    private var iconFont: Font {
+        isLowConfidence ? .caption.weight(.semibold) : .subheadline.weight(.semibold)
+    }
+
+    @ViewBuilder
+    private var borderOverlay: some View {
+        if isLowConfidence {
+            // Dashed white border so AI-generated pins read as
+            // "tentative" before the user even taps.
+            Circle()
+                .strokeBorder(
+                    Color.white,
+                    style: StrokeStyle(lineWidth: 2, dash: [4, 3])
+                )
+        } else {
+            Circle().stroke(.white, lineWidth: 2)
+        }
     }
 
     private var fillColor: Color {
@@ -63,6 +98,7 @@ public struct MarkerIconView: View {
     }
 
     private var shadowRadius: CGFloat {
+        if isLowConfidence { return 0 }
         switch state {
         case .bestNow: return 8
         default: return 3
@@ -70,10 +106,9 @@ public struct MarkerIconView: View {
     }
 
     private var opacity: Double {
-        switch state {
-        case .completed: return 0.45
-        default: return 1.0
-        }
+        if case .completed = state { return 0.45 }
+        if isLowConfidence { return 0.7 }
+        return 1.0
     }
 
     @ViewBuilder

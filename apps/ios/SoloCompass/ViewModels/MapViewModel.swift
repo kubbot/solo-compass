@@ -23,6 +23,7 @@ public final class MapViewModel {
     private let experienceService: ExperienceService
     private let aiService: AIService
     private let overpassService: OverpassService
+    private let geocodeService: ReverseGeocodeService
     private let preferences: UserPreferences
 
     // MARK: - Explore-here state
@@ -33,6 +34,12 @@ public final class MapViewModel {
     /// shows a banner derived from this. Cleared on the next UTC day
     /// rollover (via day-truncated AIUsageRecord).
     public var lastQuotaInfo: String?
+    /// Ephemeral 3-second toast above BottomInfoBar. Set after a
+    /// successful Explore; cleared by the view after the timer fires.
+    /// Format examples:
+    /// - "Now exploring Hanoi · 12 places added" (geocode succeeded)
+    /// - "12 places added near you" (geocode failed / offline)
+    public var lastExploreToast: String?
 
     // MARK: - Auto-recenter
 
@@ -55,7 +62,10 @@ public final class MapViewModel {
     /// Currently selected city code (e.g. "cmi"), nil = all cities.
     public var selectedCity: String?
 
-    /// All cities derived from seed data: unique cityCode + centroid of their experiences.
+    /// All cities the user can pick from: seed-derived ones (centroid of
+    /// matching experiences) plus reverse-geocoded discoveries from
+    /// previous Explore sessions (Epic C US-016/017). Discovered cities
+    /// override seed-derived names when the codes match.
     public var availableCities: [(code: String, name: String, center: CLLocationCoordinate2D)] {
         var cityExperiences: [String: [CLLocationCoordinate2D]] = [:]
         for exp in experienceService.allExperiences {
@@ -64,17 +74,31 @@ public final class MapViewModel {
             cityExperiences[code, default: []].append(coord)
         }
         let nameMap = cityNameMap
-        return cityExperiences.compactMap { code, coords -> (String, String, CLLocationCoordinate2D)? in
-            guard !coords.isEmpty else { return nil }
+        var byCode: [String: (code: String, name: String, center: CLLocationCoordinate2D)] = [:]
+
+        // Seed-derived rows first.
+        for (code, coords) in cityExperiences where !coords.isEmpty {
             let avgLat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
             let avgLon = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
             let name = nameMap[code] ?? code
-            return (code, name, CLLocationCoordinate2D(latitude: avgLat, longitude: avgLon))
+            byCode[code] = (code, name, CLLocationCoordinate2D(latitude: avgLat, longitude: avgLon))
         }
-        .sorted { $0.1 < $1.1 }
+
+        // Discovered city rows take precedence on name (real city name
+        // is better than slug fallback).
+        for row in experienceService.repo.allDiscoveredCities() {
+            byCode[row.cityCode] = (
+                row.cityCode,
+                row.name,
+                CLLocationCoordinate2D(latitude: row.centerLat, longitude: row.centerLon)
+            )
+        }
+
+        return Array(byCode.values).sorted { $0.name < $1.name }
     }
 
-    /// Human-readable city names keyed by city code.
+    /// Static seed-city names. Discovered-city names come from
+    /// `DiscoveredCityRecord` via `availableCities`.
     private let cityNameMap: [String: String] = [
         "cmi": "Chiang Mai",
     ]
@@ -193,12 +217,14 @@ public final class MapViewModel {
         experienceService: ExperienceService,
         aiService: AIService,
         preferences: UserPreferences,
-        overpassService: OverpassService = OverpassService()
+        overpassService: OverpassService = OverpassService(),
+        geocodeService: ReverseGeocodeService = ReverseGeocodeService()
     ) {
         self.locationService = locationService
         self.experienceService = experienceService
         self.aiService = aiService
         self.overpassService = overpassService
+        self.geocodeService = geocodeService
         self.preferences = preferences
         self.selectedCity = preferences.lastSelectedCity
         let initialCenter: CLLocationCoordinate2D
@@ -517,15 +543,32 @@ public final class MapViewModel {
         lastExploreError = nil
         lastExploreAddedCount = 0
         lastQuotaInfo = nil
+        lastExploreToast = nil
         defer { isExploring = false }
 
-        let cityCode = Self.cityCode(for: coordinate)
         do {
             let pois = try await overpassService.fetchPOIs(near: coordinate, radiusMeters: radiusMeters)
             guard !pois.isEmpty else {
                 lastExploreError = NSLocalizedString("explore.error.nothingFound", comment: "No POIs found nearby")
                 return
             }
+
+            // US-016: try a real city name first; fall back to the
+            // synthetic osm_<lat>_<lon> only when the geocoder fails.
+            let resolved = await geocodeService.resolve(coordinate: coordinate)
+            let cityCode = resolved?.cityCode ?? Self.cityCode(for: coordinate)
+
+            // Persist the discovered city so the picker shows real names
+            // on subsequent launches.
+            if let resolved {
+                experienceService.repo.recordDiscoveredCity(
+                    cityCode: resolved.cityCode,
+                    name: resolved.name,
+                    countryCode: resolved.countryCode,
+                    center: (lat: coordinate.latitude, lon: coordinate.longitude)
+                )
+            }
+
             let generated = try await aiService.synthesizeExperiences(
                 from: pois,
                 cityCode: cityCode,
@@ -533,15 +576,32 @@ public final class MapViewModel {
             )
             let added = experienceService.appendGenerated(generated)
             lastExploreAddedCount = added
-            // Surface quota banner if AIService just degraded to skeleton
-            // because the daily cap fired. The banner persists until the
-            // next successful explore (typically tomorrow's first call).
+
+            // US-015: surface quota banner if AIService just degraded.
             if aiService.quotaExceededAt != nil {
                 lastQuotaInfo = NSLocalizedString(
                     "explore.quota.dailyLimit",
                     comment: "Daily AI limit reached banner"
                 )
             }
+
+            // US-017: auto-switch to the city we just discovered so the
+            // city filter doesn't hide the new pins. Then build a toast.
+            if added > 0 {
+                selectCity(cityCode)
+                if let resolved {
+                    lastExploreToast = String(
+                        format: NSLocalizedString("explore.toast.addedNamed", comment: "Now exploring %@ · %d places added"),
+                        resolved.name, added
+                    )
+                } else {
+                    lastExploreToast = String(
+                        format: NSLocalizedString("explore.toast.added", comment: "%d places added near you"),
+                        added
+                    )
+                }
+            }
+
             recenter(on: coordinate)
         } catch {
             lastExploreError = error.localizedDescription

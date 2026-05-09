@@ -228,8 +228,56 @@ public struct ExperienceDetailView: View {
     }
 
     private var soloScoreSection: some View {
-        sectionContainer(title: NSLocalizedString("section.soloScore", comment: "")) {
-            SoloScoreBadge(score: viewModel.experience.soloScore, style: .full)
+        // US-019 three-state cold-start UX: header copy + opacity +
+        // optional pill change with `basedOnCount`. Hiding the score
+        // would make the map feel empty for new regions, and showing
+        // an unmarked AI estimate would erode trust — so we mark it.
+        let count = viewModel.experience.soloScore.basedOnCount
+        let titleKey: String
+        let subtitle: String?
+        let isEstimate: Bool
+
+        switch count {
+        case 0:
+            titleKey = "solo.section.estimate"
+            subtitle = nil
+            isEstimate = true
+        case 1...2:
+            titleKey = "solo.section.early"
+            subtitle = String(
+                format: NSLocalizedString("solo.basedOn.early", comment: "Based on N early reports"),
+                count
+            )
+            isEstimate = false
+        default:
+            titleKey = "section.soloScore"
+            subtitle = String(
+                format: NSLocalizedString("solo.basedOn", comment: "Based on N solo travelers"),
+                count
+            )
+            isEstimate = false
+        }
+
+        return sectionContainer(title: NSLocalizedString(titleKey, comment: "")) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    SoloScoreBadge(score: viewModel.experience.soloScore, style: .full)
+                        .opacity(isEstimate ? 0.6 : 1.0)
+                    if isEstimate {
+                        Text(NSLocalizedString("solo.estimate.pill", comment: "AI estimate pill"))
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color(.tertiarySystemFill)))
+                            .accessibilityLabel(Text(NSLocalizedString("solo.estimate.pill", comment: "")))
+                    }
+                }
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 

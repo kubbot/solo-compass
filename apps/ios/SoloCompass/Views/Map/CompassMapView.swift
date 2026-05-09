@@ -222,7 +222,18 @@ public struct CompassMapView: View {
         .sheet(item: $surveyExperience) { exp in
             MicroSurveySheet(
                 experience: exp,
-                onSubmit: { _, _, _ in surveyExperience = nil },
+                onSubmit: { comfort, pressure, recommend in
+                    // US-020: persist via the repo so the aggregated
+                    // SoloScore reflects this immediately.
+                    experienceService.repo.recordSurvey(
+                        experienceId: exp.id,
+                        comfort: comfort,
+                        pressure: pressure,
+                        recommend: recommend.rawValue,
+                        anonDeviceId: DeviceIdentityService.shared.deviceID
+                    )
+                    surveyExperience = nil
+                },
                 onSkip: { surveyExperience = nil }
             )
         }
@@ -357,7 +368,11 @@ public struct CompassMapView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             } label: {
                                 VStack(spacing: 2) {
-                                    MarkerIconView(category: exp.category, state: viewModel.markerState(for: exp))
+                                    MarkerIconView(
+                                        category: exp.category,
+                                        state: viewModel.markerState(for: exp),
+                                        confidenceLevel: exp.confidence.level
+                                    )
                                     if case .footprinted = viewModel.markerState(for: exp) {
                                         Text("\(viewModel.footprintCount(for: exp))")
                                             .font(.caption2.weight(.semibold))
