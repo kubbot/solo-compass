@@ -23,7 +23,7 @@ This PRD turns both surfaces into a **shippable, paid product** by adding seven 
 6. **Web product surfaces (web)** — the four Scenarios from `apps/web/README.md` actually built: desktop research center (A), mobile zero-install try (B), trip recap pages (C), SEO static city/experience pages (D).
 7. **Pre-launch operational readiness (process)** — Mapbox tokens, Supabase project, App Store Connect, domains, privacy policy, customer support, beta tester recruitment, AI cost monitoring — all the boring-but-critical things that block a real launch.
 
-The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where the App Store has a paid iOS app, `solocompass.app` is indexed by Google with city pages, users can share a `/trip/<slug>` URL after a trip, and the same Supabase database serves both — making Solo Compass a real cross-platform product with one cohesive dataset.
+The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where the App Store has a paid iOS app, the web app is live on Vercel (a `*.vercel.app` URL — see US-I3 for the deferred-domain decision) and indexed by Google for city pages, users can share a `/trip/<slug>` URL after a trip, and the same Supabase database serves both — making Solo Compass a real cross-platform product with one cohesive dataset.
 
 ---
 
@@ -37,7 +37,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 - **G6 — App Store ready.** Privacy manifest, ATT prompt, refund-of-trial flow, IAP receipts, ITP/Family Sharing all configured. Pass App Store review on first submission.
 - **G7 — Local-first (iOS).** Every UI read comes from SwiftData; Supabase is sync + shared cache only. App stays fully usable when offline or when the backend is down.
 - **G8 — Cross-platform parity on data.** iOS and web read the same `synthesized_experiences` and `osm_pois` tables; an OSM-generated Experience visible to a paid iOS user is also visible on the public web city page within 5 minutes.
-- **G9 — Web SEO foothold.** `solocompass.app` indexed by Google for at least 50 city/experience pages by GA. Lighthouse SEO score ≥ 90 on `/[city]` and `/experience/[id]`. Sitemap + JSON-LD + multi-locale routes (`/zh/...` and `/en/...`) shipped.
+- **G9 — Web SEO foothold.** The Vercel-hosted web (`*.vercel.app` for v1.0; real domain in v1.2) indexed by Google for at least 50 city/experience pages by GA. Lighthouse SEO score ≥ 90 on `/[city]` and `/experience/[id]`. Sitemap + JSON-LD + multi-locale routes (`/zh/...` and `/en/...`) shipped. SEO ranking on a Vercel subdomain is weaker than a custom domain — accepted trade-off for v1.0.
 - **G10 — Web does its 4 jobs.** All four scenarios from `apps/web/README.md` working end-to-end: desktop research (A), mobile zero-install try (B), trip recap pages (C), SEO static pages (D).
 - **G11 — Operational readiness.** Real Mapbox token, Supabase production project, App Store Connect SKUs, domain + DNS, privacy policy, customer support inbox, beta tester list, AI cost alerts — all in place at least one week before TestFlight beta.1.
 
@@ -337,7 +337,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 **Acceptance Criteria:**
 - [ ] `apps/ios/SoloCompass/Resources/PrivacyInfo.xcprivacy` lists: precise location, coarse location, device ID (Supabase anon), purchases (StoreKit), diagnostics (Supabase events).
 - [ ] No data is marked as used for tracking. ATT prompt skipped (not needed without tracking).
-- [ ] Privacy policy at `https://solocompass.app/privacy` (placeholder OK; URL configured in `Info.plist`).
+- [ ] Privacy policy hosted on a public Notion page (e.g. `https://solocompass.notion.site/privacy`); URL configured in `Info.plist`. Will migrate to `https://<domain>/privacy` in v1.2 once a real domain is registered.
 - [ ] First-run onboarding screen explains: location stays on device + sent to OSM/Anthropic during Explore Here; entitlement events sent to Supabase for sync; nothing else.
 
 #### US-F2: First-run Explore-Here consent screen
@@ -400,7 +400,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 - [ ] `apps/web/src/lib/env.ts` extended with: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY` (already exists), `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (server) — all parsed via Zod with descriptive error messages.
 - [ ] `vercel.json` already exists; verify it points to the Singapore (`sin1` or `hnd1`) region for low APAC latency.
 - [ ] Add `vercel.com` GitHub integration: every PR gets a preview URL commented automatically.
-- [ ] Production env vars set in Vercel dashboard (Mapbox token domain-locked to `solocompass.app`).
+- [ ] Production env vars set in Vercel dashboard (Mapbox token domain-locked to `*.vercel.app` for v1.0; tighten to a real domain in v1.2).
 - [ ] Add `apps/web/.env.local.example` documenting every required var with example values.
 - [ ] Typecheck passes.
 
@@ -559,17 +559,17 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 - [ ] No PII tracked (no email, no IP — PostHog's `disable_ip_capture` set).
 - [ ] Typecheck passes.
 
-#### US-H11 (Scenario A): "Open in iOS" deep link
+#### US-H11 (Scenario A): "Open in iOS" deep link via custom URL scheme
 **Description:** As a web user reading an experience or trip page, tapping "Open in iOS" should jump straight to that detail in the iOS app if installed.
 
 **Acceptance Criteria:**
 - [ ] iOS gains URL scheme registration: `solocompass://experience/<id>` and `solocompass://trip/<slug>` (via project.yml `info.URLTypes`).
 - [ ] iOS handles the URL by routing to the matching detail view; missing data triggers a fetch from Supabase first.
 - [ ] Web "Open in iOS" button on experience and trip pages: tries the custom scheme via a hidden iframe + 1.5s App Store fallback if scheme doesn't fire.
-- [ ] Universal Links (real `https://solocompass.app/experience/...` open in iOS app if installed): `apple-app-site-association` file at `apps/web/public/.well-known/apple-app-site-association` listing path patterns.
-- [ ] iOS Associated Domains entitlement added in `project.yml`.
-- [ ] Verify on simulator + device: tapping the link from Safari opens the iOS app at the correct screen.
+- [ ] Verify on simulator + device: tapping the button on the web page opens the iOS app at the correct screen.
 - [ ] Typecheck passes.
+
+**Universal Links (`https://...` URLs auto-opening in iOS) are DEFERRED to v1.2** because they require a custom domain (US-I3 deferred). Once a real domain is registered in v1.2, the follow-up work is: ship `apple-app-site-association` at `apps/web/public/.well-known/apple-app-site-association`, add iOS `Associated Domains` entitlement in `project.yml`, and remove the iframe + App Store fallback hack from web.
 
 #### US-H12: Vercel Edge caching + CDN strategy
 **Description:** As a high-traffic page operator, I need cache headers and edge-runtime configured so static pages don't hit Supabase repeatedly.
@@ -603,7 +603,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 
 **Acceptance Criteria:**
 - [ ] Mapbox account created (free Studio tier; 50k map loads/month sufficient for beta).
-- [ ] Two access tokens generated: `production` (URL-restricted to `solocompass.app` and `*.vercel.app`), `development` (no restriction). Both stored in 1Password and Vercel env vars.
+- [ ] Two access tokens generated: `production` (URL-restricted to `*.vercel.app` for v1.0 — tighten to a real domain in v1.2), `development` (no restriction). Both stored in 1Password and Vercel env vars.
 - [ ] Custom style created in Mapbox Studio: warm cream basemap, muted street labels, terracotta highlights for selected POI. Style URL recorded in `apps/web/src/lib/map-style.ts`.
 - [ ] Document in `docs/WEB_OPS.md` how to rotate the token.
 
@@ -616,15 +616,20 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 - [ ] PITR (point-in-time recovery) enabled — minimum on Pro plan ($25/mo); spend justified in `docs/WEB_OPS.md`.
 - [ ] Database backups verified: trigger one manual backup and document the restore procedure.
 
-#### US-I3: Domain `solocompass.app` registered + DNS configured
-**Description:** As an operator, I need the production domain pointed at Vercel and Apple Universal Links domain verification ready.
+#### US-I3: Domain registration — DEFERRED to v1.2
+**Description:** Per founder decision (2026-05-09), no custom domain in v1.0. Web ships on Vercel's default `*.vercel.app` URL.
 
-**Acceptance Criteria:**
-- [ ] Domain registered (Cloudflare Registrar or Porkbun, ~$15/yr).
-- [ ] DNS managed in Cloudflare; A/CNAME records to Vercel; `apple-app-site-association` served from `https://solocompass.app/.well-known/apple-app-site-association` with `Content-Type: application/json` and no extension (Cloudflare Worker if Vercel routing breaks it).
-- [ ] SSL via Cloudflare Universal SSL (free).
-- [ ] Mail forwarder set up: `support@solocompass.app` → personal email (Cloudflare Email Routing, free).
-- [ ] Document DNS records in `docs/WEB_OPS.md`.
+**Acceptance Criteria (this cycle):**
+- [ ] Vercel project created; production deploy URL recorded (e.g. `solo-compass.vercel.app` if available, else auto-assigned).
+- [ ] Customer support email: a free Gmail with descriptive alias (e.g. `solocompass.support@gmail.com`); document in `docs/WEB_OPS.md`.
+- [ ] Privacy policy + terms hosted on a public Notion page (e.g. `solocompass.notion.site/privacy`); URL referenced from `Info.plist` and web footer.
+- [ ] Mapbox production token domain-locked to `*.vercel.app` (less secure than a real domain but acceptable for v1.0).
+- [ ] Document in `docs/WEB_OPS.md` the exact URLs in use and the migration plan to switch to a real domain in v1.2 (only env vars + AASA file would change).
+
+**Acceptance Criteria (v1.2 follow-up, not blocking this PRD):**
+- [ ] Register a real domain (Cloudflare Registrar, ~$15/yr).
+- [ ] Configure DNS, SSL, email forwarder, AASA endpoint.
+- [ ] Switch Mapbox token domain lock and Vercel production alias.
 
 #### US-I4: App Store Connect — full account and IAP SKUs
 **Description:** As an operator, I need the App Store side fully configured weeks before TestFlight, because Apple reviews take time.
@@ -673,7 +678,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 **Description:** As a paying-customer-supporter, I need a working inbox and ready-made replies for the 5 most likely questions.
 
 **Acceptance Criteria:**
-- [ ] `support@solocompass.app` forwarder live (US-I3).
+- [ ] Customer support email live: a Gmail alias (e.g. `solocompass.support@gmail.com`) — switch to `support@<domain>` when domain is registered in v1.2.
 - [ ] Helpdesk: HelpScout free trial OR a single Notion shared inbox; documented in `docs/SUPPORT.md`.
 - [ ] Response templates drafted in `docs/SUPPORT.md`: subscription cancellation (must not retain — Apple rule), refund requested for AI quota use (politely decline, link to Apple's refund flow), AI gave wrong info (apologize, ask for the experience id, file an internal ticket), can't restore purchase, account deletion request (GDPR — within 30 days).
 
@@ -777,7 +782,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 
 ### Cross-platform integration
 - **FR-35:** `solocompass://experience/<id>` and `solocompass://trip/<slug>` URL schemes registered in iOS; web "Open in iOS" buttons attempt scheme + 1.5 s App Store fallback.
-- **FR-36:** Universal Links: `apps/web/public/.well-known/apple-app-site-association` lists path patterns matching iOS Associated Domains entitlement; tapping `https://solocompass.app/experience/<id>` from any iOS app opens the iOS app at the matching screen if installed.
+- **FR-36 (deferred to v1.2):** Universal Links require a real custom domain; deferred along with US-I3. Until then, the custom URL scheme above is the only deep-link path.
 - **FR-37:** A single `cities` table powers both iOS city picker and web `/[locale]/[city]` static pages — populated by a nightly Supabase function.
 
 ### Operational
@@ -928,14 +933,14 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 
 | Week | Engineering focus | Ops parallel work | Deliverable |
 |---|---|---|---|
-| 0 (now) | Branch off `main` | I1–I4 started: Mapbox account, Supabase project, domain registered, App Store dev account verified | Accounts created |
+| 0 (now) | Branch off `main` | I1, I2, I4 started: Mapbox account, Supabase project, App Store dev account verified. I3 (domain) deferred to v1.2. | Accounts created |
 | 1 | Epic A: Persistence (`feat/persistence-swiftdata`) | I5 drafting: privacy policy + terms | All iOS data on disk; no UX change |
 | 2 | Epic B: Cost control (`feat/ai-cost-control`) | I6: Anthropic prod key + spend caps | Sonnet default + caching live |
 | 3 | Epic C: Trust UX (`feat/explore-trust`) | I7: Sentry/PostHog prod projects | Visual downgrade + reverse geocode + survey feedback |
 | 4 | Epic D: StoreKit (`feat/freemium-paywall`) | I4: App Store IAP SKUs submitted | Paywall live behind FF |
 | 5 | Epic E: Supabase (`feat/backend-sync`) | I2 verified: prod Supabase ready | Server cache + sync + key removed from client + optional Apple ID link |
-| 6 | Epic F: iOS store prep (`feat/app-store-prep`) | I5 published: privacy + terms live on web | iOS feature-complete |
-| 7 | Epic G: Web foundation (`feat/web-foundation`) | I3 verified: domain + DNS + SSL | Real Supabase + Mapbox on web |
+| 6 | Epic F: iOS store prep (`feat/app-store-prep`) | I5 published: privacy + terms hosted on Notion | iOS feature-complete |
+| 7 | Epic G: Web foundation (`feat/web-foundation`) | Vercel deploy URL confirmed; Mapbox token domain-locked to `*.vercel.app` | Real Supabase + Mapbox on web |
 | 8 | Epic H1–H3 (`feat/web-seo`) | I8: customer support inbox | SEO city + experience pages live |
 | 9 | Epic H4–H7 (`feat/web-research-mobile`) | I9: beta tester list finalized | Scenarios A + B done |
 | 10 | Epic H8–H13 (`feat/web-trips-deeplink`) | I10: cost dashboard automated | Scenarios C + cross-platform deep links |
@@ -944,10 +949,10 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 | 13 | Tag `v1.1.0` GA (iOS) + web prod deploy | I12 executed: launch day | Public launch |
 
 **Critical-path dependencies** (block downstream work if late):
-- I3 (domain) blocks I5 (privacy URL) blocks Epic F US-F1.
 - I4 (App Store SKUs) blocks Epic D US-D1.
 - I2 (Supabase prod) blocks Epic E and Epic G.
 - I1 (Mapbox token) blocks Epic G US-G1 and Epic H1–H4.
+- ~~I3 (domain)~~ deferred to v1.2 — privacy URL hosted on Notion in the meantime.
 
 **Parallelization rules:**
 - iOS engineering and web engineering do NOT share a developer day-to-day; weeks 7–10 are dedicated web-only sprints once iOS is feature-complete (week 6).
@@ -1053,7 +1058,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 
 1. **Mapbox account + production token** *(US-I1)*
    - Sign up at https://account.mapbox.com (free tier covers 50k loads/month).
-   - Create two access tokens: `production` (URL-restrict to `solocompass.app` and `*.vercel.app`), `development` (no restriction).
+   - Create two access tokens: `production` (URL-restrict to `*.vercel.app`), `development` (no restriction). Tighten to a real domain in v1.2.
    - Save both in 1Password under "Solo Compass / Mapbox".
    - **Why now:** any web work after week 7 needs this; if you start in week 7 you'll waste a day waiting on email verification + studio onboarding.
 
@@ -1063,11 +1068,11 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
    - Enable PITR (Pro plan, $25/month — pay it; restoring without PITR is impossible).
    - **Why now:** Epic E (week 5) blocks on this. Setup is 30 minutes but provisioning the DB takes ~10 minutes and Pro plan upgrade requires a card.
 
-3. **Domain registration** *(US-I3)*
-   - Register `solocompass.app` (Cloudflare Registrar or Porkbun, ~$15/year).
-   - Set up Cloudflare DNS (free).
-   - Set up Cloudflare Email Routing: `support@solocompass.app` → your personal email (free).
-   - **Why now:** privacy policy URL, App Store metadata, and Universal Links all depend on this. DNS propagation is < 1 hour, but the registration itself can hit 24h holds.
+3. **Domain registration — DEFERRED to v1.2** *(US-I3)*
+   - Decision (2026-05-09): no custom domain in v1.0. Web ships on Vercel's default `*.vercel.app` URL.
+   - Action this week instead: pick a Vercel project name → confirm the resulting `solo-compass.vercel.app`-style URL is available; set up Gmail alias `solocompass.support@gmail.com` for App Store + customer support; create a Notion-hosted privacy policy URL placeholder.
+   - **Trade-offs accepted:** Universal Links (US-H11) drop to v1.2; SEO ranking is weaker on a Vercel subdomain; Mapbox token uses broader `*.vercel.app` lock; emails come from a generic Gmail.
+   - **Migration path:** when a real domain is registered later, only env vars + AASA file + Mapbox token lock + email forwarder change. No code refactor required.
 
 4. **Apple Developer Program + App Store Connect** *(US-I4)*
    - Confirm enrollment is active ($99/year).
@@ -1135,7 +1140,7 @@ The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where
 
 | Item | Cost | When |
 |---|---|---|
-| Domain | $15/yr | Week 0 |
+| Domain | $0 (deferred to v1.2) | — |
 | Apple Developer Program (already paid?) | $99/yr | Verify week 0 |
 | Supabase Pro (PITR) | $25/mo × 4 = $100 | Week 0–13 |
 | Mapbox | $0 (free tier) | — |
@@ -1157,7 +1162,7 @@ You should expect to **lose money for 6+ months** — pre-launch burn ~$200, ong
 
 These are the things I genuinely can't decide for you:
 
-- **Week 0:** Do you want to register `solocompass.app`, or is there an alternative domain you prefer?
+- **Week 0:** ~~Domain registration~~ DECIDED 2026-05-09: no custom domain in v1.0; ship on `*.vercel.app`. Universal Links + custom email + AASA all deferred to v1.2.
 - **Week 1:** Use Termly free + manual edits, or pay Iubenda $9/month for a hosted policy that auto-updates?
 - **Week 4:** Want to manually approve the App Store metadata copy, or trust me to draft + submit?
 - **Week 11:** Beta tester list — do you have 20 names, or should I draft a recruitment Tweet/post for you to send?
