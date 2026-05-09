@@ -1,25 +1,29 @@
-# PRD: Paid-App Foundation — Persistence, Caching, Freemium & Cross-Device Sync
+# PRD: Paid-App Foundation — iOS v1.1 + Web v1.0 (Full Launch)
 
 > **Status:** Draft
 > **Owner:** @cubxxw
-> **Target release:** v1.1.0 (iOS), feeds eventual web/bot parity
+> **Target release:** v1.1.0 (iOS) + v1.0.0 (web) shipped together as the public launch
+> **Calendar:** ~13 weeks one-shot (no phasing). Beta starts week 11, GA week 13.
 > **Branch convention:** `feat/<short-slug>` per user-story batch
-> **Related:** `tasks/prd-data-engine-v2.md`, `tasks/prd-deepseek-migration.md`
+> **Related:** `tasks/prd-data-engine-v2.md`, `tasks/prd-deepseek-migration.md`, `apps/web/README.md`, `docs/WEB_DESIGN.md`
 
 ---
 
 ## 1. Introduction / Overview
 
-Solo Compass today is a SwiftUI map app with five Chiang Mai seed Experiences and a working "Explore here" flow that pulls real OpenStreetMap POIs and asks Claude to enrich them into solo-traveler entries. Everything beyond `UserPreferences` lives in memory — close the app and all generated content is gone. There is no caching layer, no cost control on AI calls, no monetization, and no way for the app to get smarter over time.
+Solo Compass today is a SwiftUI map app with five Chiang Mai seed Experiences and a working "Explore here" flow that pulls real OpenStreetMap POIs and asks Claude to enrich them into solo-traveler entries. Everything beyond `UserPreferences` lives in memory — close the app and all generated content is gone. There is no caching layer, no cost control on AI calls, no monetization, and no way for the app to get smarter over time. The web app at `apps/web/` is a half-finished shell: Next.js + Mapbox + shadcn scaffolded, API routes exist, but the database is empty, the Lisbon page uses fake SVG coordinates, and the README still says "🚧 Foundation phase. Not yet running."
 
-This PRD turns the current technical demo into a **shippable, paid iOS app** by adding four foundations:
+This PRD turns both surfaces into a **shippable, paid product** by adding seven foundations across iOS and web, all delivered in a single ~13-week sprint:
 
-1. **Local persistence** — every Experience (seed, OSM-generated, user-added) survives app restarts via SwiftData.
-2. **Smart caching & cost control** — Explore-here results cached by region for 14 days; Claude calls deduplicated; cheaper model by default.
-3. **Freemium monetization** — base map + filter + completed/favorites are free; AI-powered Explore Here, voice intent, and AI explanations require an active subscription via StoreKit 2.
-4. **Supabase backend** — anonymous device identity, cross-device sync of user data and generated Experiences, telemetry on Solo-Score signals to power the "data flywheel."
+1. **Local persistence (iOS)** — every Experience (seed, OSM-generated, user-added) survives app restarts via SwiftData.
+2. **Smart caching & cost control (iOS)** — Explore-here results cached by region for 14 days; Claude calls deduplicated; cheaper model by default.
+3. **Freemium monetization (iOS)** — base map + filter + completed/favorites are free; AI-powered Explore Here, voice intent, and AI explanations require an active subscription via StoreKit 2.
+4. **Supabase backend (iOS + web)** — anonymous device identity, cross-device sync of user data and generated Experiences, telemetry on Solo-Score signals to power the "data flywheel," and a single source of truth that **both apps read from**.
+5. **Web foundation (web)** — wire `apps/web` to the same Supabase that iOS uses, replace the SVG fake-Lisbon map with real Mapbox, plug in production env, deploy to Vercel.
+6. **Web product surfaces (web)** — the four Scenarios from `apps/web/README.md` actually built: desktop research center (A), mobile zero-install try (B), trip recap pages (C), SEO static city/experience pages (D).
+7. **Pre-launch operational readiness (process)** — Mapbox tokens, Supabase project, App Store Connect, domains, privacy policy, customer support, beta tester recruitment, AI cost monitoring — all the boring-but-critical things that block a real launch.
 
-The ultimate target: a v1.1 iOS build that can stand on its own in the App Store, generate revenue, and feed real usage data back into Experience quality.
+The ultimate target: a unified v1.1 (iOS) + v1.0 (web) launch in ~13 weeks where the App Store has a paid iOS app, `solocompass.app` is indexed by Google with city pages, users can share a `/trip/<slug>` URL after a trip, and the same Supabase database serves both — making Solo Compass a real cross-platform product with one cohesive dataset.
 
 ---
 
@@ -31,13 +35,17 @@ The ultimate target: a v1.1 iOS build that can stand on its own in the App Store
 - **G4 — Cross-device continuity.** A signed-in user opening the app on a second device sees the same favorites, completed list, generated Experiences, and Solo-Score history within 5 seconds.
 - **G5 — Trust-preserving AI.** Generated Experiences visually distinguish themselves from curated content and never invent specific facts the model could not verify (no fake menu items, hours, or interior details).
 - **G6 — App Store ready.** Privacy manifest, ATT prompt, refund-of-trial flow, IAP receipts, ITP/Family Sharing all configured. Pass App Store review on first submission.
-- **G7 — Local-first.** Every UI read comes from SwiftData; Supabase is sync + shared cache only. App stays fully usable when offline or when the backend is down.
+- **G7 — Local-first (iOS).** Every UI read comes from SwiftData; Supabase is sync + shared cache only. App stays fully usable when offline or when the backend is down.
+- **G8 — Cross-platform parity on data.** iOS and web read the same `synthesized_experiences` and `osm_pois` tables; an OSM-generated Experience visible to a paid iOS user is also visible on the public web city page within 5 minutes.
+- **G9 — Web SEO foothold.** `solocompass.app` indexed by Google for at least 50 city/experience pages by GA. Lighthouse SEO score ≥ 90 on `/[city]` and `/experience/[id]`. Sitemap + JSON-LD + multi-locale routes (`/zh/...` and `/en/...`) shipped.
+- **G10 — Web does its 4 jobs.** All four scenarios from `apps/web/README.md` working end-to-end: desktop research (A), mobile zero-install try (B), trip recap pages (C), SEO static pages (D).
+- **G11 — Operational readiness.** Real Mapbox token, Supabase production project, App Store Connect SKUs, domain + DNS, privacy policy, customer support inbox, beta tester list, AI cost alerts — all in place at least one week before TestFlight beta.1.
 
 ---
 
 ## 3. User Stories
 
-> Stories are grouped into 6 epics totaling 31 user stories. Each story is sized to ~1–2 focused implementation sessions and references existing files where possible. Order follows recommended build sequence.
+> Stories are grouped into 9 epics totaling 61 user stories. Each story is sized to ~1–2 focused implementation sessions and references existing files where possible. Order follows recommended build sequence (iOS foundation → web foundation → web scenarios → operational launch readiness).
 
 ### Epic A: Local Persistence (SwiftData)
 
@@ -370,6 +378,347 @@ The ultimate target: a v1.1 iOS build that can stand on its own in the App Store
 
 ---
 
+### Epic G: Web Foundation (replace fake data, share Supabase with iOS)
+
+#### US-G1: Migrate web from SVG fake-Lisbon to real Supabase + Mapbox
+**Description:** As a developer, I need `apps/web/src/components/lisbon/WebLisbonMap.tsx` and `lisbon-data.ts` replaced with real Mapbox GL JS reading from Supabase, so web and iOS share one dataset.
+
+**Acceptance Criteria:**
+- [ ] Delete or quarantine `apps/web/src/lib/lisbon-data.ts` (move to `apps/web/src/lib/__legacy__/` for reference).
+- [ ] `WebLisbonMap.tsx` becomes a real Mapbox GL JS map using `NEXT_PUBLIC_MAPBOX_TOKEN` and the canonical `Experience` type from `@solo-compass/core`.
+- [ ] Markers come from `getExperiencesRepo().nearby({ lng, lat, radiusMeters })` against Supabase, not hardcoded SVG x/y.
+- [ ] `WebExperience` type is removed; all callers use `@solo-compass/core` `Experience`.
+- [ ] `apps/web/README.md` status header updated from "🚧 Foundation phase. Not yet running" to "Production target: v1.0".
+- [ ] Lighthouse Performance score on the map page ≥ 75 on a 4G profile (no regression from baseline).
+- [ ] Typecheck passes (run: `pnpm --filter @solo-compass/web typecheck`).
+- [ ] Verify in browser via the dev-browser skill: open the page, confirm real markers appear at real coordinates.
+
+#### US-G2: Web environment validation and Vercel preview deploy
+**Description:** As a developer, I need every web env var validated at boot and a Vercel preview URL on every PR so reviewers see real builds.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/lib/env.ts` extended with: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY` (already exists), `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (server) — all parsed via Zod with descriptive error messages.
+- [ ] `vercel.json` already exists; verify it points to the Singapore (`sin1` or `hnd1`) region for low APAC latency.
+- [ ] Add `vercel.com` GitHub integration: every PR gets a preview URL commented automatically.
+- [ ] Production env vars set in Vercel dashboard (Mapbox token domain-locked to `solocompass.app`).
+- [ ] Add `apps/web/.env.local.example` documenting every required var with example values.
+- [ ] Typecheck passes.
+
+#### US-G3: Tailwind warm design system + shared component primitives
+**Description:** As a designer, I need `apps/web` to share the warm "paper-cream / kraft" design language with iOS and Mapbox style.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/tailwind.config.ts` extended with the warm palette already used in iOS (cream, kraft, coffee, terracotta accents).
+- [ ] Mapbox custom style published in Mapbox Studio (warm muted basemap), `mapbox://styles/<account>/<style-id>` recorded in `apps/web/src/lib/map-style.ts`.
+- [ ] Shared components in `apps/web/src/components/ui/`: `Card`, `Badge`, `Button`, `Sheet` — using shadcn/ui defaults restyled with the warm palette. No new dependencies beyond shadcn primitives.
+- [ ] `DesignNav` (currently a placeholder) replaced with a minimal top-nav: logo, city dropdown, language toggle (en/zh), download-iOS CTA.
+- [ ] Visual regression: Storybook or simple Playwright screenshot test for each shared component in light + dark.
+- [ ] Verify in browser using dev-browser skill: home page renders with the new palette.
+
+#### US-G4: TanStack Query + URL state pattern across pages
+**Description:** As a user, I want every filter, selected experience, and city to be reflected in the URL so I can share/bookmark any view.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/lib/query-client.tsx` already exists; ensure all data fetching goes through it (no raw `fetch` in components).
+- [ ] All filter state (`category`, `intent`, `radius`, `selectedId`) lives in URL search params via `useSearchParams`/`useRouter`. No `useState` for filterable state.
+- [ ] `useNearby` hook (already exists) extended to read from URL params.
+- [ ] Back/forward browser buttons restore filter + selection state correctly.
+- [ ] Unit test: navigate via Playwright with `?category=food&selectedId=exp_lis_xxx`, assert sheet opens with that experience.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: change filters, copy URL, paste in new tab, confirm same view.
+
+#### US-G5: Multi-locale routing (`/zh/...` + `/en/...`)
+**Description:** As an SEO-driven product, I need locale-prefixed URLs that Google indexes separately so Chinese and English searches both find us.
+
+**Acceptance Criteria:**
+- [ ] Migrate App Router structure: top-level `[locale]` segment with `en` and `zh` as the only allowed values; default redirects based on `Accept-Language`.
+- [ ] All routes refactored: `/[locale]/[city]`, `/[locale]/experience/[id]`, `/[locale]/trip/[slug]`.
+- [ ] `next.config.ts` configured with `i18n` removed in favor of App Router-native pattern; `hreflang` `<link>` tags emitted on every page via root `layout.tsx`.
+- [ ] Translation files in `apps/web/src/lib/i18n/` (en.json, zh.json) consumed via a lightweight `useT()` hook (no `next-intl` dep needed for v1.0).
+- [ ] Typecheck passes.
+- [ ] Verify in browser: visit `/zh/lisbon` and `/en/lisbon`, confirm content language matches and `<link rel="alternate" hreflang="..."/>` is present in HTML.
+
+---
+
+### Epic H: Web Product Surfaces (the 4 Scenarios)
+
+#### US-H1 (Scenario D): SSG city pages with ISR
+**Description:** As a Google-discovered user, I land on a static-generated city page that loads instantly and contains the city's top experiences.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/app/[locale]/[city]/page.tsx` becomes RSC + `generateStaticParams`-driven; lists all cities present in Supabase `synthesized_experiences` with ≥ 5 entries.
+- [ ] ISR `revalidate = 3600` (regenerate hourly); falls back to on-demand revalidation via `/api/revalidate?path=...`.
+- [ ] Page contains: city hero image (one selected from sources), 3 sentence intro (from a `cities` Supabase table populated nightly by an Edge Function), top-12 experiences as cards, Mapbox static-image map embed (no JS map on SSG page; the interactive map is `/map?city=...`).
+- [ ] JSON-LD `Place` + `BreadcrumbList` structured data emitted server-side.
+- [ ] Lighthouse SEO ≥ 90, Performance ≥ 80 on a 4G profile.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: open `/en/lisbon`, view page source, confirm content is rendered server-side (not blank shell).
+
+#### US-H2 (Scenario D): SSG experience detail pages with OG image
+**Description:** As a user receiving a shared link, I land on a static experience page with rich preview, photo, and a "view on iOS" CTA.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/app/[locale]/experience/[id]/page.tsx` becomes RSC + ISR; pre-renders top-500 experiences (by `solo_score_signals.count` desc) and falls back to dynamic for the long tail.
+- [ ] OG image route at `apps/web/src/app/[locale]/experience/[id]/opengraph-image.tsx` (already exists) generates a card with title, city, Solo Score, category icon — using the warm palette.
+- [ ] Schema.org `TouristAttraction` JSON-LD emitted with `geo`, `address` (cityCode), `aggregateRating` (basedOnCount, soloScore.overall).
+- [ ] `<link rel="canonical">` points to the locale-stripped URL.
+- [ ] Page includes: hero image, title (en + zh), oneLiner, whyItMatters, bestTimes, howTo, real inconveniences, "AI-generated · OpenStreetMap" badge if `confidence.level == 1`, "Open in iOS" smart banner.
+- [ ] Lighthouse SEO ≥ 90.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: visit a real experience URL, confirm OG image renders by inspecting `og:image` meta and opening it directly.
+
+#### US-H3 (Scenario D): sitemap.xml + robots.txt + canonical/hreflang
+**Description:** As an SEO-conscious operator, I need every public URL discoverable by Google with correct localization signals.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/app/sitemap.ts` generates `sitemap.xml` listing every city + experience page in both locales (uses Supabase to enumerate published rows).
+- [ ] `apps/web/src/app/robots.ts` emits `robots.txt` with `Sitemap:` directive and explicit `Disallow: /api/`.
+- [ ] Every page emits `<link rel="canonical">` and per-locale `<link rel="alternate" hreflang="...">` tags.
+- [ ] Submit sitemap to Google Search Console (manual, document in `docs/WEB_OPS.md`).
+- [ ] Lighthouse SEO score ≥ 95 on home + city + experience routes.
+- [ ] Verify in browser using dev-browser skill: hit `/sitemap.xml` and `/robots.txt`, confirm valid XML / text response.
+
+#### US-H4 (Scenario A): Desktop research center — multi-pane layout
+**Description:** As a desktop user planning a trip, I need a wide layout with map + list + filters + selected-experiences drawer.
+
+**Acceptance Criteria:**
+- [ ] New route `apps/web/src/app/[locale]/research/page.tsx` (Scenario A entry).
+- [ ] Layout breakpoints: `lg` (≥ 1024px) shows three columns — left sidebar (filters + city picker), center (map), right (selected-experiences pinboard, max 5 simultaneously).
+- [ ] Below `lg`: collapses to mobile layout (Scenario B path).
+- [ ] Pinboard persists in URL (`?pinned=id1,id2,id3`); sharing the URL recreates the same selection.
+- [ ] "Compare" mode: tap two pinned experiences to see side-by-side bestTimes / soloScore / category in a modal.
+- [ ] "Save as Trip" button: takes the pinned IDs and creates a `trips` Supabase row; redirects to `/[locale]/trip/[slug]` (Scenario C).
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill at 1440px viewport: pin 3 experiences, click Save as Trip, confirm trip page loads with same 3 entries.
+
+#### US-H5 (Scenario A): Filters with category + best-time + intent
+**Description:** As a planner, I need to combine category, best-time-of-day, and free-text intent filters to narrow the list.
+
+**Acceptance Criteria:**
+- [ ] Sidebar filter component: category multi-select (the 8 ExperienceCategory values), time-of-day buttons (morning / afternoon / evening / night), intent text input.
+- [ ] Filters compose as URL query params; `useNearby` reads them and forwards to `/api/experiences/nearby`.
+- [ ] `/api/experiences/nearby` extended to accept `categories=food,coffee&hour=14`.
+- [ ] Empty state: "No experiences match. Clear filters or pick a different city."
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: combine 2 filters, confirm marker count drops; clear filters, confirm full set returns.
+
+#### US-H6 (Scenario B): Mobile zero-install funnel — landing + smart banner
+**Description:** As a mobile-web user (no iOS app installed), I need a frictionless preview with a clear path to install.
+
+**Acceptance Criteria:**
+- [ ] Mobile breakpoint of `/[locale]/[city]` renders a tap-to-explore map + bottom sheet with experience cards (like a stripped iOS).
+- [ ] At top of mobile pages: a dismissible smart banner "Try Solo Compass — free trial on iOS" with App Store link (use Apple's official Smart App Banner via `<meta name="apple-itunes-app">`).
+- [ ] No voice intent on mobile web (iOS-only feature) — voice icon hidden or disabled with tooltip.
+- [ ] No checkin button on mobile web (Pro feature) — replaced with "Save with iOS" CTA.
+- [ ] Bottom-of-page CTA card: "Want this on the go? Get the iOS app" with button to App Store.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill at 390x844 viewport: confirm no voice/checkin, smart banner visible, CTAs work.
+
+#### US-H7 (Scenario B): Browser geolocation with graceful fallback
+**Description:** As a mobile user, I want the map to center on my location with permission, or fall back to the city's centroid.
+
+**Acceptance Criteria:**
+- [ ] On first map load: request browser geolocation via `navigator.geolocation.getCurrentPosition` with `{ maximumAge: 60000, timeout: 5000 }`.
+- [ ] On grant: center map on user, fetch nearby.
+- [ ] On deny / timeout: fall back to the city centroid from `cities` table or to a default Lisbon center.
+- [ ] No nagging permission prompts; if user denies once, store in `localStorage` and don't ask again for 30 days.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: deny permission, confirm map still loads with fallback center.
+
+#### US-H8 (Scenario C): Trip recap pages — generation flow
+**Description:** As a paid iOS user finishing a trip, I want a public URL recap of every experience I completed.
+
+**Acceptance Criteria:**
+- [ ] iOS gains a Settings → "My Trips" section showing completed trips.
+- [ ] On iOS: when user has 3+ completed Experiences in the same `cityCode` within a 14-day window, prompt "Save these N visits as a Trip?" — on accept, calls Supabase Edge Function `create-trip` which inserts into `trips` table with auto-generated slug (city-randomstring) and returns the public URL.
+- [ ] Web `/[locale]/trip/[slug]/page.tsx` (RSC + ISR) renders: trip title (editable on iOS), city, date range, experience cards in completion order, total duration, "Made with Solo Compass" footer.
+- [ ] OG image generated via `opengraph-image.tsx`: trip title + 3 experience thumbnails + Solo Compass logo.
+- [ ] Privacy: trips are public-by-default but only have a slug, no userId in URL; user can delete a trip from iOS Settings (cascades to Supabase).
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: visit a real trip URL, confirm content + OG.
+
+#### US-H9 (Scenario C): Share buttons + WeChat-friendly cards
+**Description:** As a user finishing a trip, I want to share the recap to WeChat / Twitter / 小红书 with one tap.
+
+**Acceptance Criteria:**
+- [ ] Trip page has a "Share" button that opens a sheet with: Copy link, WeChat (uses WeChat JSSDK if available, else QR code), Twitter (web intent), Weibo (web intent).
+- [ ] WeChat-friendly OG: `<meta property="og:image">` is at least 600x320 PNG; tested by pasting URL into WeChat dev tool's link debugger.
+- [ ] No sharing libraries beyond a small `apps/web/src/lib/share.ts` (no external deps).
+- [ ] Add `Web Share API` fallback for mobile browsers that support it.
+- [ ] Typecheck passes.
+- [ ] Verify in browser using dev-browser skill: click Share, confirm Twitter intent opens a window with the right URL prefilled.
+
+#### US-H10 (Scenario A + analytics): Web analytics — PostHog events
+**Description:** As a founder, I need 8 core web events tracked so I can run a conversion funnel.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/lib/analytics.tsx` already exists; ensure these events fire: `page_view` (auto), `city_view`, `experience_view`, `trip_view`, `marker_click`, `pin_to_compare`, `save_trip`, `download_ios_click`.
+- [ ] Each event includes `locale`, `referrer_domain`, and `device_class` (mobile/tablet/desktop).
+- [ ] PostHog dashboard configured with these 4 funnels: SEO → city page → experience → iOS install; SEO → trip view → iOS install; mobile preview → smart banner click; desktop research → save trip.
+- [ ] Document the funnel in `docs/WEB_ANALYTICS.md` with PostHog query links.
+- [ ] No PII tracked (no email, no IP — PostHog's `disable_ip_capture` set).
+- [ ] Typecheck passes.
+
+#### US-H11 (Scenario A): "Open in iOS" deep link
+**Description:** As a web user reading an experience or trip page, tapping "Open in iOS" should jump straight to that detail in the iOS app if installed.
+
+**Acceptance Criteria:**
+- [ ] iOS gains URL scheme registration: `solocompass://experience/<id>` and `solocompass://trip/<slug>` (via project.yml `info.URLTypes`).
+- [ ] iOS handles the URL by routing to the matching detail view; missing data triggers a fetch from Supabase first.
+- [ ] Web "Open in iOS" button on experience and trip pages: tries the custom scheme via a hidden iframe + 1.5s App Store fallback if scheme doesn't fire.
+- [ ] Universal Links (real `https://solocompass.app/experience/...` open in iOS app if installed): `apple-app-site-association` file at `apps/web/public/.well-known/apple-app-site-association` listing path patterns.
+- [ ] iOS Associated Domains entitlement added in `project.yml`.
+- [ ] Verify on simulator + device: tapping the link from Safari opens the iOS app at the correct screen.
+- [ ] Typecheck passes.
+
+#### US-H12: Vercel Edge caching + CDN strategy
+**Description:** As a high-traffic page operator, I need cache headers and edge-runtime configured so static pages don't hit Supabase repeatedly.
+
+**Acceptance Criteria:**
+- [ ] All RSC pages opt into Edge runtime where possible (`export const runtime = 'edge'` for read-only pages; keep Node for `/api/experiences/*` because Supabase SDK uses Node APIs).
+- [ ] Static pages have `Cache-Control: s-maxage=3600, stale-while-revalidate=86400`.
+- [ ] On-demand revalidation endpoint `/api/revalidate?secret=...&path=...` that's hit by a Supabase webhook when an Experience updates.
+- [ ] Vercel Analytics enabled to monitor cache hit ratio (target ≥ 80%).
+- [ ] Document cache strategy in `docs/WEB_DESIGN.md` updates.
+- [ ] Typecheck passes.
+
+#### US-H13: Web E2E Playwright suite for the 4 critical paths
+**Description:** As a quality gate, every PR runs a smoke test of the 4 Scenarios so we don't break them.
+
+**Acceptance Criteria:**
+- [ ] New `apps/web/tests/e2e/` directory with Playwright config.
+- [ ] Tests: (1) home → research view → pin 2 experiences → save trip; (2) `/zh/lisbon` renders Chinese content + correct hreflang; (3) `/experience/<id>` shows OG image meta; (4) mobile viewport shows smart banner + no voice button.
+- [ ] CI workflow `.github/workflows/web-ci.yml` runs `pnpm --filter @solo-compass/web test:e2e` on every PR; failure blocks merge.
+- [ ] Tests run against a Vercel preview URL (the workflow waits for the preview to be ready).
+- [ ] Typecheck passes.
+
+---
+
+### Epic I: Pre-Launch Operational Readiness
+
+> **Note:** Epic I is process work, not code. Each story produces a checked-in artifact (config file, doc, or external account in a documented state) so any team member can verify completion.
+
+#### US-I1: Mapbox account, production token, custom warm style
+**Description:** As an operator, I need a real Mapbox token (not the placeholder default) and a custom map style published.
+
+**Acceptance Criteria:**
+- [ ] Mapbox account created (free Studio tier; 50k map loads/month sufficient for beta).
+- [ ] Two access tokens generated: `production` (URL-restricted to `solocompass.app` and `*.vercel.app`), `development` (no restriction). Both stored in 1Password and Vercel env vars.
+- [ ] Custom style created in Mapbox Studio: warm cream basemap, muted street labels, terracotta highlights for selected POI. Style URL recorded in `apps/web/src/lib/map-style.ts`.
+- [ ] Document in `docs/WEB_OPS.md` how to rotate the token.
+
+#### US-I2: Supabase production project provisioned
+**Description:** As an operator, I need a Supabase production project ready before Epic E starts so iOS team can deploy migrations.
+
+**Acceptance Criteria:**
+- [ ] Supabase project `solo-compass-prod` created in Singapore region.
+- [ ] URL, anon key, service-role key recorded in 1Password and added to Vercel + iOS Secrets.plist (dev) and CI secrets (prod).
+- [ ] PITR (point-in-time recovery) enabled — minimum on Pro plan ($25/mo); spend justified in `docs/WEB_OPS.md`.
+- [ ] Database backups verified: trigger one manual backup and document the restore procedure.
+
+#### US-I3: Domain `solocompass.app` registered + DNS configured
+**Description:** As an operator, I need the production domain pointed at Vercel and Apple Universal Links domain verification ready.
+
+**Acceptance Criteria:**
+- [ ] Domain registered (Cloudflare Registrar or Porkbun, ~$15/yr).
+- [ ] DNS managed in Cloudflare; A/CNAME records to Vercel; `apple-app-site-association` served from `https://solocompass.app/.well-known/apple-app-site-association` with `Content-Type: application/json` and no extension (Cloudflare Worker if Vercel routing breaks it).
+- [ ] SSL via Cloudflare Universal SSL (free).
+- [ ] Mail forwarder set up: `support@solocompass.app` → personal email (Cloudflare Email Routing, free).
+- [ ] Document DNS records in `docs/WEB_OPS.md`.
+
+#### US-I4: App Store Connect — full account and IAP SKUs
+**Description:** As an operator, I need the App Store side fully configured weeks before TestFlight, because Apple reviews take time.
+
+**Acceptance Criteria:**
+- [ ] Apple Developer Program enrollment confirmed (existing — verify still active).
+- [ ] App Store Connect entry for `com.solocompass.app` created with name, subtitle, category Travel, age 4+.
+- [ ] In-App Purchase SKUs created and submitted for review:
+  - `com.solocompass.pro.monthly` — Apple price tier 2, P1M, 7-day intro free trial
+  - `com.solocompass.pro.yearly` — Apple price tier 11, P1Y, 7-day intro free trial
+- [ ] Subscription group "Solo Compass Pro" created; both SKUs in the same group.
+- [ ] Promotional artwork uploaded for each SKU.
+- [ ] App privacy questionnaire pre-filled (data types matching `PrivacyInfo.xcprivacy` from US-F1).
+
+#### US-I5: Privacy policy + terms of service drafted and hosted
+**Description:** As an App Store applicant + GDPR-aware founder, I need the legal docs live before any user-facing launch.
+
+**Acceptance Criteria:**
+- [ ] `apps/web/src/app/[locale]/privacy/page.tsx` and `terms/page.tsx` rendered as RSC pages, content in en + zh.
+- [ ] Privacy policy covers: location data (precise + coarse), device ID (Supabase anon UUID), purchases (StoreKit Transaction.id), diagnostics (Supabase events), AI processing (OpenStreetMap query, Anthropic processing), retention (30 days for AI cache; indefinite for user data until deletion request), third-party (Mapbox, Sentry, PostHog, Anthropic, OpenStreetMap, Apple).
+- [ ] Terms cover: subscription auto-renewal, refund policy (no manual refunds for quota usage; standard Apple refund channel), AI content disclaimer (AI-generated info may be wrong, verify on-site).
+- [ ] Both pages linked from iOS Settings, web footer, and paywall.
+- [ ] First version drafted by hand using a template (Termly free tier or Iubenda). Document review: at least one trusted reader signs off.
+
+#### US-I6: Anthropic production API key + cost monitoring
+**Description:** As an operator, I need a separate production Anthropic key with spend alerts so a runaway loop doesn't bankrupt me.
+
+**Acceptance Criteria:**
+- [ ] Anthropic Console: production workspace separate from dev. New key issued with `prod-` prefix in name.
+- [ ] Spend limits set: $50/month soft alert (email), $200/month hard cap.
+- [ ] Prompt caching enabled (cache the system prompt and few-shot examples — saves 50–80% on repeated calls).
+- [ ] Key stored in Supabase Edge Function secrets (US-E4) and Vercel env vars (for any web-side AI calls); never committed.
+- [ ] Document key rotation procedure in `docs/WEB_OPS.md`.
+
+#### US-I7: Sentry + PostHog production projects
+**Description:** As an operator, I need observability dashboards live before beta so I see what breaks.
+
+**Acceptance Criteria:**
+- [ ] Sentry project `solo-compass-web` (Next.js platform) and `solo-compass-ios` (Apple platform) created. DSNs in 1Password + Vercel + iOS.
+- [ ] PostHog project `solo-compass` created (free tier sufficient for first 1M events).
+- [ ] Error budget alerts: Sentry alerts on > 10 unique errors/hour to email.
+- [ ] PostHog dashboards: 4 funnels documented in US-H10.
+- [ ] `disable_ip_capture: true` set on PostHog client to comply with GDPR posture.
+
+#### US-I8: Customer support inbox + response templates
+**Description:** As a paying-customer-supporter, I need a working inbox and ready-made replies for the 5 most likely questions.
+
+**Acceptance Criteria:**
+- [ ] `support@solocompass.app` forwarder live (US-I3).
+- [ ] Helpdesk: HelpScout free trial OR a single Notion shared inbox; documented in `docs/SUPPORT.md`.
+- [ ] Response templates drafted in `docs/SUPPORT.md`: subscription cancellation (must not retain — Apple rule), refund requested for AI quota use (politely decline, link to Apple's refund flow), AI gave wrong info (apologize, ask for the experience id, file an internal ticket), can't restore purchase, account deletion request (GDPR — within 30 days).
+
+#### US-I9: Beta tester recruitment list + TestFlight invitations
+**Description:** As a beta organizer, I need 20 named testers with diverse profiles so feedback covers our real audience.
+
+**Acceptance Criteria:**
+- [ ] `docs/BETA.md` lists 20+ testers with: name, locale (en or zh), iOS device class, expected use case (commuter / solo traveler abroad / casual user), recruitment source.
+- [ ] At least 5 testers physically located outside Chiang Mai (the curated city) so we test the cold-start experience.
+- [ ] At least 5 zh-Hans-primary testers.
+- [ ] TestFlight external testing group created; first 20 invitations sent on `v1.1.0-beta.1` upload.
+- [ ] Feedback collection: a Notion form (or Supabase table-backed Tally form) linked from in-app Settings → "Send feedback".
+
+#### US-I10: AI cost dashboard + weekly review cadence
+**Description:** As a founder watching unit economics, I need a weekly automated cost report so I catch surprises early.
+
+**Acceptance Criteria:**
+- [ ] Supabase scheduled Edge Function `weekly-cost-report` runs every Monday 09:00 SGT: queries `subscription_events`, `solo_score_signals`, and Anthropic usage (via API), emits a Markdown report.
+- [ ] Report posted to Slack or sent by email.
+- [ ] Tracked metrics: total Claude spend ($), spend per Pro user ($/user/day), cache hit rate (% of synthesis requests served from cache), trial conversion rate (%).
+- [ ] First baseline report generated manually before beta.1; subsequent reports automated.
+- [ ] Document the report template in `docs/WEB_OPS.md`.
+
+#### US-I11: Launch announcement materials
+**Description:** As a launching founder, I need the press / social / community materials ready 1 week before GA.
+
+**Acceptance Criteria:**
+- [ ] Product Hunt launch description (en) drafted in `docs/LAUNCH.md` — includes tagline, 4 bullets, top features, founder story (3 sentences).
+- [ ] Twitter/X launch thread (5 tweets) drafted en.
+- [ ] 小红书 post drafted zh — 1 cover image + 4 paragraphs of body.
+- [ ] V2EX post drafted zh.
+- [ ] One 30-second screen-recording demo (no music, no narration) saved to `docs/launch-assets/`.
+- [ ] All materials reviewed by at least one trusted reader before GA.
+
+#### US-I12: GA cutover runbook
+**Description:** As an operator on launch day, I need a runbook so I don't forget a step under pressure.
+
+**Acceptance Criteria:**
+- [ ] `docs/RUNBOOK.md` containing: pre-flight checklist (24h before GA), launch-day steps in order, rollback procedure if a P0 surfaces, contact tree.
+- [ ] Pre-flight checklist verifies: Supabase backups working, App Store Connect status "Ready for sale", Vercel deployment green, sitemap submitted to Google, all docs URLs resolve, customer support inbox monitored, AI quota not depleted.
+- [ ] Post-launch monitoring: 6 hours of active watch over Sentry + PostHog + Anthropic spend dashboards.
+- [ ] First 24h customer-support SLA: respond to every email within 4 hours.
+
+---
+
 ## 4. Functional Requirements
 
 ### Persistence
@@ -413,13 +762,41 @@ The ultimate target: a v1.1 iOS build that can stand on its own in the App Store
 - **FR-22:** First-run consent sheet required before Explore Here ever sends coordinates off-device; revocable in Settings.
 - **FR-23:** Privacy policy URL configured in `Info.plist` and reachable.
 
+### Web foundation
+- **FR-26:** `apps/web` reads from the same Supabase project as iOS (`synthesized_experiences`, `osm_pois`, `cities`, `trips`); no SVG / hardcoded fake data in production routes.
+- **FR-27:** Multi-locale routing: every public route is prefixed with `/en/` or `/zh/`; `/` redirects based on `Accept-Language`. Locale switching preserves the rest of the path.
+- **FR-28:** Every public page is server-rendered (RSC) and indexable; client-side-only views are limited to interactive map/research routes that are not SEO targets.
+- **FR-29:** Mapbox token is environment-validated, domain-locked in production, and stored only in Vercel + 1Password — never committed.
+- **FR-30:** Every web mutation goes through an authenticated `/api/...` route; client components never call Supabase directly with the service-role key.
+
+### Web product surfaces
+- **FR-31:** Scenario A (research) requires viewport ≥ 1024px to show the 3-column layout; below that, falls back to Scenario B mobile layout.
+- **FR-32:** Scenario B (mobile preview) hides voice and Pro-gated features and surfaces a smart App Store banner.
+- **FR-33:** Scenario C (trip recap) URLs are public-by-default with slug-only paths; user can delete a trip from iOS Settings; deletion cascades server-side and triggers ISR revalidation within 60 s.
+- **FR-34:** Scenario D (SEO) generates static city + experience + trip pages via ISR; Lighthouse SEO ≥ 90 on every public route; sitemap covers all locales; canonical + hreflang tags present.
+
+### Cross-platform integration
+- **FR-35:** `solocompass://experience/<id>` and `solocompass://trip/<slug>` URL schemes registered in iOS; web "Open in iOS" buttons attempt scheme + 1.5 s App Store fallback.
+- **FR-36:** Universal Links: `apps/web/public/.well-known/apple-app-site-association` lists path patterns matching iOS Associated Domains entitlement; tapping `https://solocompass.app/experience/<id>` from any iOS app opens the iOS app at the matching screen if installed.
+- **FR-37:** A single `cities` table powers both iOS city picker and web `/[locale]/[city]` static pages — populated by a nightly Supabase function.
+
+### Operational
+- **FR-38:** Anthropic spend has a hard cap of $200/month enforced by Anthropic Console; alerts at $50/month go to founder email.
+- **FR-39:** Vercel deploy region is Singapore (`sin1` or `hnd1`).
+- **FR-40:** Every public-facing legal/help URL (privacy, terms, support) resolves before GA and is linked from at least three places (iOS Settings, web footer, paywall).
+- **FR-41:** Weekly automated cost report runs every Monday 09:00 SGT and is delivered to founder.
+
 ---
 
 ## 5. Non-Goals (Out of Scope)
 
 - **No social graph.** No friends, no public profiles, no following, no likes from other users.
-- **No web app or bot in this PRD.** Supabase schema is shared so they can land later, but `apps/web` and `apps/bot` are not built in v1.1.
+- **No bot in this PRD.** `apps/bot` (Telegram) is parked; Supabase schema is shared so it can land later.
 - **No mandatory sign-in.** Sign-in-with-Apple is optional (US-E6) and only used to upgrade an anonymous account. The default flow stays anonymous.
+- **No web payments in v1.0.** All paid features stay iOS-only via StoreKit. The web app's role is discovery, SEO, and recap — not monetization. (Web payments via Stripe is v1.2+.)
+- **No native Android in this cycle.** Web Scenario B already covers "non-iOS users" with a frictionless mobile preview + App Store banner.
+- **No CMS for editorial city content.** City intros come from a small `cities` Supabase table edited via SQL by the founder; full editorial CMS is post-launch.
+- **No user-generated content on web.** Comments, ratings, photos uploaded by users on web are out of scope. All user input continues through the iOS app via micro-survey + check-ins.
 - **No offline basemap tiles.** Offline mode shows pins and detail data on Apple's blank basemap; downloading MapKit tiles is post-v1.1.
 - **No third-party POI sources** beyond OpenStreetMap (no Foursquare, Google Places, Yelp, TripAdvisor).
 - **No human moderation queue** for AI content in v1.1; rely on prompt constraints + visual downgrade. Moderation is v1.2.
@@ -547,52 +924,247 @@ The ultimate target: a v1.1 iOS build that can stand on its own in the App Store
 
 ## 10. Sequencing Summary
 
-| Week | Focus | Branches | Deliverable |
+> **Note:** Epic I (operational readiness) runs **in parallel** with engineering weeks 1–10, not sequentially. Account creation, domain registration, App Store SKU review all have lead times that block GA if started late.
+
+| Week | Engineering focus | Ops parallel work | Deliverable |
 |---|---|---|---|
-| 1 | Epic A: Persistence | `feat/persistence-swiftdata` | All data on disk; no UX change |
-| 2 | Epic B: Cost control | `feat/ai-cost-control` | Sonnet default + caching live |
-| 3 | Epic C: Trust UX | `feat/explore-trust` | Visual downgrade + reverse geocode + survey feedback |
-| 4 | Epic D: StoreKit | `feat/freemium-paywall` | Paywall live behind FF |
-| 5 | Epic E: Supabase | `feat/backend-sync` | Server cache + sync + key removed from client + optional Apple ID link (US-E6) |
-| 6 | Epic F: Store prep | `feat/app-store-prep` | TestFlight beta.1 |
-| 7-8 | Beta feedback | hot-fix branches | `v1.1.0` GA |
+| 0 (now) | Branch off `main` | I1–I4 started: Mapbox account, Supabase project, domain registered, App Store dev account verified | Accounts created |
+| 1 | Epic A: Persistence (`feat/persistence-swiftdata`) | I5 drafting: privacy policy + terms | All iOS data on disk; no UX change |
+| 2 | Epic B: Cost control (`feat/ai-cost-control`) | I6: Anthropic prod key + spend caps | Sonnet default + caching live |
+| 3 | Epic C: Trust UX (`feat/explore-trust`) | I7: Sentry/PostHog prod projects | Visual downgrade + reverse geocode + survey feedback |
+| 4 | Epic D: StoreKit (`feat/freemium-paywall`) | I4: App Store IAP SKUs submitted | Paywall live behind FF |
+| 5 | Epic E: Supabase (`feat/backend-sync`) | I2 verified: prod Supabase ready | Server cache + sync + key removed from client + optional Apple ID link |
+| 6 | Epic F: iOS store prep (`feat/app-store-prep`) | I5 published: privacy + terms live on web | iOS feature-complete |
+| 7 | Epic G: Web foundation (`feat/web-foundation`) | I3 verified: domain + DNS + SSL | Real Supabase + Mapbox on web |
+| 8 | Epic H1–H3 (`feat/web-seo`) | I8: customer support inbox | SEO city + experience pages live |
+| 9 | Epic H4–H7 (`feat/web-research-mobile`) | I9: beta tester list finalized | Scenarios A + B done |
+| 10 | Epic H8–H13 (`feat/web-trips-deeplink`) | I10: cost dashboard automated | Scenarios C + cross-platform deep links |
+| 11 | Tag `v1.1.0-beta.1` (iOS) + web preview push | I11: launch announcements drafted | TestFlight beta.1 + staging web |
+| 12 | Beta feedback hot-fixes (iOS + web) | I12: GA runbook drafted + reviewed | Beta.2 + iteration |
+| 13 | Tag `v1.1.0` GA (iOS) + web prod deploy | I12 executed: launch day | Public launch |
+
+**Critical-path dependencies** (block downstream work if late):
+- I3 (domain) blocks I5 (privacy URL) blocks Epic F US-F1.
+- I4 (App Store SKUs) blocks Epic D US-D1.
+- I2 (Supabase prod) blocks Epic E and Epic G.
+- I1 (Mapbox token) blocks Epic G US-G1 and Epic H1–H4.
+
+**Parallelization rules:**
+- iOS engineering and web engineering do NOT share a developer day-to-day; weeks 7–10 are dedicated web-only sprints once iOS is feature-complete (week 6).
+- Operational work (Epic I) is 1–2 hours per day from week 0, mostly waiting on external reviews, not blocking engineering throughput.
 
 ---
 
 ## 11. Appendix — Files Touched (estimated)
 
-**New files (~25):**
-- `Persistence/SoloCompassModelContainer.swift`
-- `Persistence/Models/*.swift` (~13 `@Model` classes)
-- `Persistence/ExperienceRepository.swift`
-- `Persistence/SyncService.swift`
-- `Services/SubscriptionService.swift`
-- `Services/ReverseGeocodeService.swift`
-- `Services/SupabaseClient.swift`
-- `Views/Paywall/PaywallView.swift`
-- `Views/Onboarding/ExploreConsentSheet.swift`
-- `Resources/zh-Hans.lproj/Localizable.strings`
-- `Resources/Configuration.storekit`
-- `Resources/PrivacyInfo.xcprivacy`
-- `infra/supabase/migrations/0001_init.sql`
-- `infra/supabase/functions/synthesize-experiences/index.ts`
-- `docs/APP_STORE.md`, `docs/BETA.md`, `docs/PRIVACY.md`
-- `tests/persistence/`, `tests/subscription/`, `tests/sync/`
+### iOS new (~25)
+- `apps/ios/SoloCompass/Persistence/SoloCompassModelContainer.swift`
+- `apps/ios/SoloCompass/Persistence/Models/*.swift` (~13 `@Model` classes)
+- `apps/ios/SoloCompass/Persistence/ExperienceRepository.swift`
+- `apps/ios/SoloCompass/Services/SyncService.swift`
+- `apps/ios/SoloCompass/Services/SubscriptionService.swift`
+- `apps/ios/SoloCompass/Services/ReverseGeocodeService.swift`
+- `apps/ios/SoloCompass/Services/SupabaseClient.swift`
+- `apps/ios/SoloCompass/Views/Paywall/PaywallView.swift`
+- `apps/ios/SoloCompass/Views/Onboarding/ExploreConsentSheet.swift`
+- `apps/ios/SoloCompass/Resources/zh-Hans.lproj/Localizable.strings`
+- `apps/ios/SoloCompass/Resources/Configuration.storekit`
+- `apps/ios/SoloCompass/Resources/PrivacyInfo.xcprivacy`
 
-**Modified (~12):**
+### iOS modified (~12)
 - `Services/AIService.swift` — model config + cache + Edge Function call
 - `Services/OverpassService.swift` — cache integration
 - `Services/ExperienceService.swift` — repo facade
-- `ViewModels/MapViewModel.swift` — entitlement gates + auto city switch
+- `ViewModels/MapViewModel.swift` — entitlement gates + auto city switch + deep-link routing
 - `ViewModels/ExperienceDetailViewModel.swift` — survey writeback
 - `Views/Map/CompassMapView.swift` — paywall sheet, banner upgrades
 - `Views/Map/MarkerIconView.swift` — confidence-1 visual downgrade
 - `Views/Experience/ExperienceDetailView.swift` — paywall teaser, source link
-- `Models/UserPreferences.swift` — quota fields, consent flags
-- `App/SoloCompassApp.swift` — ModelContainer, SubscriptionService injection
-- `project.yml` — capabilities (in-app purchase, Supabase URL config)
+- `Models/UserPreferences.swift` — quota fields, consent flags, trip prompts
+- `App/SoloCompassApp.swift` — ModelContainer, SubscriptionService, URL handler
+- `project.yml` — capabilities (in-app purchase, Supabase, Sign-in-with-Apple, Associated Domains, URL types)
 - `packages/core/src/experience.ts` — schema parity
+
+### Web new (~22)
+- `apps/web/src/app/[locale]/[city]/page.tsx` — Scenario D
+- `apps/web/src/app/[locale]/experience/[id]/page.tsx` — Scenario D
+- `apps/web/src/app/[locale]/experience/[id]/opengraph-image.tsx` — relocated under locale
+- `apps/web/src/app/[locale]/trip/[slug]/page.tsx` — Scenario C
+- `apps/web/src/app/[locale]/trip/[slug]/opengraph-image.tsx` — relocated under locale
+- `apps/web/src/app/[locale]/research/page.tsx` — Scenario A
+- `apps/web/src/app/[locale]/privacy/page.tsx`
+- `apps/web/src/app/[locale]/terms/page.tsx`
+- `apps/web/src/app/sitemap.ts`
+- `apps/web/src/app/robots.ts`
+- `apps/web/src/app/api/revalidate/route.ts`
+- `apps/web/src/components/ui/*.tsx` — shared shadcn primitives
+- `apps/web/src/components/research/*.tsx` — pinboard, compare modal
+- `apps/web/src/components/trip/*.tsx` — recap card, share sheet
+- `apps/web/src/lib/i18n/{en,zh}.json`
+- `apps/web/src/lib/i18n/use-translation.ts`
+- `apps/web/src/lib/share.ts`
+- `apps/web/public/.well-known/apple-app-site-association`
+- `apps/web/tests/e2e/*.spec.ts` — Playwright suite
+- `apps/web/.env.local.example`
+
+### Web modified (~10)
+- `apps/web/README.md` — status header from Foundation to Production target
+- `apps/web/src/app/page.tsx` — redirect to locale-aware route
+- `apps/web/src/app/layout.tsx` — i18n + canonical/hreflang
+- `apps/web/src/app/api/experiences/nearby/route.ts` — accept categories + hour params
+- `apps/web/src/components/MapView.tsx` — real Mapbox style + warm palette
+- `apps/web/src/components/lisbon/WebLisbonMap.tsx` — replaced with real Mapbox
+- `apps/web/src/lib/env.ts` — extended schema
+- `apps/web/src/lib/repos.ts` — trips repo added
+- `apps/web/tailwind.config.ts` — warm palette tokens
+- `apps/web/next.config.ts` — i18n + image domains
+
+### Infra new (~6)
+- `infra/supabase/migrations/0001_init.sql` — full schema
+- `infra/supabase/migrations/0002_trips_cities.sql` — trips + cities tables
+- `infra/supabase/functions/synthesize-experiences/index.ts`
+- `infra/supabase/functions/aggregate-solo-scores/index.ts`
+- `infra/supabase/functions/create-trip/index.ts`
+- `infra/supabase/functions/weekly-cost-report/index.ts`
+
+### Docs new (~10)
+- `docs/APP_STORE.md`, `docs/BETA.md`, `docs/PRIVACY.md`, `docs/SUPPORT.md`
+- `docs/WEB_OPS.md` — Mapbox / Vercel / domain operations
+- `docs/WEB_ANALYTICS.md` — PostHog funnel queries
+- `docs/RUNBOOK.md` — GA cutover
+- `docs/LAUNCH.md` — announcement copy
+- `docs/launch-assets/` — demo video + screenshots
+- `docs/CHANGELOG.md` updated for v1.1.0
+
+### CI new
+- `.github/workflows/web-ci.yml`
 
 ---
 
-*End of PRD. Implementation starts on `feat/persistence-swiftdata` after PRD approval.*
+---
+
+## 12. Pre-Launch Operational Readiness — What @cubxxw Needs to Prepare
+
+> **Why this section exists:** Engineering can't ship without external accounts, domains, and reviews that have their own clocks. This is your week-by-week prep list. It is also encoded as Epic I user-stories above, but here we list the practical steps in chronological order so you don't lose them.
+
+### Week 0 (this week — start NOW)
+
+**Time-sensitive (have multi-day external review):**
+
+1. **Mapbox account + production token** *(US-I1)*
+   - Sign up at https://account.mapbox.com (free tier covers 50k loads/month).
+   - Create two access tokens: `production` (URL-restrict to `solocompass.app` and `*.vercel.app`), `development` (no restriction).
+   - Save both in 1Password under "Solo Compass / Mapbox".
+   - **Why now:** any web work after week 7 needs this; if you start in week 7 you'll waste a day waiting on email verification + studio onboarding.
+
+2. **Supabase production project** *(US-I2)*
+   - Create project `solo-compass-prod` in Singapore (`ap-southeast-1`).
+   - Save URL, anon key, service-role key in 1Password.
+   - Enable PITR (Pro plan, $25/month — pay it; restoring without PITR is impossible).
+   - **Why now:** Epic E (week 5) blocks on this. Setup is 30 minutes but provisioning the DB takes ~10 minutes and Pro plan upgrade requires a card.
+
+3. **Domain registration** *(US-I3)*
+   - Register `solocompass.app` (Cloudflare Registrar or Porkbun, ~$15/year).
+   - Set up Cloudflare DNS (free).
+   - Set up Cloudflare Email Routing: `support@solocompass.app` → your personal email (free).
+   - **Why now:** privacy policy URL, App Store metadata, and Universal Links all depend on this. DNS propagation is < 1 hour, but the registration itself can hit 24h holds.
+
+4. **Apple Developer Program + App Store Connect** *(US-I4)*
+   - Confirm enrollment is active ($99/year).
+   - Create App Store Connect app entry for `com.solocompass.app`.
+   - Create In-App Purchase SKUs: `com.solocompass.pro.monthly` (price tier 2), `com.solocompass.pro.yearly` (price tier 11). Submit them — they need ~24h review.
+   - **Why now:** SKU review is a hard 24–48h external dependency. If you skip this in week 0, Epic D (week 4) is blocked.
+
+**Estimated week 0 time investment:** 4–6 hours total, mostly waiting on emails.
+
+---
+
+### Weeks 1–6: Background ops while iOS engineering happens
+
+5. **Privacy policy + terms of service** *(US-I5)*
+   - Use Termly or Iubenda free tier ($0–$30/year).
+   - Cover: location data, device ID, purchases, Anthropic processing, Mapbox/Sentry/PostHog, retention windows, deletion process, third-party links.
+   - Host them on `apps/web` once Epic G lands; until then, link to a placeholder Notion page from `Info.plist`.
+   - **Deadline:** must be live before TestFlight beta.1 (week 11).
+
+6. **Anthropic production key + spend caps** *(US-I6)*
+   - Anthropic Console → create production workspace → new key.
+   - Set monthly spend cap: $200 hard, $50 soft alert (email).
+   - Enable prompt caching on the synthesis prompt (saves 50–80% on repeated calls).
+   - **Deadline:** before Epic E US-E4 lands (week 5).
+
+7. **Sentry + PostHog production projects** *(US-I7)*
+   - Sentry: separate projects for web (Next.js) and iOS (Apple).
+   - PostHog: one project, both surfaces report into it.
+   - Set Sentry alert: > 10 unique errors/hour → email.
+   - **Deadline:** before web work begins (week 7).
+
+8. **Customer support inbox + reply templates** *(US-I8)*
+   - HelpScout free trial OR Notion shared inbox.
+   - Draft replies for: subscription cancellation, refund decline (AI quota), AI-was-wrong reports, restore-purchase failure, account deletion (GDPR).
+   - **Deadline:** before beta tester invitations (week 11).
+
+---
+
+### Weeks 7–10: Web engineering + final ops
+
+9. **Beta tester recruitment** *(US-I9)*
+   - List 20+ named testers in `docs/BETA.md`. Mix: en/zh primary, abroad/local, casual/power users.
+   - Send TestFlight invitations on `v1.1.0-beta.1` upload (week 11).
+
+10. **Cost dashboard automation** *(US-I10)*
+    - Supabase scheduled function emits weekly Markdown report.
+    - First report manually generated before beta.1 to set baseline.
+
+---
+
+### Weeks 11–13: Launch sequence
+
+11. **Launch announcement materials** *(US-I11)*
+    - Product Hunt description, Twitter thread, 小红书 post, V2EX post, 30-second demo video.
+    - All drafted by week 11 end; reviewed by trusted reader.
+    - Schedule Product Hunt launch for a Tuesday (best traffic).
+
+12. **GA cutover runbook** *(US-I12)*
+    - `docs/RUNBOOK.md`: pre-flight check, launch-day steps, rollback procedure, contact tree.
+    - Walk through it manually once before launch day.
+
+---
+
+### Money you should expect to spend in 13 weeks
+
+| Item | Cost | When |
+|---|---|---|
+| Domain | $15/yr | Week 0 |
+| Apple Developer Program (already paid?) | $99/yr | Verify week 0 |
+| Supabase Pro (PITR) | $25/mo × 4 = $100 | Week 0–13 |
+| Mapbox | $0 (free tier) | — |
+| Vercel | $0 (Hobby tier sufficient until > 100GB bandwidth) | — |
+| Cloudflare DNS + Email | $0 | — |
+| Anthropic during beta | ~$50 | Week 5–11 (mostly internal testing) |
+| Anthropic post-launch | $50–200/mo | Week 11+ |
+| Sentry free tier | $0 (until 10k errors/mo) | — |
+| PostHog free tier | $0 (until 1M events/mo) | — |
+| Privacy policy generator | $30 | Week 1 |
+| **Total committed before GA** | **~$200** | — |
+| **Recurring after GA** | **~$75–225/month** | — |
+
+You should expect to **lose money for 6+ months** — pre-launch burn ~$200, ongoing ~$150/month, against ~$1.70 monthly subscription revenue per user. Break-even depends on getting yearly subscriptions ($14.99) plus achieving > 50% AI cache hit rate. Plan for ¥10,000–20,000 of float.
+
+---
+
+### Decision points where I'll bug you
+
+These are the things I genuinely can't decide for you:
+
+- **Week 0:** Do you want to register `solocompass.app`, or is there an alternative domain you prefer?
+- **Week 1:** Use Termly free + manual edits, or pay Iubenda $9/month for a hosted policy that auto-updates?
+- **Week 4:** Want to manually approve the App Store metadata copy, or trust me to draft + submit?
+- **Week 11:** Beta tester list — do you have 20 names, or should I draft a recruitment Tweet/post for you to send?
+- **Week 13:** Launch day — Product Hunt + 小红书 + V2EX simultaneously, or stagger over 3 days?
+
+I'll surface these as decisions when we hit each week.
+
+---
+
+*End of PRD. Implementation starts on `feat/persistence-swiftdata` after PRD approval. Operational work in Epic I starts THIS WEEK in parallel — see Section 12 above.*
