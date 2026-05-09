@@ -35,6 +35,10 @@
 "solo.ambiance" = "Ambiance fits solo";
 "solo.safety" = "Safety alone";
 "solo.basedOn" = "Based on %d solo travelers";
+"solo.basedOn.early" = "Based on %d early reports";
+"solo.estimate.pill" = "AI estimate";
+"solo.section.estimate" = "Solo Score (AI estimate)";
+"solo.section.early" = "Solo Score (early)";
 
 /* Sections */
 "section.whyItMatters" = "Why it matters";
@@ -240,6 +244,8 @@
 "explore.skeleton.oneLiner" = "A real spot pulled from OpenStreetMap.";
 "explore.skeleton.why" = "We don't have a curated story for this place yet. Visit, then add what you found.";
 "explore.quota.dailyLimit" = "Daily AI limit reached. Showing real places without enrichment until tomorrow.";
+"explore.toast.addedNamed" = "Now exploring %1$@ · %2$d places added";
+"explore.toast.added" = "%d places added near you";
 
 /* Overpass errors */
 "overpass.error.url" = "Overpass endpoint URL is invalid.";

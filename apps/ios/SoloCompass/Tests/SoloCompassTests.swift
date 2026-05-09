@@ -863,6 +863,73 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requestCount, 2, "after clear, second call hits network again")
     }
 
+    // MARK: - US-016 ReverseGeocodeService slug
+
+    func testReverseGeocodeSlugifyHandlesDiacriticsAndSpaces() {
+        XCTAssertEqual(ReverseGeocodeService.slugify("Hà Nội"), "ha-noi")
+        XCTAssertEqual(ReverseGeocodeService.slugify("New York"), "new-york")
+        XCTAssertEqual(ReverseGeocodeService.slugify("São Paulo"), "sao-paulo")
+        XCTAssertEqual(ReverseGeocodeService.slugify("  Trim  Me  "), "trim-me")
+        XCTAssertEqual(ReverseGeocodeService.slugify("123-Main"), "123-main")
+        XCTAssertEqual(ReverseGeocodeService.slugify(""), "")
+    }
+
+    // MARK: - US-018 marker low-confidence visual
+
+    func testMarkerIconViewLowConfidenceFlag() {
+        let normal = MarkerIconView(category: .food, state: .default, confidenceLevel: 4)
+        let low = MarkerIconView(category: .food, state: .default, confidenceLevel: 1)
+        XCTAssertFalse(normal.isLowConfidence)
+        XCTAssertTrue(low.isLowConfidence)
+    }
+
+    // MARK: - US-020 aggregated solo score
+
+    func testAggregatedSoloScoreReturnsNilWhenNoSurveys() {
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        XCTAssertNil(repo.aggregatedSoloScore(experienceId: "exp_unsurveyed", seedOverall: 8.0))
+    }
+
+    func testAggregatedSoloScoreBlendsLocalSurveysWithSeed() throws {
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        let id = "exp_surveyed"
+
+        repo.recordSurvey(
+            experienceId: id, comfort: 5, pressure: 4, recommend: "yes", anonDeviceId: "d1"
+        )
+        repo.recordSurvey(
+            experienceId: id, comfort: 4, pressure: 5, recommend: "yes", anonDeviceId: "d2"
+        )
+
+        let agg = try XCTUnwrap(repo.aggregatedSoloScore(experienceId: id, seedOverall: 8.0))
+        // (4.5 + 4.5) / 2 = 4.5 raw → *2 = 9.0 local-on-ten
+        // 8.0 * 0.5 + 9.0 * 0.5 + 0.5 (recommend boost) = 9.0
+        XCTAssertEqual(agg.overall, 9.0, accuracy: 0.01)
+        XCTAssertEqual(agg.count, 2)
+    }
+
+    func testRecordDiscoveredCityIsIdempotent() {
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+
+        repo.recordDiscoveredCity(
+            cityCode: "vn-hanoi", name: "Hanoi", countryCode: "vn",
+            center: (lat: 21.0285, lon: 105.8542)
+        )
+        repo.recordDiscoveredCity(
+            cityCode: "vn-hanoi", name: "Hanoi", countryCode: "vn",
+            center: (lat: 21.03, lon: 105.85)
+        )
+        let cities = repo.allDiscoveredCities()
+        XCTAssertEqual(cities.count, 1, "second insert with same cityCode should upsert, not duplicate")
+        XCTAssertEqual(cities[0].centerLat, 21.03, accuracy: 0.001)
+    }
+
     // MARK: - US-010 generated experiences survive across service instances
 
     func testGeneratedExperiencesPersistAcrossServiceInstances() {
