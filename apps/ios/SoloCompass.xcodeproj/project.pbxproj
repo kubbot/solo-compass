@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		0A830B26D4A18948D16F3A42 /* Experience.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C97F8159A6FA7953D28DAB /* Experience.swift */; };
+		116FF0278F882D45402B0E78 /* ExperienceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03076AD221F78BBDE981C3A /* ExperienceRecord.swift */; };
+		13E5AEAEE5194DDB79AE92AC /* SoloCompassModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5435FBA9527C07A9FB07D46 /* SoloCompassModelContainer.swift */; };
 		214AF641496E8E50E3EC5FE4 /* MicroSurveySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA6E405C780A5A12A9FC1D6 /* MicroSurveySheet.swift */; };
 		240FFFC4A2B2B8F941129783 /* ConfidenceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8F9EFD56A2C839428AA92D /* ConfidenceBadge.swift */; };
 		28E3EB1BFFB0A73A1C56FD54 /* MarkerIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E0157D30FF53B21FF31D519 /* MarkerIconView.swift */; };
@@ -71,6 +73,7 @@
 		8FDFA5F3503B8ABC4B5CB086 /* SoloCompassTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SoloCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9945A4E03F4C75ED89674594 /* SoloCompass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SoloCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9E8ABF85EEFDF9969C94B441 /* VoiceButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceButton.swift; sourceTree = "<group>"; };
+		A5435FBA9527C07A9FB07D46 /* SoloCompassModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloCompassModelContainer.swift; sourceTree = "<group>"; };
 		BA6A3144D85CDAD01FA0FECB /* CompassMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassMapView.swift; sourceTree = "<group>"; };
 		BC185539C95D5D940693BCB7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C14A22A40550CF207AB36C18 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -80,6 +83,7 @@
 		C660F7996B1E4387C37720B3 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		CF9D63763EFB0BE589EA0470 /* DeviceIdentityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentityService.swift; sourceTree = "<group>"; };
 		D5B8BA7FFBD93A01E54B7E4A /* ExperienceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceDetailView.swift; sourceTree = "<group>"; };
+		E03076AD221F78BBDE981C3A /* ExperienceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceRecord.swift; sourceTree = "<group>"; };
 		E71DE291BE5569E719413B74 /* SoloCompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloCompassApp.swift; sourceTree = "<group>"; };
 		EB579F3F4EBBA014AA306DD1 /* SoloScoreBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloScoreBadge.swift; sourceTree = "<group>"; };
 		EC8F9EFD56A2C839428AA92D /* ConfidenceBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidenceBadge.swift; sourceTree = "<group>"; };
@@ -146,6 +150,7 @@
 			children = (
 				A982DC3911EF3A3A47764759 /* App */,
 				5B71CF70956BBC9E4305202E /* Models */,
+				7E2FB1BFAED4DC291176B347 /* Persistence */,
 				AF2168B6372E0B357D17732C /* Resources */,
 				68417DC1101B6DFD2DB9673C /* Services */,
 				66EE2097358C0479C8454592 /* ViewModels */,
@@ -161,6 +166,14 @@
 				8FDFA5F3503B8ABC4B5CB086 /* SoloCompassTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		52030ED9E37422E080A28183 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				E03076AD221F78BBDE981C3A /* ExperienceRecord.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		5B71CF70956BBC9E4305202E /* Models */ = {
@@ -193,6 +206,15 @@
 				120FC7465285714C5FA8F96D /* VoiceService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		7E2FB1BFAED4DC291176B347 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				A5435FBA9527C07A9FB07D46 /* SoloCompassModelContainer.swift */,
+				52030ED9E37422E080A28183 /* Models */,
+			);
+			path = Persistence;
 			sourceTree = "<group>";
 		};
 		8D1441732E5DC5479DD56C18 = {
@@ -374,6 +396,7 @@
 				56F3055416F4A5316100F9B2 /* ExperienceCardView.swift in Sources */,
 				CF8B2BDE6D707CE2537C8688 /* ExperienceDetailView.swift in Sources */,
 				A84320715E7CBDA91FC3F26F /* ExperienceDetailViewModel.swift in Sources */,
+				116FF0278F882D45402B0E78 /* ExperienceRecord.swift in Sources */,
 				E7B5B022519434F7C07818CF /* ExperienceService.swift in Sources */,
 				E881A71769542A7C58CF5D10 /* FavoritesListView.swift in Sources */,
 				297541149234668D12EAF272 /* FilterBarView.swift in Sources */,
@@ -388,6 +411,7 @@
 				EF2003CC07F7787C25847BDF /* ReportIssueSheet.swift in Sources */,
 				58B7C9B20945838F81081941 /* SettingsView.swift in Sources */,
 				E5F463CE3CE822F7F96CA82C /* SoloCompassApp.swift in Sources */,
+				13E5AEAEE5194DDB79AE92AC /* SoloCompassModelContainer.swift in Sources */,
 				86F4628473C2D520D4C2FFFB /* SoloScoreBadge.swift in Sources */,
 				C2C0AF72D709EDC17C6ED874 /* UserPreferences.swift in Sources */,
 				BD5BB6BD7FCBDB30282F28FA /* VoiceButton.swift in Sources */,

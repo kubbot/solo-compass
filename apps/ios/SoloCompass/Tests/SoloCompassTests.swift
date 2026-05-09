@@ -1,5 +1,6 @@
 import XCTest
 import CoreLocation
+import SwiftData
 @testable import SoloCompass
 
 final class SoloCompassTests: XCTestCase {
@@ -324,5 +325,47 @@ final class SoloCompassTests: XCTestCase {
         let hanoi = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
         let tokyo = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
         XCTAssertNotEqual(MapViewModel.cityCode(for: hanoi), MapViewModel.cityCode(for: tokyo))
+    }
+
+    // MARK: - SwiftData ExperienceRecord round-trip
+
+    @MainActor
+    func testExperienceRecordRoundTripPreservesCoreFields() throws {
+        let original = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let record = ExperienceRecord(from: original)
+        let restored = record.asValue
+
+        XCTAssertEqual(restored.id, original.id)
+        XCTAssertEqual(restored.title, original.title)
+        XCTAssertEqual(restored.category, original.category)
+        XCTAssertEqual(restored.soloScore.overall, original.soloScore.overall, accuracy: 0.001)
+        XCTAssertEqual(restored.location.coordinates, original.location.coordinates)
+        XCTAssertEqual(restored.location.cityCode, original.location.cityCode)
+        XCTAssertEqual(restored.bestTimes.count, original.bestTimes.count)
+        XCTAssertEqual(restored.howTo.count, original.howTo.count)
+        XCTAssertEqual(restored.confidence.level, original.confidence.level)
+    }
+
+    @MainActor
+    func testExperienceRecordPersistsAndFetchesViaSwiftData() throws {
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let original = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+
+        let record = ExperienceRecord(from: original)
+        context.insert(record)
+        try context.save()
+
+        let id = original.id
+        let descriptor = FetchDescriptor<ExperienceRecord>(
+            predicate: #Predicate { $0.id == id }
+        )
+        let fetched = try context.fetch(descriptor)
+        XCTAssertEqual(fetched.count, 1)
+
+        let asValue = fetched[0].asValue
+        XCTAssertEqual(asValue.id, original.id)
+        XCTAssertEqual(asValue.title, original.title)
+        XCTAssertEqual(asValue.soloScore.overall, original.soloScore.overall, accuracy: 0.001)
     }
 }

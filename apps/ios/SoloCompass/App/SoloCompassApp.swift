@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct SoloCompassApp: App {
@@ -24,5 +25,6 @@ struct SoloCompassApp: App {
                     Task { await notificationService.checkAuthorizationStatus() }
                 }
         }
+        .modelContainer(SoloCompassModelContainer.shared)
     }
 }
