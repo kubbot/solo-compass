@@ -22,7 +22,13 @@ public final class MapViewModel {
     private let locationService: LocationService
     private let experienceService: ExperienceService
     private let aiService: AIService
+    private let overpassService: OverpassService
     private let preferences: UserPreferences
+
+    // MARK: - Explore-here state
+    public var isExploring: Bool = false
+    public var lastExploreError: String?
+    public var lastExploreAddedCount: Int = 0
 
     // MARK: - Auto-recenter
 
@@ -182,11 +188,13 @@ public final class MapViewModel {
         locationService: LocationService,
         experienceService: ExperienceService,
         aiService: AIService,
-        preferences: UserPreferences
+        preferences: UserPreferences,
+        overpassService: OverpassService = OverpassService()
     ) {
         self.locationService = locationService
         self.experienceService = experienceService
         self.aiService = aiService
+        self.overpassService = overpassService
         self.preferences = preferences
         self.selectedCity = preferences.lastSelectedCity
         let initialCenter: CLLocationCoordinate2D
@@ -487,6 +495,59 @@ public final class MapViewModel {
     /// Number of experiences in a given city (for the city picker row subtitle).
     public func experienceCount(for cityCode: String) -> Int {
         experienceService.allExperiences.filter { $0.location.cityCode == cityCode }.count
+    }
+
+    // MARK: - Explore Here
+
+    /// Pull real OSM POIs near `coordinate`, hand them to AIService for
+    /// solo-traveler enrichment, append the generated Experiences to the
+    /// store, and refresh the visible set. No-op if already exploring.
+    /// `cityCode` defaults to a stable hash of the coordinate so generated
+    /// experiences group together in city pills.
+    public func exploreNearby(
+        at coordinate: CLLocationCoordinate2D,
+        radiusMeters: Int = 3000
+    ) async {
+        guard !isExploring else { return }
+        isExploring = true
+        lastExploreError = nil
+        lastExploreAddedCount = 0
+        defer { isExploring = false }
+
+        let cityCode = Self.cityCode(for: coordinate)
+        do {
+            let pois = try await overpassService.fetchPOIs(near: coordinate, radiusMeters: radiusMeters)
+            guard !pois.isEmpty else {
+                lastExploreError = NSLocalizedString("explore.error.nothingFound", comment: "No POIs found nearby")
+                return
+            }
+            let generated = try await aiService.synthesizeExperiences(
+                from: pois,
+                cityCode: cityCode,
+                locale: .current
+            )
+            let added = experienceService.appendGenerated(generated)
+            lastExploreAddedCount = added
+            recenter(on: coordinate)
+        } catch {
+            lastExploreError = error.localizedDescription
+        }
+    }
+
+    /// Stable, lat/lon-derived city code used for OSM-generated entries so
+    /// the existing city pill / filter logic still works. Format:
+    /// `osm_<latRounded>_<lonRounded>`. Rounded to 1 decimal degree (~11 km).
+    static func cityCode(for coordinate: CLLocationCoordinate2D) -> String {
+        let lat = (coordinate.latitude * 10).rounded() / 10
+        let lon = (coordinate.longitude * 10).rounded() / 10
+        return String(format: "osm_%.1f_%.1f", lat, lon)
+    }
+
+    /// Best coordinate to anchor "Explore here" on: live GPS if available,
+    /// otherwise the currently-selected city center. Used by the map view's
+    /// Explore button.
+    public var exploreAnchorCoordinate: CLLocationCoordinate2D {
+        locationService.currentLocation?.coordinate ?? defaultCenterForSelectedCity
     }
 
     // MARK: - Helpers

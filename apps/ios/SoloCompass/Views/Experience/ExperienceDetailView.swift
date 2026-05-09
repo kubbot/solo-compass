@@ -88,6 +88,19 @@ public struct ExperienceDetailView: View {
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if viewModel.experience.id.hasPrefix("exp_osm_") {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.caption2)
+                    Text(NSLocalizedString("explore.aiBadge", comment: "AI-generated from OpenStreetMap"))
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color(.tertiarySystemFill)))
+                .accessibilityLabel(Text(NSLocalizedString("explore.aiBadge", comment: "AI-generated from OpenStreetMap")))
+            }
             HStack(spacing: 8) {
                 Image(systemName: viewModel.experience.category.symbol)
                     .font(.subheadline)

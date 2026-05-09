@@ -247,4 +247,210 @@ public final class AIService {
         }
         return try JSONDecoder().decode(AIResponse.self, from: data)
     }
+
+    // MARK: - Synthesize from OSM POIs (Explore Here)
+
+    /// Maximum POIs sent to the model in one call. Keeps prompt size and cost
+    /// predictable, and matches the product cap of 15 generated experiences.
+    public static let synthesisLimit = 15
+
+    /// Convert a batch of OSM POIs into Experiences. Sends a single Claude
+    /// request that returns a JSON array of experiences. Falls back to a
+    /// skeleton derived from OSM tags when the API key is missing or the
+    /// request fails — so users without an API key still get pins on the map.
+    public func synthesizeExperiences(
+        from pois: [OverpassService.POI],
+        cityCode: String,
+        locale: Locale = .current
+    ) async throws -> [Experience] {
+        let capped = Array(pois.prefix(Self.synthesisLimit))
+        guard !capped.isEmpty else { return [] }
+
+        let prompt = Self.synthesisPrompt(pois: capped, cityCode: cityCode, locale: locale)
+        do {
+            let raw = try await sendMessage(prompt: prompt)
+            return try Self.parseSynthesizedExperiences(raw, pois: capped, cityCode: cityCode)
+        } catch {
+            return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
+        }
+    }
+
+    // MARK: - Synthesize helpers
+
+    private static func synthesisPrompt(pois: [OverpassService.POI], cityCode: String, locale: Locale) -> String {
+        let langTag = locale.language.languageCode?.identifier ?? "en"
+        let lines = pois.map { poi -> String in
+            let displayName = poi.nameEn ?? poi.name
+            let tagSummary = poi.tags
+                .filter { ["amenity", "tourism", "leisure", "natural", "shop", "cuisine", "opening_hours"].contains($0.key) }
+                .map { "\($0.key)=\($0.value)" }
+                .sorted()
+                .joined(separator: ", ")
+            return "- osmId=\(poi.osmId) name=\"\(poi.name)\" nameEn=\"\(displayName)\" lat=\(poi.lat) lon=\(poi.lon) tags=[\(tagSummary)]"
+        }.joined(separator: "\n")
+
+        return """
+        You are writing solo-traveler-focused entries for real places sourced from OpenStreetMap.
+
+        For each POI below, return ONE JSON object with these fields and nothing else:
+        {
+          "osmId": <int>,
+          "title": "<action-oriented sensory line, less than 14 words>",
+          "oneLiner": "<one concrete detail, less than 25 words>",
+          "whyItMatters": "<2-3 sentences for someone alone>",
+          "category": "food|coffee|culture|nature|work|wellness|nightlife|hidden",
+          "bestStartHour": <0-23>,
+          "bestEndHour": <0-23>,
+          "durationMinMinutes": <int>,
+          "durationMaxMinutes": <int>,
+          "howTo": ["step 1", "step 2", "step 3"],
+          "soloHint": "<one short hint for solo visitors>",
+          "soloOverall": <number 6.0-9.5>
+        }
+
+        Output a JSON array containing one object per POI, in input order. No prose. No markdown fences.
+
+        Output language: \(langTag).
+        City code: \(cityCode).
+
+        POIs:
+        \(lines)
+        """
+    }
+
+    private static func parseSynthesizedExperiences(
+        _ raw: String,
+        pois: [OverpassService.POI],
+        cityCode: String
+    ) throws -> [Experience] {
+        guard
+            let start = raw.firstIndex(of: "["),
+            let end = raw.lastIndex(of: "]"),
+            start <= end,
+            let data = String(raw[start...end]).data(using: .utf8)
+        else {
+            throw AIError.decodingFailed("no JSON array in synthesis response")
+        }
+
+        struct Item: Decodable {
+            let osmId: Int64
+            let title: String
+            let oneLiner: String
+            let whyItMatters: String
+            let category: String
+            let bestStartHour: Int?
+            let bestEndHour: Int?
+            let durationMinMinutes: Int?
+            let durationMaxMinutes: Int?
+            let howTo: [String]?
+            let soloHint: String?
+            let soloOverall: Double?
+        }
+        let items = try JSONDecoder().decode([Item].self, from: data)
+        let poiById = Dictionary(uniqueKeysWithValues: pois.map { ($0.osmId, $0) })
+        let now = Date()
+
+        return items.compactMap { item in
+            guard let poi = poiById[item.osmId] else { return nil }
+            let category = ExperienceCategory(rawValue: item.category) ?? OverpassService.category(for: poi.tags)
+            let startHour = item.bestStartHour.map { max(0, min(23, $0)) } ?? 9
+            let endHour = item.bestEndHour.map { max(0, min(23, $0)) } ?? 21
+            let dMin = item.durationMinMinutes ?? 30
+            let dMax = max(dMin, item.durationMaxMinutes ?? 90)
+            let overall = max(6.0, min(9.5, item.soloOverall ?? 7.0))
+            let breakdown = SoloScore.Breakdown(
+                seatingFriendly: overall, soloPatronRatio: overall, staffPressure: overall,
+                soloPortioning: overall, ambianceFit: overall, safety: overall
+            )
+            let howTo = (item.howTo ?? []).enumerated().map { HowToStep(order: $0.offset + 1, text: $0.element) }
+            return Experience(
+                id: "exp_osm_\(poi.osmId)",
+                title: item.title,
+                oneLiner: item.oneLiner,
+                whyItMatters: item.whyItMatters,
+                category: category,
+                location: ExperienceLocation(
+                    coordinates: [poi.lon, poi.lat],
+                    cityCode: cityCode,
+                    addressHint: nil,
+                    placeNameLocal: poi.name,
+                    placeNameRomanized: poi.nameEn
+                ),
+                bestTimes: [TimeWindow(startHour: startHour, endHour: endHour)],
+                durationMinutes: .init(min: dMin, max: dMax),
+                howTo: howTo,
+                realInconveniences: [],
+                soloScore: SoloScore(overall: overall, breakdown: breakdown, hint: item.soloHint, basedOnCount: 0),
+                sources: [
+                    InformationSource(
+                        type: .user,
+                        url: URL(string: "https://www.openstreetmap.org/node/\(poi.osmId)"),
+                        attribution: "© OpenStreetMap contributors + AI",
+                        verifiedAt: now
+                    )
+                ],
+                confidence: Confidence(
+                    level: 1,
+                    lastVerifiedAt: now,
+                    reason: "AI-synthesized from OpenStreetMap, unverified",
+                    signals: .init(aiScrapeAgeDays: 0, passiveGpsHits30d: 0, activeReports30d: 0, trustedVerifications: 0)
+                ),
+                nearbyExperienceIds: [],
+                stats: .init(completionCount: 0, averageRating: 0),
+                status: .candidate,
+                createdAt: now,
+                updatedAt: now
+            )
+        }
+    }
+
+    /// Build a minimal Experience from raw OSM data, used when AI is unavailable.
+    /// Preserves coordinate + name + category; everything else is conservative defaults.
+    static func skeletonExperience(from poi: OverpassService.POI, cityCode: String) -> Experience {
+        let now = Date()
+        let category = OverpassService.category(for: poi.tags)
+        let displayName = poi.nameEn ?? poi.name
+        let breakdown = SoloScore.Breakdown(
+            seatingFriendly: 7, soloPatronRatio: 7, staffPressure: 7,
+            soloPortioning: 7, ambianceFit: 7, safety: 7
+        )
+        return Experience(
+            id: "exp_osm_\(poi.osmId)",
+            title: displayName,
+            oneLiner: NSLocalizedString("explore.skeleton.oneLiner", comment: "Generic OSM POI tagline"),
+            whyItMatters: NSLocalizedString("explore.skeleton.why", comment: "Generic OSM POI rationale"),
+            category: category,
+            location: ExperienceLocation(
+                coordinates: [poi.lon, poi.lat],
+                cityCode: cityCode,
+                addressHint: nil,
+                placeNameLocal: poi.name,
+                placeNameRomanized: poi.nameEn
+            ),
+            bestTimes: [TimeWindow(startHour: 9, endHour: 21)],
+            durationMinutes: .init(min: 30, max: 90),
+            howTo: [],
+            realInconveniences: [],
+            soloScore: SoloScore(overall: 7.0, breakdown: breakdown, hint: nil, basedOnCount: 0),
+            sources: [
+                InformationSource(
+                    type: .user,
+                    url: URL(string: "https://www.openstreetmap.org/node/\(poi.osmId)"),
+                    attribution: "© OpenStreetMap contributors",
+                    verifiedAt: now
+                )
+            ],
+            confidence: Confidence(
+                level: 1,
+                lastVerifiedAt: now,
+                reason: "OpenStreetMap entry, no AI enrichment",
+                signals: .init(aiScrapeAgeDays: 0, passiveGpsHits30d: 0, activeReports30d: 0, trustedVerifications: 0)
+            ),
+            nearbyExperienceIds: [],
+            stats: .init(completionCount: 0, averageRating: 0),
+            status: .candidate,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
 }

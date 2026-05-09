@@ -232,3 +232,14 @@
 "settings.clearData.confirm.title" = "Clear all data?";
 "settings.clearData.confirm.action" = "Clear everything";
 "settings.clearData.confirm.message" = "This removes your completed experiences, favorites, and preferences. It cannot be undone.";
+
+/* Explore here */
+"explore.button" = "Explore here";
+"explore.aiBadge" = "AI-generated · OpenStreetMap";
+"explore.error.nothingFound" = "No public places found nearby. Try moving the map.";
+"explore.skeleton.oneLiner" = "A real spot pulled from OpenStreetMap.";
+"explore.skeleton.why" = "We don't have a curated story for this place yet. Visit, then add what you found.";
+
+/* Overpass errors */
+"overpass.error.url" = "Overpass endpoint URL is invalid.";
+"overpass.error.request" = "Map data request failed (status %d).";

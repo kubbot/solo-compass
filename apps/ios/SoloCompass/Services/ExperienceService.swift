@@ -71,6 +71,20 @@ public final class ExperienceService {
         preferences.toggleFavorite(id)
     }
 
+    /// Merge a batch of newly generated experiences into the in-memory store.
+    /// De-duplicates by id (existing entries win — they may have user state
+    /// like completion stats we don't want to clobber). Returns the count of
+    /// newly inserted experiences so callers can show feedback.
+    @discardableResult
+    public func appendGenerated(_ generated: [Experience]) -> Int {
+        let existingIds = Set(allExperiences.map(\.id))
+        let fresh = generated.filter { !existingIds.contains($0.id) }
+        guard !fresh.isEmpty else { return 0 }
+        allExperiences.append(contentsOf: fresh)
+        filteredExperiences = allExperiences
+        return fresh.count
+    }
+
     // MARK: - Loading
 
     private static func loadFromBundle() -> [Experience]? {
