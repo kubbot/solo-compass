@@ -29,6 +29,10 @@ public final class MapViewModel {
     public var isExploring: Bool = false
     public var lastExploreError: String?
     public var lastExploreAddedCount: Int = 0
+    /// Set when the AI synthesis daily quota cap fires. The map view
+    /// shows a banner derived from this. Cleared on the next UTC day
+    /// rollover (via day-truncated AIUsageRecord).
+    public var lastQuotaInfo: String?
 
     // MARK: - Auto-recenter
 
@@ -512,6 +516,7 @@ public final class MapViewModel {
         isExploring = true
         lastExploreError = nil
         lastExploreAddedCount = 0
+        lastQuotaInfo = nil
         defer { isExploring = false }
 
         let cityCode = Self.cityCode(for: coordinate)
@@ -528,6 +533,15 @@ public final class MapViewModel {
             )
             let added = experienceService.appendGenerated(generated)
             lastExploreAddedCount = added
+            // Surface quota banner if AIService just degraded to skeleton
+            // because the daily cap fired. The banner persists until the
+            // next successful explore (typically tomorrow's first call).
+            if aiService.quotaExceededAt != nil {
+                lastQuotaInfo = NSLocalizedString(
+                    "explore.quota.dailyLimit",
+                    comment: "Daily AI limit reached banner"
+                )
+            }
             recenter(on: coordinate)
         } catch {
             lastExploreError = error.localizedDescription

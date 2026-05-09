@@ -1,6 +1,8 @@
 import Foundation
 import CoreLocation
+import CryptoKit
 import Observation
+import SwiftData
 
 /// Talks to Claude via the Anthropic Messages API. Reads the API key from
 /// `Secrets.plist` (key `ANTHROPIC_API_KEY`) or the `ANTHROPIC_API_KEY` env var.
@@ -63,13 +65,75 @@ public final class AIService {
 
     public private(set) var isProcessing: Bool = false
     public private(set) var lastError: Error?
+    /// Set when the daily AI quota cap fires (Epic B US-015). The map
+    /// view shows a banner derived from this.
+    public private(set) var quotaExceededAt: Date?
 
     private let session: URLSession
     private let apiURL = URL(string: "https://api.anthropic.com/v1/messages")
-    private let model = "claude-opus-4-7"
+    private let modelContext: ModelContext?
 
-    public init(session: URLSession = .shared) {
+    /// Synthesis cache TTL — 30 days.
+    public static let synthesisCacheTTLSeconds: TimeInterval = 30 * 86_400
+
+    /// Default model routing. Sonnet 4.6 for generative tasks (synthesis,
+    /// voice intent, ranking); Haiku 4.5 for lighter explanations. The
+    /// `AI_FORCE_OPUS=1` env var routes everything to Opus for golden-set
+    /// runs. `Secrets.plist` keys (`ANTHROPIC_MODEL_SYNTHESIS`,
+    /// `ANTHROPIC_MODEL_EXPLANATION`, `ANTHROPIC_MODEL_VOICE`) override
+    /// the defaults per build.
+    public enum ModelKind {
+        case synthesis, explanation, voice
+    }
+
+    public init(session: URLSession = .shared, modelContext: ModelContext? = nil) {
         self.session = session
+        self.modelContext = modelContext
+    }
+
+    /// Convenience that uses the shared SwiftData container's main
+    /// context for caching.
+    public convenience init(session: URLSession = .shared, useSharedCache: Bool) {
+        let ctx: ModelContext? = useSharedCache
+            ? ModelContext(SoloCompassModelContainer.shared)
+            : nil
+        self.init(session: session, modelContext: ctx)
+    }
+
+    // MARK: - Model name resolution
+
+    /// Resolve which model to use for a given call kind. Order:
+    /// 1. `AI_FORCE_OPUS=1` env var → opus everywhere (debug only)
+    /// 2. `Secrets.plist` override key
+    /// 3. Hard-coded default
+    static func modelName(for kind: ModelKind) -> String {
+        if ProcessInfo.processInfo.environment["AI_FORCE_OPUS"] == "1" {
+            return "claude-opus-4-7"
+        }
+        let plistKey: String
+        let defaultName: String
+        switch kind {
+        case .synthesis:
+            plistKey = "ANTHROPIC_MODEL_SYNTHESIS"
+            defaultName = "claude-sonnet-4-6"
+        case .explanation:
+            plistKey = "ANTHROPIC_MODEL_EXPLANATION"
+            defaultName = "claude-haiku-4-5-20251001"
+        case .voice:
+            plistKey = "ANTHROPIC_MODEL_VOICE"
+            defaultName = "claude-sonnet-4-6"
+        }
+        return resolveSecretsOverride(plistKey) ?? defaultName
+    }
+
+    private static func resolveSecretsOverride(_ key: String) -> String? {
+        guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
+              let data = try? Data(contentsOf: url),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let value = plist[key] as? String,
+              !value.isEmpty
+        else { return nil }
+        return value
     }
 
     // MARK: - Public
@@ -80,7 +144,7 @@ public final class AIService {
     ) async throws -> [String] {
         let prompt = Self.recommendationPrompt(candidates: candidates, context: context)
         do {
-            let raw = try await sendMessage(prompt: prompt)
+            let raw = try await sendMessage(prompt: prompt, kind: .synthesis)
             return Self.parseIDList(raw, validIDs: Set(candidates.map(\.id)))
         } catch AIError.missingAPIKey {
             // Local fallback: rank by solo score, then by best-now boost.
@@ -101,7 +165,7 @@ public final class AIService {
         Avoid superlatives. Focus on a sensory detail.
         """
         do {
-            return try await sendMessage(prompt: prompt)
+            return try await sendMessage(prompt: prompt, kind: .explanation)
         } catch AIError.missingAPIKey {
             return NSLocalizedString("ai.fallback.explanation", comment: "Default AI explanation")
         }
@@ -114,7 +178,7 @@ public final class AIService {
         Respond as JSON: {"recommendedIds":[],"explanation":"...","filterSuggestion":"culture|nature|food|coffee|work|wellness|nightlife|hidden|null"}
         """
         do {
-            let raw = try await sendMessage(prompt: prompt)
+            let raw = try await sendMessage(prompt: prompt, kind: .voice)
             return try Self.parseAIResponse(raw)
         } catch AIError.missingAPIKey {
             return AIResponse(
@@ -127,7 +191,7 @@ public final class AIService {
 
     // MARK: - HTTP
 
-    private func sendMessage(prompt: String) async throws -> String {
+    private func sendMessage(prompt: String, kind: ModelKind = .synthesis) async throws -> String {
         guard let key = Self.resolveAPIKey() else { throw AIError.missingAPIKey }
         guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
 
@@ -141,7 +205,7 @@ public final class AIService {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let body: [String: Any] = [
-            "model": model,
+            "model": Self.modelName(for: kind),
             "max_tokens": 1024,
             "messages": [["role": "user", "content": prompt]],
         ]
@@ -254,10 +318,13 @@ public final class AIService {
     /// predictable, and matches the product cap of 15 generated experiences.
     public static let synthesisLimit = 15
 
-    /// Convert a batch of OSM POIs into Experiences. Sends a single Claude
-    /// request that returns a JSON array of experiences. Falls back to a
-    /// skeleton derived from OSM tags when the API key is missing or the
-    /// request fails — so users without an API key still get pins on the map.
+    /// Convert a batch of OSM POIs into Experiences. The hot path:
+    /// 1. Cache hit (SHA256 of inputs + model name + 30-day TTL) →
+    ///    return persisted Experiences without HTTP.
+    /// 2. Quota check (Pro: 30 synthesis/day) → if exceeded, fall back
+    ///    to skeleton mode and set `quotaExceededAt`.
+    /// 3. Real Claude call → on success, persist + return; on failure,
+    ///    skeleton fallback (no cache write).
     public func synthesizeExperiences(
         from pois: [OverpassService.POI],
         cityCode: String,
@@ -266,13 +333,161 @@ public final class AIService {
         let capped = Array(pois.prefix(Self.synthesisLimit))
         guard !capped.isEmpty else { return [] }
 
-        let prompt = Self.synthesisPrompt(pois: capped, cityCode: cityCode, locale: locale)
-        do {
-            let raw = try await sendMessage(prompt: prompt)
-            return try Self.parseSynthesizedExperiences(raw, pois: capped, cityCode: cityCode)
-        } catch {
+        let modelName = Self.modelName(for: .synthesis)
+        let cacheKey = Self.synthesisCacheKey(
+            pois: capped, cityCode: cityCode, locale: locale, modelName: modelName
+        )
+
+        if let cached = await loadCachedSynthesis(cacheKey: cacheKey) {
+            return cached
+        }
+
+        // US-015 quota check: cache hits don't count, network calls do.
+        if await isQuotaExceeded(kind: .synthesis) {
+            await setQuotaExceeded()
             return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
         }
+
+        let prompt = Self.synthesisPrompt(pois: capped, cityCode: cityCode, locale: locale)
+        do {
+            let raw = try await sendMessage(prompt: prompt, kind: .synthesis)
+            let experiences = try Self.parseSynthesizedExperiences(raw, pois: capped, cityCode: cityCode)
+            await incrementQuota(kind: .synthesis)
+            await writeCachedSynthesis(
+                cacheKey: cacheKey,
+                experiences: experiences,
+                modelName: modelName
+            )
+            return experiences
+        } catch {
+            // Skeleton fallback — never written to cache so a
+            // transient network blip doesn't poison the cache for 30
+            // days.
+            return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
+        }
+    }
+
+    /// Public cache-clear; used by Settings → Storage.
+    @MainActor
+    public func clearSynthesisCache() {
+        guard let context = modelContext else { return }
+        try? context.delete(model: AISynthesisCacheRecord.self)
+        try? context.save()
+    }
+
+    // MARK: - Synthesis cache key
+
+    /// SHA256 of canonical input. Sorting osmIds ensures input order
+    /// doesn't change the key. Model name is part of the key so a
+    /// model bump invalidates old cache rows naturally.
+    static func synthesisCacheKey(
+        pois: [OverpassService.POI],
+        cityCode: String,
+        locale: Locale,
+        modelName: String
+    ) -> String {
+        let sortedIds = pois.map { String($0.osmId) }.sorted()
+        let canonical = sortedIds.joined(separator: "|")
+            + "|" + cityCode
+            + "|" + locale.identifier
+            + "|" + modelName
+        let digest = SHA256.hash(data: Data(canonical.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Synthesis cache I/O
+
+    private func loadCachedSynthesis(cacheKey key: String) async -> [Experience]? {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return nil }
+            let descriptor = FetchDescriptor<AISynthesisCacheRecord>(
+                predicate: #Predicate { $0.cacheKey == key }
+            )
+            guard let row = (try? context.fetch(descriptor))?.first else { return nil }
+            let age = Date().timeIntervalSince(row.synthesizedAt)
+            guard age < Self.synthesisCacheTTLSeconds else { return nil }
+            return try? JSONDecoder.iso8601Decoder.decode([Experience].self, from: row.experiencesJSON)
+        }
+    }
+
+    private func writeCachedSynthesis(
+        cacheKey key: String,
+        experiences: [Experience],
+        modelName: String
+    ) async {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return }
+            let descriptor = FetchDescriptor<AISynthesisCacheRecord>(
+                predicate: #Predicate { $0.cacheKey == key }
+            )
+            if let existing = (try? context.fetch(descriptor))?.first {
+                context.delete(existing)
+            }
+            guard let blob = try? JSONEncoder.iso8601Encoder.encode(experiences) else { return }
+            context.insert(
+                AISynthesisCacheRecord(
+                    cacheKey: key,
+                    experiencesJSON: blob,
+                    synthesizedAt: Date(),
+                    modelName: modelName
+                )
+            )
+            try? context.save()
+        }
+    }
+
+    // MARK: - Daily quota (US-015)
+
+    /// Pro tier daily caps. Free tier is gated upstream (Epic D).
+    public static let dailySynthesisQuota = 30
+    public static let dailyExplanationQuota = 60
+
+    /// True if the per-day cap for `kind` is reached. Pure read; no
+    /// mutation.
+    private func isQuotaExceeded(kind: ModelKind) async -> Bool {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return false }
+            let today = AIUsageRecord.todayUTC()
+            let descriptor = FetchDescriptor<AIUsageRecord>(
+                predicate: #Predicate { $0.date == today }
+            )
+            guard let row = (try? context.fetch(descriptor))?.first else { return false }
+            switch kind {
+            case .synthesis, .voice:
+                return row.synthesisCalls >= Self.dailySynthesisQuota
+            case .explanation:
+                return row.explanationCalls >= Self.dailyExplanationQuota
+            }
+        }
+    }
+
+    /// Increment the counter for `kind`, creating today's row on first call.
+    private func incrementQuota(kind: ModelKind) async {
+        await MainActor.run { [weak self] in
+            guard let self, let context = self.modelContext else { return }
+            let today = AIUsageRecord.todayUTC()
+            let descriptor = FetchDescriptor<AIUsageRecord>(
+                predicate: #Predicate { $0.date == today }
+            )
+            let row = (try? context.fetch(descriptor))?.first
+                ?? {
+                    let r = AIUsageRecord(date: today)
+                    context.insert(r)
+                    return r
+                }()
+            switch kind {
+            case .synthesis, .voice:
+                row.synthesisCalls += 1
+            case .explanation:
+                row.explanationCalls += 1
+            }
+            try? context.save()
+        }
+    }
+
+    @MainActor
+    private func setQuotaExceeded() {
+        self.quotaExceededAt = Date()
     }
 
     // MARK: - Synthesize helpers
@@ -292,18 +507,36 @@ public final class AIService {
         return """
         You are writing solo-traveler-focused entries for real places sourced from OpenStreetMap.
 
+        CRITICAL CONSTRAINTS — your output is read by users on the ground:
+        - Use ONLY the provided OSM tags. Do NOT invent menu items, interior details, hours, prices, owner backstories, dish names, or specific seating positions.
+        - If a field is not derivable from tags, write a generic safe value. Example: when no opening_hours tag is present, set bestStartHour to 9 and bestEndHour to 21 (a generic daytime window) rather than guessing a specific schedule.
+        - howTo must contain navigation/orientation steps only. Do NOT write "order the X", "try the X", "ask for X", "sit at the bar/window/back".
+        - Avoid the phrases: "menu", "specialty", "best seat", "the owner", "opens at", "closes at", "price", "order the", "try the".
+        - Solo Score should be a conservative 7.0–8.5 unless tags clearly indicate something exceptional (e.g. tourism=viewpoint with a name → up to 9.0).
+
+        Examples of GOOD output (tag-derived, generic):
+        - title: "Sit with locals at a Hanoi café"
+        - oneLiner: "A local cafe in the Old Quarter with sidewalk seating."
+        - whyItMatters: "OpenStreetMap lists this as a café in a walkable neighbourhood. Solo travellers often find sidewalk-style cafés easier to enter alone than enclosed restaurants. Verify the vibe on arrival."
+        - howTo: ["Find the entrance from the main street.", "Step inside; seating is usually self-service.", "Pay at the counter when you leave."]
+
+        Examples of BAD output (hallucinated, do NOT do this):
+        - title: "Eat the famous beef pho at Ms. Linh's"  ← invented owner + dish
+        - oneLiner: "Try the lemongrass coffee, a hidden secret since 1972."  ← invented menu + history
+        - howTo: ["Order the egg coffee", "Sit at the window seat"]  ← invented item + seat
+
         For each POI below, return ONE JSON object with these fields and nothing else:
         {
           "osmId": <int>,
           "title": "<action-oriented sensory line, less than 14 words>",
-          "oneLiner": "<one concrete detail, less than 25 words>",
-          "whyItMatters": "<2-3 sentences for someone alone>",
+          "oneLiner": "<one concrete detail derivable from tags, less than 25 words>",
+          "whyItMatters": "<2-3 sentences for someone alone, no specifics not in tags>",
           "category": "food|coffee|culture|nature|work|wellness|nightlife|hidden",
           "bestStartHour": <0-23>,
           "bestEndHour": <0-23>,
           "durationMinMinutes": <int>,
           "durationMaxMinutes": <int>,
-          "howTo": ["step 1", "step 2", "step 3"],
+          "howTo": ["navigation step 1", "navigation step 2", "navigation step 3"],
           "soloHint": "<one short hint for solo visitors>",
           "soloOverall": <number 6.0-9.5>
         }

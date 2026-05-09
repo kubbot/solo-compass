@@ -662,6 +662,207 @@ final class SoloCompassTests: XCTestCase {
         )
     }
 
+    // MARK: - US-011 Overpass cache 14-day TTL
+
+    func testOverpassRegionKeyFormat() {
+        let key = OverpassService.regionKey(lat: 21.0285, lon: 105.8542, radiusMeters: 3000)
+        XCTAssertEqual(key, "21.03_105.85_3000", "rounding to 0.01° + radius suffix")
+    }
+
+    func testOverpassFetchUsesCacheOnSecondCall() async throws {
+        // Stub URLProtocol to count requests and return a small valid OSM JSON.
+        StubURLProtocol.handler = { _ in
+            let json = #"{"elements":[{"type":"node","id":1,"lat":21.03,"lon":105.85,"tags":{"name":"Cafe","amenity":"cafe"}}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://overpass-api.de/api/interpreter")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                json.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let service = OverpassService(session: session, maxResults: 30, modelContext: context)
+
+        let coord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
+        let firstHit = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
+        XCTAssertEqual(firstHit.count, 1)
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "first call hits the network")
+
+        let secondHit = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
+        XCTAssertEqual(secondHit.count, 1)
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "second call must hit cache, not network")
+    }
+
+    // MARK: - US-012 AI synthesis cache
+
+    func testAISynthesisCacheKeyIsStableForReorderedPOIs() {
+        let p1 = OverpassService.POI(osmId: 1, name: "A", nameEn: nil, lat: 0, lon: 0, tags: [:])
+        let p2 = OverpassService.POI(osmId: 2, name: "B", nameEn: nil, lat: 0, lon: 0, tags: [:])
+        let k1 = AIService.synthesisCacheKey(pois: [p1, p2], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
+        let k2 = AIService.synthesisCacheKey(pois: [p2, p1], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
+        XCTAssertEqual(k1, k2, "POI input order must not change cache key")
+        XCTAssertEqual(k1.count, 64, "SHA256 hex is 64 chars")
+    }
+
+    func testAISynthesisCacheKeyChangesWithModelName() {
+        let p = OverpassService.POI(osmId: 1, name: "A", nameEn: nil, lat: 0, lon: 0, tags: [:])
+        let kSonnet = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
+        let kOpus = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-opus-4-7")
+        XCTAssertNotEqual(kSonnet, kOpus, "model bump must invalidate cache")
+    }
+
+    // MARK: - US-013 model routing
+
+    func testModelRoutingDefaults() {
+        unsetenv("AI_FORCE_OPUS")
+        XCTAssertEqual(AIService.modelName(for: .synthesis), "claude-sonnet-4-6")
+        XCTAssertEqual(AIService.modelName(for: .voice), "claude-sonnet-4-6")
+        XCTAssertEqual(AIService.modelName(for: .explanation), "claude-haiku-4-5-20251001")
+    }
+
+    func testModelRoutingForceOpusEnvVar() {
+        setenv("AI_FORCE_OPUS", "1", 1)
+        defer { unsetenv("AI_FORCE_OPUS") }
+        XCTAssertEqual(AIService.modelName(for: .synthesis), "claude-opus-4-7")
+        XCTAssertEqual(AIService.modelName(for: .voice), "claude-opus-4-7")
+        XCTAssertEqual(AIService.modelName(for: .explanation), "claude-opus-4-7")
+    }
+
+    // MARK: - US-015 daily AI quota
+
+    @MainActor
+    func testQuotaTriggersSkeletonFallbackOnceCapReached() async throws {
+        // Stub network to return a valid synthesis JSON every call.
+        StubURLProtocol.handler = { _ in
+            let json = #"""
+            [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
+            """#
+            // Anthropic Messages API response shape: {content: [{text: "..."}]}
+            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+
+        // Pre-seed the quota row at the daily cap so the next call must
+        // degrade. This simulates "user has used up their 30 quota
+        // already today" without making 30 real calls.
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let today = AIUsageRecord.todayUTC()
+        context.insert(AIUsageRecord(date: today, synthesisCalls: AIService.dailySynthesisQuota))
+        try context.save()
+
+        // Need an API key in env to skip the missingAPIKey throw path.
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let ai = AIService(session: session, modelContext: context)
+
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 100, name: "X", nameEn: nil, lat: 0, lon: 0, tags: ["amenity": "cafe"])
+        ]
+        let result = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+        // Quota cap: skeleton fallback used; no network hit.
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(StubURLProtocol.requestCount, 0, "quota-exceeded path must not call the network")
+        XCTAssertNotNil(ai.quotaExceededAt, "quotaExceededAt timestamp set")
+    }
+
+    @MainActor
+    func testSynthesisCacheHitDoesNotIncrementQuota() async throws {
+        StubURLProtocol.handler = { _ in
+            let json = #"""
+            [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
+            """#
+            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let ai = AIService(session: session, modelContext: context)
+
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 1, name: "X", nameEn: nil, lat: 0, lon: 0, tags: ["amenity": "cafe"])
+        ]
+
+        _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "first call hits network")
+
+        _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "second call is cache hit")
+
+        // Quota counter should still be 1 (one network call), not 2.
+        let today = AIUsageRecord.todayUTC()
+        let descriptor = FetchDescriptor<AIUsageRecord>(predicate: #Predicate { $0.date == today })
+        let row = try XCTUnwrap((try context.fetch(descriptor)).first)
+        XCTAssertEqual(row.synthesisCalls, 1, "cache hit must not increment quota")
+    }
+
+    // MARK: - US-014 anti-hallucination skeleton fallback
+
+    func testSkeletonExperienceContainsNoHallucinatedPhrases() {
+        let poi = OverpassService.POI(
+            osmId: 9999, name: "Quan A", nameEn: nil,
+            lat: 21.03, lon: 105.85,
+            tags: ["amenity": "cafe"]
+        )
+        let exp = AIService.skeletonExperience(from: poi, cityCode: "vn-hanoi")
+        let banned = ["order the", "try the", "sit at the", "best seat", "the owner",
+                      "opens at", "closes at", "menu", "price", "specialty", "ask for"]
+        let combined = (exp.title + " " + exp.oneLiner + " " + exp.whyItMatters
+            + " " + exp.howTo.map(\.text).joined(separator: " ")).lowercased()
+        for phrase in banned {
+            XCTAssertFalse(
+                combined.contains(phrase),
+                "skeleton fallback for plain cafe POI should not contain '\(phrase)'"
+            )
+        }
+    }
+
+    func testOverpassClearExploreCacheForcesRefetch() async throws {
+        StubURLProtocol.handler = { _ in
+            let json = #"{"elements":[{"type":"node","id":2,"lat":21.03,"lon":105.85,"tags":{"name":"Park","leisure":"park"}}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://overpass-api.de/api/interpreter")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                json.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let service = OverpassService(session: session, maxResults: 30, modelContext: context)
+
+        let coord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
+        _ = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
+        service.clearExploreCache()
+        _ = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
+        XCTAssertEqual(StubURLProtocol.requestCount, 2, "after clear, second call hits network again")
+    }
+
     // MARK: - US-010 generated experiences survive across service instances
 
     func testGeneratedExperiencesPersistAcrossServiceInstances() {
@@ -695,4 +896,31 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(ids.contains("exp_osm_1001"))
         XCTAssertTrue(ids.contains("exp_osm_1002"))
     }
+}
+
+// MARK: - URLProtocol stub for HTTP-mocked tests
+
+/// Minimal URLProtocol that intercepts every request, increments a
+/// counter, and returns whatever `handler` produces. Reset
+/// `requestCount` and assign `handler` per test.
+final class StubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var handler: (@Sendable (URLRequest) -> (HTTPURLResponse, Data))?
+    nonisolated(unsafe) static var requestCount: Int = 0
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.requestCount += 1
+        guard let handler = Self.handler else {
+            client?.urlProtocol(self, didFailWithError: NSError(domain: "stub", code: 0))
+            return
+        }
+        let (response, data) = handler(request)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
