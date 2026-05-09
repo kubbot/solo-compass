@@ -108,7 +108,6 @@ public struct CompassMapView: View {
                 VStack {
                     Spacer()
                     HStack(alignment: .bottom) {
-                        // Settings button (bottom-left)
                         Button {
                             viewModel.isShowingSettings = true
                         } label: {
@@ -122,6 +121,31 @@ public struct CompassMapView: View {
                         .padding(.leading, 20)
                         .padding(.bottom, 80)
                         .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
+
+                        // Explore-here button — pulls real OSM POIs near the
+                        // current location and asks AIService to enrich them.
+                        Button {
+                            let anchor = viewModel.exploreAnchorCoordinate
+                            Task { await viewModel.exploreNearby(at: anchor) }
+                        } label: {
+                            Group {
+                                if viewModel.isExploring {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                } else {
+                                    Image(systemName: "sparkle.magnifyingglass")
+                                        .font(.title3)
+                                }
+                            }
+                            .frame(width: 48, height: 48)
+                            .background(Circle().fill(.regularMaterial))
+                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 12)
+                        .padding(.bottom, 80)
+                        .disabled(viewModel.isExploring)
+                        .accessibilityLabel(Text(NSLocalizedString("explore.button", comment: "Explore here")))
 
                         Spacer()
 

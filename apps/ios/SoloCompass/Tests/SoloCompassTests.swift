@@ -195,4 +195,134 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(reloaded.isCompleted("exp_test_1"))
         XCTAssertTrue(reloaded.isFavorited("exp_test_2"))
     }
+
+    // MARK: - Overpass tag mapping
+
+    func testOverpassCategoryFromAmenity() {
+        XCTAssertEqual(OverpassService.category(for: ["amenity": "cafe"]), .coffee)
+        XCTAssertEqual(OverpassService.category(for: ["amenity": "restaurant"]), .food)
+        XCTAssertEqual(OverpassService.category(for: ["amenity": "bar"]), .nightlife)
+        XCTAssertEqual(OverpassService.category(for: ["amenity": "library"]), .work)
+        XCTAssertEqual(OverpassService.category(for: ["amenity": "spa"]), .wellness)
+    }
+
+    func testOverpassCategoryFromTourismAndLeisure() {
+        XCTAssertEqual(OverpassService.category(for: ["tourism": "museum"]), .culture)
+        XCTAssertEqual(OverpassService.category(for: ["tourism": "viewpoint"]), .culture)
+        XCTAssertEqual(OverpassService.category(for: ["leisure": "park"]), .nature)
+        XCTAssertEqual(OverpassService.category(for: ["natural": "beach"]), .nature)
+    }
+
+    func testOverpassCategoryFallsBackToHidden() {
+        XCTAssertEqual(OverpassService.category(for: [:]), .hidden)
+        XCTAssertEqual(OverpassService.category(for: ["highway": "primary"]), .hidden)
+    }
+
+    func testOverpassCategorySpecificOverridesGeneric() {
+        let mixed: [String: String] = ["amenity": "coworking_space", "shop": "coffee"]
+        XCTAssertEqual(OverpassService.category(for: mixed), .work)
+    }
+
+    // MARK: - Overpass query / decode
+
+    func testOverpassQueryIncludesRadiusAndCoordinate() {
+        let q = OverpassService.buildQuery(lat: 21.0285, lon: 105.8542, radiusMeters: 3000, limit: 30)
+        XCTAssertTrue(q.contains("around:3000,21.0285,105.8542"))
+        XCTAssertTrue(q.contains("out body 30"))
+        XCTAssertTrue(q.contains("amenity"))
+    }
+
+    func testOverpassDecodePOIsExtractsNamedNodes() throws {
+        let json = """
+        {"elements":[
+          {"type":"node","id":1,"lat":21.0,"lon":105.8,"tags":{"name":"Quán Cà Phê","name:en":"The Cafe","amenity":"cafe"}},
+          {"type":"node","id":2,"lat":21.0,"lon":105.8,"tags":{"amenity":"cafe"}},
+          {"type":"node","id":3,"lat":21.0,"lon":105.8,"tags":{"name":"Park","leisure":"park"}}
+        ]}
+        """.data(using: .utf8)!
+        let pois = try OverpassService.decodePOIs(from: json)
+        // Node 2 has no name and must be filtered out.
+        XCTAssertEqual(pois.count, 2)
+        XCTAssertEqual(pois[0].nameEn, "The Cafe")
+        XCTAssertEqual(pois[0].osmId, 1)
+        XCTAssertEqual(pois[1].name, "Park")
+    }
+
+    // MARK: - AI synthesis fallback
+
+    @MainActor
+    func testSynthesizeExperiencesFallsBackWhenNoAPIKey() async throws {
+        unsetenv("ANTHROPIC_API_KEY")
+        let ai = AIService()
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 100, name: "Cà phê Giảng", nameEn: "Giang Cafe",
+                  lat: 21.034, lon: 105.852,
+                  tags: ["amenity": "cafe", "name": "Cà phê Giảng"]),
+            .init(osmId: 101, name: "Hoàn Kiếm Lake", nameEn: nil,
+                  lat: 21.029, lon: 105.853,
+                  tags: ["leisure": "park"])
+        ]
+        let result = try await ai.synthesizeExperiences(from: pois, cityCode: "osm_21.0_105.9")
+        XCTAssertEqual(result.count, 2)
+        XCTAssertTrue(result.allSatisfy { $0.id.hasPrefix("exp_osm_") })
+        XCTAssertTrue(result.allSatisfy { $0.confidence.level == 1 })
+        XCTAssertEqual(result.first?.category, .coffee)
+        XCTAssertEqual(result.last?.category, .nature)
+    }
+
+    @MainActor
+    func testSynthesisLimitCapsInputs() async throws {
+        unsetenv("ANTHROPIC_API_KEY")
+        let ai = AIService()
+        let many: [OverpassService.POI] = (0..<25).map {
+            .init(osmId: Int64(1000 + $0), name: "Spot \($0)", nameEn: nil,
+                  lat: 0, lon: 0, tags: ["amenity": "restaurant"])
+        }
+        let result = try await ai.synthesizeExperiences(from: many, cityCode: "osm_0.0_0.0")
+        XCTAssertEqual(result.count, AIService.synthesisLimit)
+    }
+
+    // MARK: - ExperienceService.appendGenerated
+
+    func testAppendGeneratedDeduplicatesById() {
+        let service = ExperienceService()
+        let originalCount = service.allExperiences.count
+
+        let poi = OverpassService.POI(
+            osmId: 999,
+            name: "Test Place",
+            nameEn: nil,
+            lat: 0,
+            lon: 0,
+            tags: ["amenity": "cafe"]
+        )
+        let generated = AIService.skeletonExperience(from: poi, cityCode: "osm_0.0_0.0")
+
+        let firstAdded = service.appendGenerated([generated])
+        XCTAssertEqual(firstAdded, 1)
+        XCTAssertEqual(service.allExperiences.count, originalCount + 1)
+
+        let secondAdded = service.appendGenerated([generated])
+        XCTAssertEqual(secondAdded, 0)
+        XCTAssertEqual(service.allExperiences.count, originalCount + 1)
+    }
+
+    // MARK: - MapViewModel exploration
+
+    @MainActor
+    func testExploreCityCodeIsStableForNearbyCoordinates() {
+        let hanoiA = CLLocationCoordinate2D(latitude: 21.04, longitude: 105.83)
+        let hanoiB = CLLocationCoordinate2D(latitude: 21.03, longitude: 105.84)
+        let codeA = MapViewModel.cityCode(for: hanoiA)
+        let codeB = MapViewModel.cityCode(for: hanoiB)
+        XCTAssertEqual(codeA, codeB, "Coordinates within ~11km should share a city code")
+        XCTAssertTrue(codeA.hasPrefix("osm_"))
+    }
+
+    @MainActor
+    func testExploreCityCodeDiffersForDistantCoordinates() {
+        let hanoi = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
+        let tokyo = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        XCTAssertNotEqual(MapViewModel.cityCode(for: hanoi), MapViewModel.cityCode(for: tokyo))
+    }
 }
