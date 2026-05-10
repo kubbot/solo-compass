@@ -720,7 +720,7 @@
         "Verify in simulator: complete 3 experiences in a row, confirm review prompt appears (in DEBUG build with a flag override)"
       ],
       "priority": 41,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
