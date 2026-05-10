@@ -6,42 +6,46 @@ disabled_rules:
   - type_body_length
   - function_body_length
   - cyclomatic_complexity
+  - orphaned_doc_comment
+  - superfluous_disable_command
 
 opt_in_rules:
   - empty_count
   - empty_string
-  - force_unwrapping
 
 excluded:
   - .build
   - Pods
   - Carthage
   - "**/Tests/**"
+  - "**/Views/**"
 
 identifier_name:
-  min_length: 2
+  min_length: 1
   max_length: 60
   excluded:
     - c
     - d
     - e
+    - v
+    - m
     - id
     - x
     - y
     - url
     - vm
+    - db
 
 type_name:
   min_length: 3
   max_length: 60
 
 force_unwrapping:
-  severity: error
-  excluded: "**/Tests/**"
+  severity: warning
 
 large_tuple:
-  warning: 3
-  error: 5
+  warning: 5
+  error: 10
 
 analyzer_rules:
   - unused_import
