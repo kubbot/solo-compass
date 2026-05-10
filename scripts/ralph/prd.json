@@ -169,8 +169,8 @@
         "Tests pass"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implementation was complete via US-007/008: ExperienceRepository.appendGenerated writes to SwiftData, ExperienceService init reads from repo. Test testGeneratedExperiencesPersistAcrossServiceInstances verifies cross-instance persistence."
     },
     {
       "id": "US-011",
