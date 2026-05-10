@@ -28,6 +28,8 @@ targets:
     resources:
       - path: SoloCompass/Resources/Configuration.storekit
         buildPhase: resources
+      - path: SoloCompass/Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
     info:
       path: SoloCompass/Resources/Info.plist
       properties:
