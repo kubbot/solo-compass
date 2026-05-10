@@ -1327,6 +1327,77 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(hanoiRow?.name, "Hanoi")
     }
 
+    // MARK: - US-017 auto-switch city after Explore
+
+    /// exploreNearby with a mocked geocoder returning "vn-hanoi"/"Hanoi"
+    /// starting from selectedCity = "cmi" → selectedCity becomes "vn-hanoi"
+    /// and lastExploreToast contains "Hanoi".
+    @MainActor
+    func testExploreNearbyAutoSwitchesSelectedCityAndSetsToast() async throws {
+        let overpassJSON = #"""
+        {"elements":[{"type":"node","id":8001,"lat":21.0280,"lon":105.8540,"tags":{"amenity":"cafe","name":"Pho Spot"}}]}
+        """#
+        StubURLProtocol.handler = { request in
+            let body: String
+            if request.url?.host?.contains("overpass") == true || request.url?.host?.contains("openstreetmap") == true {
+                body = overpassJSON
+            } else {
+                let aiJSON = #"[{"osmId":8001,"title":"Pho Spot","oneLiner":"A pho place","whyItMatters":"Hot broth","category":"food","bestStartHour":7,"bestEndHour":21,"durationMinMinutes":20,"durationMaxMinutes":45,"howTo":[],"soloHint":"Solo corner","soloOverall":7.5}]"#
+                let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
+                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+            }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: sessionConfig)
+
+        let ai = AIService(session: session, modelContext: context)
+        let overpass = OverpassService(session: session)
+
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        let expService = ExperienceService(repository: repo)
+
+        let defaults = UserDefaults(suiteName: "us017-\(UUID().uuidString)")!
+        let prefs = UserPreferences(defaults: defaults)
+        prefs.acceptExploreConsent()
+
+        let stubGeocoder = StubReverseGeocodeService(
+            result: ReverseGeocodeService.Resolved(
+                cityCode: "vn-hanoi",
+                name: "Hanoi",
+                countryCode: "vn"
+            )
+        )
+
+        let vm = MapViewModel(
+            locationService: LocationService(),
+            experienceService: expService,
+            aiService: ai,
+            preferences: prefs,
+            overpassService: overpass,
+            geocodeService: stubGeocoder
+        )
+
+        // Start with Chiang Mai selected.
+        vm.selectedCity = "cmi"
+
+        let hanoiCoord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
+        await vm.exploreNearby(at: hanoiCoord)
+
+        XCTAssertEqual(vm.selectedCity, "vn-hanoi", "selectedCity must switch to the geocoded city")
+        let toast = try XCTUnwrap(vm.lastExploreToast, "lastExploreToast must be set after a successful Explore")
+        XCTAssertTrue(toast.contains("Hanoi"), "toast must contain the city name 'Hanoi', got: \(toast)")
+    }
+
     // MARK: - US-018 marker low-confidence visual
 
     func testMarkerIconViewLowConfidenceFlag() {
@@ -1443,4 +1514,21 @@ final class StubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+// MARK: - ReverseGeocoding stub
+
+/// Deterministic geocoder for unit tests. Returns a fixed `Resolved`
+/// (or nil when initialized without one) without hitting CLGeocoder.
+@MainActor
+final class StubReverseGeocodeService: ReverseGeocoding {
+    private let result: ReverseGeocodeService.Resolved?
+
+    init(result: ReverseGeocodeService.Resolved? = nil) {
+        self.result = result
+    }
+
+    func resolve(coordinate: CLLocationCoordinate2D) async -> ReverseGeocodeService.Resolved? {
+        result
+    }
 }
