@@ -99,7 +99,7 @@
         "Tests pass"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -119,8 +119,8 @@
         "Tests pass"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ExperienceRepository.swift was already complete. Added testImportSeedIfNeededPopulatesStoreAndSetsFlagThenIsNoOp to SoloCompassTests.swift: empty in-memory store → importSeedIfNeeded() → asserts 5 experiences, seedImported==true, second call returns 0 (no-op)."
     },
     {
       "id": "US-008",

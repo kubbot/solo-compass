@@ -627,6 +627,28 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(repo.completionCount(experienceId: id), 3)
     }
 
+    @MainActor
+    func testImportSeedIfNeededPopulatesStoreAndSetsFlagThenIsNoOp() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "us007-seed-\(UUID().uuidString)"))
+        let prefs = UserPreferences(defaults: defaults)
+        XCTAssertFalse(prefs.seedImported, "flag must start false")
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: prefs)
+
+        // First call: empty store → inserts seed (bundle JSON or hardcoded fallback)
+        let added = repo.importSeedIfNeeded()
+        XCTAssertEqual(added, 5, "seed has exactly 5 experiences")
+        XCTAssertEqual(repo.allExperiences().count, 5)
+        XCTAssertTrue(prefs.seedImported, "flag must be set after first import")
+
+        // Second call: no-op because seedImported is true
+        let addedAgain = repo.importSeedIfNeeded()
+        XCTAssertEqual(addedAgain, 0, "second call must be a no-op")
+        XCTAssertEqual(repo.allExperiences().count, 5, "count unchanged after no-op")
+    }
+
     // MARK: - US-009 UserPreferences → SwiftData mirroring
 
     func testAttachRepositoryMirrorsLegacyCompletionsOnFirstCall() throws {
