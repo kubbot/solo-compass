@@ -1285,7 +1285,7 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(service.entitlement, .free)
 
         // Simulate purchase of the monthly product.
-        _ = try await session.buyProduct(identifier: SubscriptionService.monthlyProductID)
+        _ = try await session.buyProduct(productIdentifier: SubscriptionService.monthlyProductID)
 
         try await service.refreshEntitlement()
 
@@ -1317,7 +1317,7 @@ final class SoloCompassTests: XCTestCase {
 
         // Simulate a monthly purchase then immediately expire it.
         _ = try await session.buyProduct(productIdentifier: SubscriptionService.monthlyProductID)
-        session.expireSubscription(productIdentifier: SubscriptionService.monthlyProductID)
+        try session.expireSubscription(productIdentifier: SubscriptionService.monthlyProductID)
 
         try await service.refreshEntitlement()
 
@@ -1761,7 +1761,7 @@ final class SoloCompassTests: XCTestCase {
         session.clearTransactions()
 
         // Simulate a prior purchase on this Apple ID.
-        _ = try await session.buyProduct(identifier: SubscriptionService.monthlyProductID)
+        _ = try await session.buyProduct(productIdentifier: SubscriptionService.monthlyProductID)
 
         // Fresh service — Keychain was cleared, so it starts as .free.
         let service = SubscriptionService()
