@@ -28,6 +28,10 @@ targets:
     info:
       path: SoloCompass/Resources/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations:
+          - en
+          - zh-Hans
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

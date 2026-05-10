@@ -1,0 +1,286 @@
+/* Categories */
+"category.culture" = "文化";
+"category.nature" = "自然";
+"category.food" = "美食";
+"category.coffee" = "咖啡";
+"category.work" = "办公";
+"category.wellness" = "身心";
+"category.nightlife" = "夜生活";
+"category.hidden" = "隐藏";
+
+/* Filters */
+"filter.now" = "此刻";
+"filter.all" = "全部";
+
+/* Health */
+"health.healthy" = "状态新鲜 — 多重验证";
+"health.fading" = "信号减弱 — 近期反馈较少";
+"health.questioned" = "疑问较多 — 谨慎对待";
+"health.mayBeGone" = "可能已经不在 — 长期没有信号";
+
+/* Confidence */
+"confidence.signals" = "信号";
+"confidence.aiScrape" = "AI 抓取时间";
+"confidence.gps" = "GPS 命中(30 天)";
+"confidence.reports" = "用户反馈(30 天)";
+"confidence.trusted" = "可信认证";
+
+/* Solo Score */
+"solo.label" = "独行";
+"solo.scoreTitle" = "独行评分";
+"solo.seating" = "座位友好";
+"solo.patrons" = "独行客比例";
+"solo.staff" = "员工不打扰";
+"solo.portioning" = "适合一人份量";
+"solo.ambiance" = "氛围适合独处";
+"solo.safety" = "独行安全";
+"solo.basedOn" = "基于 %d 位独行者";
+"solo.basedOn.early" = "基于 %d 条早期反馈";
+"solo.estimate.pill" = "AI 推断";
+"solo.section.estimate" = "独行评分(AI 推断)";
+"solo.section.early" = "独行评分(早期)";
+
+/* Sections */
+"section.whyItMatters" = "为什么值得";
+"section.bestTimes" = "最佳时段";
+"section.howTo" = "怎么去";
+"section.inconveniences" = "实际不便";
+"section.soloScore" = "独行评分";
+"section.sources" = "信息来源";
+"section.nearby" = "附近体验";
+"section.duration" = "通常:%d–%d 分钟";
+
+/* Actions */
+"action.markDone" = "标记完成";
+"action.completed" = "已完成";
+
+/* Experience */
+"experience.bestNow" = "此刻最佳";
+"experience.viewDetails" = "查看详情 →";
+
+/* Bottom info */
+"info.morning" = "早上好。附近有 %d 处咖啡馆此刻状态最佳。";
+"info.afternoon" = "下一小时光线会变。附近有 %d 处体验。";
+"info.evening" = "日落将至。步行可达 %d 处绝佳观景点。";
+"info.night" = "夜色渐深。仍有 %d 处营业中。";
+
+/* Voice */
+"voice.button" = "语音输入";
+"voice.permission.title" = "需要麦克风权限";
+"voice.permission.message" = "Solo Compass 需要麦克风和语音识别权限来接受语音输入。";
+
+/* AI */
+"ai.explanation.loading" = "正在加载洞察…";
+"ai.explanation.title" = "AI 洞察";
+"ai.error.missingKey" = "AI 功能尚未配置。";
+"ai.error.request" = "AI 请求失败(状态 %d)。";
+"ai.fallback.explanation" = "推荐给独行旅人:座位安静、员工不打扰、本地信号强。";
+"ai.fallback.voice" = "正在显示附近适合独行的体验。";
+
+/* Common */
+"common.ok" = "好";
+"common.cancel" = "取消";
+
+/* Add Experience (long-press flow) */
+"addExperience.confirm.title" = "在此处添加一个体验?";
+"addExperience.confirm.message" = "用语音描述它。";
+"addExperience.confirm.add" = "添加";
+"addExperience.record.title" = "聊聊这个地方";
+"addExperience.record.hint" = "按住麦克风,描述它为何值得一人前来。";
+
+/* Marker accessibility */
+"marker.a11y.bestNow" = "此刻最佳";
+"marker.a11y.completed" = "已完成";
+"marker.a11y.favorited" = "已收藏";
+"marker.a11y.upcoming" = "%d 分钟后开始";
+"marker.a11y.footprinted" = "近期有独行旅人到访";
+
+/* Bottom info accessibility */
+"info.nearbySolo.a11y" = "今天附近有 %d 位独行旅人路过";
+
+/* Solo score accessibility */
+"solo.a11y" = "独行评分 %@ / 10";
+
+/* Map empty / loading */
+"map.empty.title" = "附近暂无体验";
+"map.empty.hint" = "试试清除筛选或拖动地图。";
+"map.empty.radius" = "%.0f 公里内暂无体验";
+"map.empty.expand" = "扩展到 25 公里";
+"map.empty.browse" = "浏览 %@";
+"map.empty.clearFilters" = "清除筛选";
+"map.loading" = "地图加载中";
+
+/* City picker */
+"city.all" = "全部城市";
+"city.picker.title" = "选择城市";
+"city.experienceCount" = "%d 处体验";
+
+/* Action bar */
+"action.favorite" = "添加到收藏";
+"action.unfavorite" = "取消收藏";
+"action.close" = "关闭";
+
+/* Dismiss */
+"common.dismiss" = "关闭";
+
+/* AI processing indicator */
+"ai.processing" = "AI 思考中…";
+
+/* Map candidate marker accessibility */
+"map.candidate.label" = "候选体验:%@";
+
+/* Experience card accessibility */
+"experience.card.hint" = "双击查看详情";
+
+/* Voice recognition error alert */
+"voice.error.title" = "语音识别错误";
+"voice.error.permission" = "麦克风或语音识别权限被拒绝。请在「设置」中允许。";
+"voice.error.unavailable" = "此设备不支持语音识别。";
+
+/* Settings */
+"settings.title" = "偏好";
+"settings.done" = "完成";
+"settings.travelStyle" = "旅行风格";
+"settings.travelStyle.footer" = "你的风格决定哪些体验会优先出现。";
+"settings.preferences" = "类别偏好";
+"settings.preferences.footer" = "点击喜欢的类别。向左滑动隐藏。";
+"settings.hidden" = "已隐藏类别";
+"settings.hide" = "隐藏";
+"settings.maxDistance" = "最远距离";
+"settings.distance" = "发现半径";
+"settings.distance.footer" = "只有在此半径内的体验才会显示在地图上。";
+"settings.completed" = "已完成";
+"settings.favorites" = "收藏";
+"settings.stats" = "你的旅程";
+
+/* Travel styles */
+"style.explorer.title" = "探索者";
+"style.explorer.description" = "我喜欢闲逛和发现 — 给我惊喜";
+"style.worker.title" = "远程办公";
+"style.worker.description" = "我需要安静且 Wi-Fi 可靠的地方";
+"style.foodie.title" = "美食爱好者";
+"style.foodie.description" = "好吃的和好咖啡是我的优先";
+"style.cultureSeeker.title" = "文化探寻者";
+"style.cultureSeeker.description" = "历史、寺庙、仪式、隐藏的层次";
+
+/* MicroSurvey */
+"survey.title" = "快速反馈";
+"survey.comfort.question" = "作为独行者你感觉有多舒适?";
+"survey.comfort.1" = "非常不舒适";
+"survey.comfort.2" = "略微不舒适";
+"survey.comfort.3" = "中性";
+"survey.comfort.4" = "舒适";
+"survey.comfort.5" = "非常舒适";
+"survey.pressure.question" = "员工/商家有多主动?(星越多越轻松)";
+"survey.pressure.1" = "非常主动";
+"survey.pressure.2" = "略主动";
+"survey.pressure.3" = "中性";
+"survey.pressure.4" = "氛围放松";
+"survey.pressure.5" = "完全没有压力";
+"survey.recommend.question" = "你会推荐给另一位独行者吗?";
+"survey.recommend.yes" = "会";
+"survey.recommend.depends" = "看情况";
+"survey.recommend.no" = "不会";
+"survey.submit" = "发送反馈";
+"survey.skip" = "跳过";
+"survey.stars" = "颗星";
+
+/* ReportIssue */
+"report.title" = "反馈问题";
+"report.cancel" = "取消";
+"report.submit" = "提交";
+"report.reason.header" = "哪里不对?";
+"report.detail.header" = "补充说明(可选)";
+"report.detail.placeholder" = "再给点上下文…(最多 200 字)";
+"report.reason.closed_permanently" = "已永久关闭";
+"report.reason.moved" = "已搬迁";
+"report.reason.hours_wrong" = "营业时间错误";
+"report.reason.vibe_different" = "实际氛围差距很大";
+"report.reason.factually_wrong" = "事实有误";
+"report.reason.other" = "其他";
+
+/* Pending check-in banner */
+"checkin.banner.title" = "你来过了吗?";
+"checkin.banner.yes" = "来过!";
+"checkin.banner.a11y" = "你来过 %@ 吗?";
+
+/* Experience detail overflow */
+"detail.report" = "反馈问题";
+"detail.more" = "更多选项";
+
+/* Onboarding */
+"onboarding.welcome.title" = "值得独处的地方。";
+"onboarding.welcome.subtitle" = "一张地图,记录适合一人前往的体验。";
+"onboarding.welcome.cta" = "在地图上找到我";
+"onboarding.welcome.skip" = "先逛逛";
+"onboarding.style.title" = "你怎么旅行?";
+"onboarding.style.subtitle" = "这会决定哪些体验优先出现。随时可改。";
+"onboarding.style.cta" = "开始探索";
+"onboarding.style.skip" = "稍后决定";
+
+/* Favorites list */
+"favorites.title" = "收藏";
+"favorites.empty.title" = "还没有收藏";
+"favorites.empty.hint" = "点击任意体验上的爱心即可保存到这里。";
+
+/* Notifications */
+"settings.notifications" = "靠近时提醒我";
+"settings.notifications.header" = "通知";
+"settings.notifications.footer" = "经过你保存的体验时,Solo Compass 会安静地提醒你。永不打扰式营销。";
+"notification.checkin.title" = "你就在附近";
+"notification.checkin.body" = "你正站在 %@ 附近,要去看看吗?";
+
+/* Settings data */
+"settings.data.header" = "我的数据";
+"settings.clearData" = "清除全部数据";
+"settings.clearData.confirm.title" = "清除全部数据?";
+"settings.clearData.confirm.action" = "清除一切";
+"settings.clearData.confirm.message" = "这会删除你的已完成体验、收藏与偏好。无法恢复。";
+
+/* Explore here */
+"explore.button" = "在这里探索";
+"explore.aiBadge" = "AI 生成 · 来自 OpenStreetMap";
+"explore.error.nothingFound" = "附近没找到公共场所。试试拖动地图。";
+"explore.skeleton.oneLiner" = "一处来自 OpenStreetMap 的真实地点。";
+"explore.skeleton.why" = "我们还没有这个地方的精选故事。去看看,然后告诉我们你发现了什么。";
+"explore.quota.dailyLimit" = "今日 AI 调用次数已达上限。明天恢复前会展示真实地点但不再增强。";
+"explore.toast.addedNamed" = "正在探索 %1$@ · 新增 %2$d 处地点";
+"explore.toast.added" = "附近新增 %d 处地点";
+
+/* Paywall */
+"paywall.hero.title" = "解锁 Solo Compass Pro";
+"paywall.hero.subtitle" = "在地球任意角落用 AI 探索,语音意图,以及随取随用的逐处 AI 洞察。";
+"paywall.feature.explore" = "在这里探索 — 任意城市的 AI 增强真实地点";
+"paywall.feature.voice" = "语音意图 — 描述你的需求,得到筛选后的地图";
+"paywall.feature.insight" = "对每处体验提供 AI 洞察(按需)";
+"paywall.feature.quota" = "每天 30 次新探索 + 60 次 AI 洞察";
+"paywall.bestValue" = "最划算";
+"paywall.cta.startTrial" = "开始 7 天免费试用";
+"paywall.fineprint" = "免费 7 天,之后自动扣费。可在「设置 → Apple ID → 订阅」中随时取消。订阅即表示同意 App Store EULA 与我们的条款。";
+"paywall.restore" = "恢复购买";
+"paywall.manage" = "管理订阅";
+"paywall.error.title" = "购买未完成";
+
+/* Settings — Subscription */
+"settings.subscription" = "订阅";
+"settings.restore" = "恢复购买";
+"settings.manage" = "管理订阅";
+"restore.success" = "已恢复 Pro。";
+"restore.failure" = "此 Apple ID 下未发现有效订阅。";
+
+/* Free-tier paywall hooks */
+"explore.button.pro" = "探索(Pro)";
+"detail.aiInsight.gated" = "订阅后解锁 AI 洞察";
+
+/* Overpass errors */
+"overpass.error.url" = "Overpass 端点 URL 无效。";
+"overpass.error.request" = "地图数据请求失败(状态 %d)。";
+
+/* Explore consent (US-034) */
+"explore.consent.title" = "开始探索之前";
+"explore.consent.subtitle" = "Solo Compass 会代你与两个服务通讯。下面是会离开你手机的全部数据。";
+"explore.consent.bullet.location" = "粗略位置 → OpenStreetMap。完全公开,无账号,不追踪。";
+"explore.consent.bullet.ai" = "OSM 标签 + 城市标识 → Anthropic,用于生成独行旅人风格的描述。无任何个人资料。";
+"explore.consent.bullet.no_pii" = "我们不收集通讯录、相册、浏览记录。绝不与广告商共享。";
+"explore.consent.accept" = "了解了 — 开始探索";
+"explore.consent.cancel" = "暂不";
