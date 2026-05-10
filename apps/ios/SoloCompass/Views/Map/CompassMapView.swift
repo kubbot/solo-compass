@@ -15,6 +15,8 @@ public struct CompassMapView: View {
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
     @State private var dismissedAIError: String? = nil
+    @State private var dismissedExploreError: String? = nil
+    @State private var dismissedQuotaInfo: String? = nil
 
     @State private var isShowingCityPicker: Bool = false
     @State private var surveyExperience: Experience? = nil
@@ -74,6 +76,71 @@ public struct CompassMapView: View {
                         .accessibilityLabel(Text(errorText))
                     }
 
+                    // Explore error banner — orange, dismissible, below filter bar.
+                    if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
+                        HStack(spacing: 8) {
+                            Image(systemName: "airplane.slash")
+                                .foregroundStyle(.orange)
+                            Text(exploreError)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Spacer()
+                            Button {
+                                dismissedExploreError = exploreError
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 12)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(Text(exploreError))
+                        .accessibilityIdentifier("exploreErrorBanner")
+                    }
+
+                    // Quota banner — yellow, persistent until the next UTC day.
+                    if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.badge.exclamationmark")
+                                .foregroundStyle(Color(red: 0.8, green: 0.6, blue: 0))
+                            Text(quotaInfo)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Spacer()
+                            Button {
+                                dismissedQuotaInfo = quotaInfo
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss banner")))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Color(red: 1, green: 0.95, blue: 0.7).opacity(0.9),
+                            in: RoundedRectangle(cornerRadius: 12)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color(red: 0.8, green: 0.6, blue: 0).opacity(0.5), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 12)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(Text(quotaInfo))
+                        .accessibilityIdentifier("quotaBanner")
+                    }
+
                     Spacer()
 
                     // AI processing indicator — shown above the bottom info bar.
@@ -89,6 +156,27 @@ public struct CompassMapView: View {
                         .padding(.vertical, 6)
                         .background(.thinMaterial, in: Capsule())
                         .transition(.opacity)
+                    }
+
+                    // Explore success toast — 3-second ephemeral capsule above BottomInfoBar.
+                    if let toast = viewModel.lastExploreToast {
+                        Text(toast)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(.thinMaterial, in: Capsule())
+                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            .accessibilityIdentifier("exploreToast")
+                            .onAppear {
+                                Task {
+                                    try? await Task.sleep(for: .seconds(3))
+                                    withAnimation(.easeOut(duration: 0.3)) {
+                                        viewModel.lastExploreToast = nil
+                                    }
+                                }
+                            }
                     }
 
                     BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)

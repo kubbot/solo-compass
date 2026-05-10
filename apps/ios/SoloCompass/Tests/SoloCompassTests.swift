@@ -1519,6 +1519,123 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(cities[0].centerLat, 21.03, accuracy: 0.001)
     }
 
+    // MARK: - US-021 explore error / toast / quota banners
+
+    /// Successful exploreNearby → lastExploreToast is set (named variant).
+    @MainActor
+    func testExploreNearbySuccessSetToast() async throws {
+        let overpassJSON = #"""
+        {"elements":[{"type":"node","id":9001,"lat":21.028,"lon":105.854,"tags":{"amenity":"cafe","name":"Test Cafe"}}]}
+        """#
+        StubURLProtocol.handler = { request in
+            let body: String
+            if request.url?.host?.contains("overpass") == true || request.url?.host?.contains("openstreetmap") == true {
+                body = overpassJSON
+            } else {
+                let aiJSON = #"[{"osmId":9001,"title":"Test Cafe","oneLiner":"A cafe","whyItMatters":"Good solo","category":"coffee","bestStartHour":8,"bestEndHour":18,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":[],"soloHint":"Quiet","soloOverall":8.0}]"#
+                let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
+                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+            }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: sessionConfig)
+
+        let ai = AIService(session: session, modelContext: context)
+        let overpass = OverpassService(session: session)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        let expService = ExperienceService(repository: repo)
+
+        let defaults = UserDefaults(suiteName: "us021-toast-\(UUID().uuidString)")!
+        let prefs = UserPreferences(defaults: defaults)
+        prefs.acceptExploreConsent()
+
+        let stubGeocoder = StubReverseGeocodeService(
+            result: ReverseGeocodeService.Resolved(cityCode: "vn-hanoi", name: "Hanoi", countryCode: "vn")
+        )
+
+        let vm = MapViewModel(
+            locationService: LocationService(),
+            experienceService: expService,
+            aiService: ai,
+            preferences: prefs,
+            overpassService: overpass,
+            geocodeService: stubGeocoder
+        )
+
+        await vm.exploreNearby(at: CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542))
+
+        let toast = try XCTUnwrap(vm.lastExploreToast, "lastExploreToast must be set after a successful Explore")
+        XCTAssertTrue(toast.contains("Hanoi"), "toast must mention the city name, got: \(toast)")
+        XCTAssertNil(vm.lastExploreError, "lastExploreError must be nil on success")
+    }
+
+    /// Quota exceeded → lastQuotaInfo is set, lastExploreToast may be set (skeleton results still appended).
+    @MainActor
+    func testExploreNearbyQuotaExceededSetsQuotaBanner() async throws {
+        let overpassJSON = #"""
+        {"elements":[{"type":"node","id":9002,"lat":21.028,"lon":105.854,"tags":{"amenity":"cafe","name":"Quota Cafe"}}]}
+        """#
+        StubURLProtocol.handler = { _ in
+            (HTTPURLResponse(url: URL(string: "https://overpass-api.de/api/interpreter")!,
+                             statusCode: 200, httpVersion: nil, headerFields: nil)!,
+             overpassJSON.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+
+        // Pre-seed today's quota at cap so AIService immediately falls back to skeleton.
+        let today = AIUsageRecord.todayUTC()
+        context.insert(AIUsageRecord(date: today, synthesisCalls: AIService.dailySynthesisQuota))
+        try context.save()
+
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: sessionConfig)
+
+        let ai = AIService(session: session, modelContext: context)
+        ai.isProTier = true
+        let overpass = OverpassService(session: session)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        let expService = ExperienceService(repository: repo)
+
+        let defaults = UserDefaults(suiteName: "us021-quota-\(UUID().uuidString)")!
+        let prefs = UserPreferences(defaults: defaults)
+        prefs.acceptExploreConsent()
+
+        let vm = MapViewModel(
+            locationService: LocationService(),
+            experienceService: expService,
+            aiService: ai,
+            preferences: prefs,
+            overpassService: overpass,
+            geocodeService: StubReverseGeocodeService()
+        )
+        vm.attachSubscriptionService({
+            let sub = SubscriptionService()
+            sub._setEntitlementForTesting(.pro)
+            return sub
+        }())
+
+        await vm.exploreNearby(at: CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542))
+
+        XCTAssertNotNil(vm.lastQuotaInfo, "lastQuotaInfo must be set when quota is exceeded")
+        XCTAssertNil(vm.lastExploreError, "lastExploreError must be nil — skeleton results are still valid")
+    }
+
     // MARK: - US-010 generated experiences survive across service instances
 
     func testGeneratedExperiencesPersistAcrossServiceInstances() {
