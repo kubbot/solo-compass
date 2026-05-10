@@ -626,6 +626,10 @@ public final class MapViewModel {
         lastExploreToast = nil
         defer { isExploring = false }
 
+        // Propagate current subscription tier so AIService applies
+        // the right daily cap (Pro: 30/60, Free: 0/0).
+        aiService.isProTier = isProUser
+
         do {
             let pois = try await overpassService.fetchPOIs(near: coordinate, radiusMeters: radiusMeters)
             guard !pois.isEmpty else {
