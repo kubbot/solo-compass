@@ -90,9 +90,11 @@ This project follows a strict **validate-before-build** roadmap. Each phase has 
 | 2     | **Web Pre-MVP** — Next.js + Mapbox, manual check-in          | 4 weeks    | 30+ users in Chiang Mai, week-1 retention >40% |
 | 3     | iOS native — background GPS, push notifications, real magic  | 2–3 months | Production launch                              |
 
-**Currently in: pre-Phase 0.**
+**Currently in: Phase 3 — v1.1 TestFlight prep.**
 
-The data layer (`packages/data`, `packages/core`) and AI layer (`packages/ai`) are being built first because they're shared by every phase.
+iOS native app is feature-complete for v1.1: SwiftData persistence, AI cost control + caching, three-state Solo Score, freemium with 7-day free trial (StoreKit 2), Supabase cross-device sync (feature-flagged), zh-Hans localization, privacy manifest, first-run consent sheet. See [`docs/APP_STORE_METADATA.md`](./docs/APP_STORE_METADATA.md) for the App Store Connect submission package.
+
+The data layer (`packages/data`, `packages/core`) and AI layer (`packages/ai`) are platform-shared and stable.
 
 ---
 
