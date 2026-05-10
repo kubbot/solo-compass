@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>FF_BACKEND_SYNC</key>
+    <false/>
+    <key>FF_ROUTE_AI_THROUGH_EDGE</key>
+    <false/>
+</dict>
+</plist>

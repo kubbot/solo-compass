@@ -36,6 +36,12 @@ struct SoloCompassApp: App {
                         await subscriptionService.loadProducts()
                         await subscriptionService.refreshEntitlement()
                     }
+                    // Bootstrap anonymous Supabase session (Epic E US-028).
+                    // No-op when FF_BACKEND_SYNC is off.
+                    Task { await DeviceIdentityService.shared.bootstrap() }
+                    // Start the outbox sync timer (Epic E US-029).
+                    // Idempotent across re-renders.
+                    SyncService.shared.start()
                 }
         }
         .modelContainer(SoloCompassModelContainer.shared)

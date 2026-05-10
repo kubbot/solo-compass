@@ -25,6 +25,7 @@ public enum SoloCompassSchemaV1: VersionedSchema {
             DiscoveredCityRecord.self,
             RecentExploreRegion.self,
             AIUsageRecord.self,
+            PendingSyncRecord.self,
         ]
     }
 }

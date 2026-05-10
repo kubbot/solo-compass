@@ -1,0 +1,214 @@
+import Foundation
+
+/// Minimal Supabase REST client using URLSession — no third-party SDK.
+///
+/// This keeps the iOS bundle dep-free (project rule: zero deps where
+/// reasonable) and lets us ship the same API surface no matter which
+/// version of supabase-swift is current. The trade-off: realtime
+/// subscriptions and storage are not wrapped here. We don't need them
+/// for v1.1 (sync is poll-based, not realtime).
+///
+/// All methods are gated by `FeatureFlags.backendSync`. When the flag
+/// is off (default in beta.1), every method short-circuits to a
+/// "do nothing" path that returns the empty / success equivalent. This
+/// preserves PRD G7 (local-first invariant): the app stays fully
+/// usable when the backend is unreachable.
+@MainActor
+public final class SupabaseClient {
+    public static let shared = SupabaseClient()
+
+    public enum SupabaseError: Error, LocalizedError, Sendable {
+        case missingConfig
+        case requestFailed(status: Int, body: String)
+        case decoding(String)
+        case notSignedIn
+        case backendDisabled
+
+        public var errorDescription: String? {
+            switch self {
+            case .missingConfig:        return "Supabase URL/key missing"
+            case .requestFailed(let s, let b): return "Supabase HTTP \(s): \(b)"
+            case .decoding(let m):      return "Supabase decode failed: \(m)"
+            case .notSignedIn:          return "No active Supabase session"
+            case .backendDisabled:      return "Backend sync feature flag is off"
+            }
+        }
+    }
+
+    public struct Session: Codable, Sendable {
+        public let userId: String
+        public let accessToken: String
+        public let refreshToken: String
+        public let expiresAt: Date
+
+        public var isExpired: Bool { expiresAt <= Date() }
+    }
+
+    /// Read the active session from Keychain. May return nil if the
+    /// user has never signed in or the session was cleared.
+    public var currentSession: Session? {
+        guard let blob = KeychainStore.read(account: Self.sessionKey),
+              let data = blob.data(using: .utf8),
+              let s = try? JSONDecoder.iso8601Decoder.decode(Session.self, from: data)
+        else { return nil }
+        return s
+    }
+
+    private static let sessionKey = "sc.supabase.session"
+
+    private let urlSession: URLSession
+    public init(urlSession: URLSession = .shared) {
+        self.urlSession = urlSession
+    }
+
+    // MARK: - Config
+
+    private struct Config {
+        let url: URL
+        let anonKey: String
+    }
+
+    private static func loadConfig() -> Config? {
+        let envURL = ProcessInfo.processInfo.environment["SUPABASE_URL"]
+        let envKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"]
+            ?? ProcessInfo.processInfo.environment["SUPABASE_KEY"]
+        let urlString = envURL ?? readSecretsString("SUPABASE_URL")
+        let key = envKey ?? readSecretsString("SUPABASE_ANON_KEY") ?? readSecretsString("SUPABASE_KEY")
+        guard let urlString, let url = URL(string: urlString), let key, !key.isEmpty else {
+            return nil
+        }
+        return Config(url: url, anonKey: key)
+    }
+
+    private static func readSecretsString(_ key: String) -> String? {
+        guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
+              let data = try? Data(contentsOf: url),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return nil }
+        return plist[key] as? String
+    }
+
+    // MARK: - Auth
+
+    /// Anonymous sign-in. Persists the session to Keychain; subsequent
+    /// `currentSession` reads return it. Returns `.failure(.backendDisabled)`
+    /// when `FF_BACKEND_SYNC` is off — callers should treat that as a
+    /// no-op, not a real error.
+    @discardableResult
+    public func signInAnonymously() async -> Result<Session, SupabaseError> {
+        guard FeatureFlags.backendSync else {
+            return .failure(.backendDisabled)
+        }
+        if let s = currentSession, !s.isExpired {
+            return .success(s)
+        }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/auth/v1/signup"))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Supabase anonymous signup: empty body + apikey is enough.
+        req.httpBody = "{}".data(using: .utf8)
+
+        do {
+            let (data, response) = try await urlSession.data(for: req)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(.requestFailed(status: 0, body: ""))
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                return .failure(.requestFailed(status: http.statusCode,
+                                               body: String(data: data, encoding: .utf8) ?? ""))
+            }
+            struct AuthResponse: Decodable {
+                let access_token: String
+                let refresh_token: String
+                let expires_in: Int
+                let user: AuthUser
+            }
+            struct AuthUser: Decodable { let id: String }
+            let resp = try JSONDecoder().decode(AuthResponse.self, from: data)
+            let s = Session(
+                userId: resp.user.id,
+                accessToken: resp.access_token,
+                refreshToken: resp.refresh_token,
+                expiresAt: Date().addingTimeInterval(TimeInterval(resp.expires_in))
+            )
+            persist(s)
+            return .success(s)
+        } catch {
+            return .failure(.requestFailed(status: 0, body: error.localizedDescription))
+        }
+    }
+
+    /// Clear the local session. Does not invalidate it server-side
+    /// (Supabase anonymous sessions don't have a sign-out endpoint
+    /// per se; we just discard the token).
+    public func signOut() {
+        _ = KeychainStore.delete(account: Self.sessionKey)
+    }
+
+    // MARK: - REST helpers (used by SyncService US-029)
+
+    /// Generic POST to a PostgREST table. Returns response body bytes
+    /// on success. Returns `.success(empty Data)` when FF_BACKEND_SYNC
+    /// is off so callers can treat sync as best-effort fire-and-forget.
+    public func post(table: String, body: Data) async -> Result<Data, SupabaseError> {
+        guard FeatureFlags.backendSync else { return .success(Data()) }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+        guard let token = currentSession?.accessToken else { return .failure(.notSignedIn) }
+
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/rest/v1/\(table)"))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Prefer: resolution=merge-duplicates so upsert semantics match
+        // SyncService's outbox idempotency.
+        req.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
+        req.httpBody = body
+
+        return await sendREST(req)
+    }
+
+    /// Invoke a Supabase Edge Function with the user's bearer token.
+    /// Returns `.success(empty Data)` when FF_BACKEND_SYNC is off.
+    public func invoke(function: String, body: Data) async -> Result<Data, SupabaseError> {
+        guard FeatureFlags.backendSync else { return .success(Data()) }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+        guard let token = currentSession?.accessToken else { return .failure(.notSignedIn) }
+
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/functions/v1/\(function)"))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+
+        return await sendREST(req)
+    }
+
+    // MARK: - Internals
+
+    private func sendREST(_ request: URLRequest) async -> Result<Data, SupabaseError> {
+        do {
+            let (data, response) = try await urlSession.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(.requestFailed(status: 0, body: ""))
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                return .failure(.requestFailed(status: http.statusCode,
+                                               body: String(data: data, encoding: .utf8) ?? ""))
+            }
+            return .success(data)
+        } catch {
+            return .failure(.requestFailed(status: 0, body: error.localizedDescription))
+        }
+    }
+
+    private func persist(_ s: Session) {
+        guard let data = try? JSONEncoder.iso8601Encoder.encode(s),
+              let str = String(data: data, encoding: .utf8) else { return }
+        _ = KeychainStore.write(account: Self.sessionKey, value: str)
+    }
+}
