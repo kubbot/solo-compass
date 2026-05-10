@@ -397,7 +397,7 @@
         "Tests pass"
       ],
       "priority": 23,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -414,8 +414,8 @@
         "Tests pass"
       ],
       "priority": 24,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "KeychainStore.swift and SubscriptionService.swift implement all criteria. testSubscriptionServiceEntitlementSeedsFromKeychain covers the offline-boot unit test."
     },
     {
       "id": "US-025",
