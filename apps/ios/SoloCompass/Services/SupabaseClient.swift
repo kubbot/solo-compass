@@ -8,6 +8,8 @@ public protocol SupabaseClientProtocol: AnyObject {
     var currentSession: SupabaseClient.Session? { get }
     func signInAnonymously() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError>
     func refreshSession() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError>
+    func post(table: String, body: Data) async -> Result<Data, SupabaseClient.SupabaseError>
+    func get(table: String, query: [URLQueryItem]) async -> Result<Data, SupabaseClient.SupabaseError>
 }
 
 /// Minimal Supabase REST client using URLSession — no third-party SDK.
@@ -235,6 +237,29 @@ public final class SupabaseClient: SupabaseClientProtocol {
         // SyncService's outbox idempotency.
         req.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
         req.httpBody = body
+
+        return await sendREST(req)
+    }
+
+    /// Generic GET from a PostgREST table with optional query string params.
+    /// Returns `.success(empty Data)` when FF_BACKEND_SYNC is off.
+    public func get(table: String, query: [URLQueryItem] = []) async -> Result<Data, SupabaseError> {
+        guard FeatureFlags.backendSync else { return .success(Data()) }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+        guard let token = currentSession?.accessToken else { return .failure(.notSignedIn) }
+
+        var components = URLComponents(
+            url: cfg.url.appendingPathComponent("/rest/v1/\(table)"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = query.isEmpty ? nil : query
+        guard let url = components?.url else { return .failure(.missingConfig) }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
 
         return await sendREST(req)
     }
