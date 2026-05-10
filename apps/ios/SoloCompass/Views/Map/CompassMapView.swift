@@ -426,20 +426,15 @@ public struct CompassMapView: View {
                 ForEach(viewModel.candidateExperiences) { cand in
                     if let coord = cand.coordinate {
                         Annotation(cand.title, coordinate: coord) {
-                            Circle()
-                                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
-                                .frame(width: 36, height: 36)
-                                .foregroundStyle(Color.gray)
-                                .background(Circle().fill(Color.white.opacity(0.6)))
-                                .overlay(
-                                    Image(systemName: "plus")
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(.gray)
-                                )
-                                .accessibilityLabel(Text(String(
-                                    format: NSLocalizedString("map.candidate.label", comment: "Candidate experience: %@"),
-                                    cand.title
-                                )))
+                            MarkerIconView(
+                                category: cand.category,
+                                state: .default,
+                                confidenceLevel: cand.confidence.level
+                            )
+                            .accessibilityLabel(Text(String(
+                                format: NSLocalizedString("map.candidate.label", comment: "Candidate experience: %@"),
+                                cand.title
+                            )))
                         }
                     }
                 }

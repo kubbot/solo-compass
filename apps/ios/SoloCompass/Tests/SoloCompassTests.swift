@@ -1407,6 +1407,24 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(low.isLowConfidence)
     }
 
+    func testMarkerIconViewAccessibilityIdentifiersDiffer() {
+        let normal = MarkerIconView(category: .food, state: .default, confidenceLevel: 4)
+        let low = MarkerIconView(category: .food, state: .default, confidenceLevel: 1)
+        XCTAssertNotEqual(
+            normal.accessibilityIdentifier,
+            low.accessibilityIdentifier,
+            "Normal and low-confidence markers must produce different accessibility identifiers"
+        )
+        XCTAssertTrue(
+            normal.accessibilityIdentifier.hasSuffix(".normal"),
+            "Confidence-4 marker identifier should end with '.normal', got: \(normal.accessibilityIdentifier)"
+        )
+        XCTAssertTrue(
+            low.accessibilityIdentifier.hasSuffix(".low"),
+            "Confidence-1 marker identifier should end with '.low', got: \(low.accessibilityIdentifier)"
+        )
+    }
+
     // MARK: - US-020 aggregated solo score
 
     func testAggregatedSoloScoreReturnsNilWhenNoSurveys() {

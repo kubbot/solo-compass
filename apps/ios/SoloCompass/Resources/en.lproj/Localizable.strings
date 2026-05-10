@@ -94,6 +94,7 @@
 "marker.a11y.favorited" = "favorited";
 "marker.a11y.upcoming" = "starts in %d minutes";
 "marker.a11y.footprinted" = "recently visited by solo travelers";
+"marker.a11y.lowConfidence" = "AI-suggested, unverified";
 
 /* Bottom info accessibility */
 "info.nearbySolo.a11y" = "%d solo travelers passed nearby today";
