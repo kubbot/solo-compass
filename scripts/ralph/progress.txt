@@ -19,3 +19,5 @@ Stories: 41
 [2026-05-10T09:12:30Z] Story #US-008: Refactor ExperienceService to delegate to ExperienceRepository — PASSED
 [2026-05-10T09:12:57Z] Story #US-008: Refactor ExperienceService to delegate to ExperienceRepository — PASSED
 [2026-05-10T09:16:06Z] Story #US-009: Move UserPreferences completed/favorites lists into SwiftData — PASSED
+[2026-05-10T09:19:46Z] Story #US-011: Implement Overpass cache layer with 14-day TTL — PASSED
+[2026-05-10T09:22:00Z] Story #US-012: Implement AI synthesis cache layer with 30-day TTL — PASSED

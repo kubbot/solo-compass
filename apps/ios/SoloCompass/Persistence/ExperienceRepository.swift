@@ -12,11 +12,14 @@ import SwiftData
 /// later move to a background actor if profiling demands it.
 @MainActor
 public final class ExperienceRepository {
-    private let context: ModelContext
+    /// Exposed so callers (e.g. `AIService`) can share the same actor-bound
+    /// context rather than opening a second one on the same container.
+    public let modelContext: ModelContext
+    private var context: ModelContext { modelContext }
     private let preferences: UserPreferences?
 
     public init(context: ModelContext, preferences: UserPreferences? = nil) {
-        self.context = context
+        self.modelContext = context
         self.preferences = preferences
     }
 

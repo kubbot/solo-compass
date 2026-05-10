@@ -787,6 +787,45 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertNotEqual(kSonnet, kOpus, "model bump must invalidate cache")
     }
 
+    @MainActor
+    func testSynthesisCacheTwoCallsOneHTTPIdenticalResults() async throws {
+        // Stub returns a fixed Anthropic-shaped response with one POI entry.
+        StubURLProtocol.handler = { _ in
+            let json = #"""
+            [{"osmId":55,"title":"Cache Test Cafe","oneLiner":"A cafe.","whyItMatters":"Good solo spot.","category":"coffee","bestStartHour":8,"bestEndHour":20,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":["Go in","Find a seat"],"soloHint":"Quiet mornings.","soloOverall":7.8}]
+            """#
+            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let ai = AIService(session: URLSession(configuration: config), modelContext: context)
+
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 55, name: "Cache Test Cafe", nameEn: nil, lat: 21.03, lon: 105.85,
+                  tags: ["amenity": "cafe"])
+        ]
+
+        let first = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "first call must hit network")
+
+        let second = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+        XCTAssertEqual(StubURLProtocol.requestCount, 1, "second call must be served from cache (no HTTP)")
+
+        XCTAssertEqual(first.count, second.count, "cached result count must match")
+        XCTAssertEqual(first.map(\.id), second.map(\.id), "cached result ids must be identical")
+        XCTAssertEqual(first.map(\.title), second.map(\.title), "cached result titles must be identical")
+    }
+
     // MARK: - US-013 model routing
 
     func testModelRoutingDefaults() {

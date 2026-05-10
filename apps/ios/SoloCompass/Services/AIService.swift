@@ -91,6 +91,12 @@ public final class AIService {
         self.modelContext = modelContext
     }
 
+    /// Initialise with an `ExperienceRepository`; the repository's context
+    /// is reused so synthesis cache I/O shares the same actor-bound store.
+    public convenience init(session: URLSession = .shared, repository: ExperienceRepository?) {
+        self.init(session: session, modelContext: repository?.modelContext)
+    }
+
     /// Convenience that uses the shared SwiftData container's main
     /// context for caching.
     public convenience init(session: URLSession = .shared, useSharedCache: Bool) {
