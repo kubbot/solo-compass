@@ -652,7 +652,7 @@
         "Verify in simulator on a fresh install: tap Explore, confirm sheet appears once, tap Continue, confirm explore proceeds"
       ],
       "priority": 37,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
