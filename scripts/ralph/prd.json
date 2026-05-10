@@ -120,7 +120,7 @@
       ],
       "priority": 7,
       "passes": true,
-      "notes": "ExperienceRepository.swift was already complete. Added testImportSeedIfNeededPopulatesStoreAndSetsFlagThenIsNoOp to SoloCompassTests.swift: empty in-memory store → importSeedIfNeeded() → asserts 5 experiences, seedImported==true, second call returns 0 (no-op)."
+      "notes": "ExperienceRepository.swift was already complete. Added testImportSeedIfNeededPopulatesStoreAndSetsFlagThenIsNoOp to SoloCompassTests.swift: empty in-memory store \u2192 importSeedIfNeeded() \u2192 asserts 5 experiences, seedImported==true, second call returns 0 (no-op)."
     },
     {
       "id": "US-008",
@@ -136,8 +136,8 @@
         "Tests pass"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ExperienceService.swift was already a complete @Observable facade over ExperienceRepository: private `repository` field, both inits call importSeedIfNeeded(), all public methods (allExperiences, filteredExperiences, getExperiences, getExperience, getBestNowExperiences, filter, appendGenerated, markCompleted, toggleFavorite) delegate to repo. MapViewModel, ExperienceDetailViewModel, and CompassMapView required zero source changes. testFilteringByCategoryAndDistance and testGetExperiencesNearReturnsSortedByDistance use ExperienceService() which calls importSeedIfNeeded() in init, populating the store with seed data before serving results."
     },
     {
       "id": "US-009",
