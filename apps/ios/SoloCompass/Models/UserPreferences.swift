@@ -203,24 +203,54 @@ public final class UserPreferences {
 
     // MARK: - Repository wiring (US-009 double-write to SwiftData)
 
+    /// Separate legacy UserDefaults keys written by app v1.0 as plain
+    /// `[String]` arrays. v1.1 reads these once, inserts SwiftData rows,
+    /// then removes the keys so the migration never reruns.
+    private static let legacyCompletedKey = "completedExperienceIds"
+    private static let legacyFavoritedKey = "favoriteExperienceIds"
+
     /// Wire the SwiftData-backed `ExperienceRepository` so subsequent
     /// mutations are mirrored to disk. On the first call, also migrates
-    /// any pre-existing UserDefaults arrays into the corresponding
-    /// SwiftData tables.
+    /// any pre-existing data: first reads the v1.0 separate-key arrays
+    /// (`completedExperienceIds` / `favoriteExperienceIds`) and inserts
+    /// corresponding SwiftData rows, then copies any in-memory state
+    /// accumulated since boot. Deletes the old keys so the migration
+    /// never reruns.
     @MainActor
     public func attachRepository(_ repository: ExperienceRepository) {
         self.experienceRepository = repository
         if !swiftDataMirrored {
-            // One-shot mirror: copy existing in-memory state into the
-            // matching SwiftData tables. Idempotent — repo skips
-            // duplicates by id.
-            for id in completedExperiences {
-                if !repository.isCompleted(experienceId: id) {
-                    repository.recordCompletion(
-                        experienceId: id,
-                        at: visitHistory[id] ?? Date()
-                    )
-                }
+            // Phase 1: migrate v1.0 legacy separate-key arrays.
+            let legacyCompleted = defaults.stringArray(forKey: Self.legacyCompletedKey) ?? []
+            let legacyFavorited = defaults.stringArray(forKey: Self.legacyFavoritedKey) ?? []
+
+            for id in legacyCompleted where !repository.isCompleted(experienceId: id) {
+                repository.recordCompletion(
+                    experienceId: id,
+                    at: visitHistory[id] ?? Date()
+                )
+                // Absorb into in-memory set so isCompleted() stays consistent.
+                completedExperiences.insert(id)
+            }
+            for id in legacyFavorited where !repository.isFavorited(experienceId: id) {
+                _ = repository.toggleFavorite(
+                    experienceId: id,
+                    at: favoritedAt[id] ?? Date()
+                )
+                favoritedExperiences.insert(id)
+            }
+
+            // Remove old keys — migration must not run a second time.
+            defaults.removeObject(forKey: Self.legacyCompletedKey)
+            defaults.removeObject(forKey: Self.legacyFavoritedKey)
+
+            // Phase 2: mirror any in-memory state that arrived after boot
+            // but before the repo was wired (e.g. from the v1 snapshot blob).
+            for id in completedExperiences where !repository.isCompleted(experienceId: id) {
+                repository.recordCompletion(
+                    experienceId: id,
+                    at: visitHistory[id] ?? Date()
+                )
             }
             for id in favoritedExperiences where !repository.isFavorited(experienceId: id) {
                 _ = repository.toggleFavorite(
@@ -228,6 +258,7 @@ public final class UserPreferences {
                     at: favoritedAt[id] ?? Date()
                 )
             }
+
             swiftDataMirrored = true
         }
     }
@@ -294,8 +325,19 @@ public final class UserPreferences {
         }
     }
 
-    public func isFavorited(_ id: String) -> Bool { favoritedExperiences.contains(id) }
-    public func isCompleted(_ id: String) -> Bool { completedExperiences.contains(id) }
+    /// Read-through to SwiftData when the repository is wired; falls back
+    /// to the in-memory set for previews and tests that skip `attachRepository`.
+    public func isFavorited(_ id: String) -> Bool {
+        if let repo = experienceRepository { return repo.isFavorited(experienceId: id) }
+        return favoritedExperiences.contains(id)
+    }
+
+    /// Read-through to SwiftData when the repository is wired; falls back
+    /// to the in-memory set for previews and tests that skip `attachRepository`.
+    public func isCompleted(_ id: String) -> Bool {
+        if let repo = experienceRepository { return repo.isCompleted(experienceId: id) }
+        return completedExperiences.contains(id)
+    }
 
     public func recordPendingCheckIn(_ id: String, at date: Date = Date()) {
         pendingCheckIns[id] = date

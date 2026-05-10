@@ -697,6 +697,42 @@ final class SoloCompassTests: XCTestCase {
         )
     }
 
+    func testMigrateLegacyUserDefaultsKeysIntoSwiftData() throws {
+        // Pre-populate the v1.0 separate-key arrays that the migration reads.
+        let suiteName = "us009-legacy-migration-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defaults.set(["exp_comp_1", "exp_comp_2"], forKey: "completedExperienceIds")
+        defaults.set(["exp_fav_1"], forKey: "favoriteExperienceIds")
+
+        // Instantiate prefs against that suite — must NOT yet be mirrored.
+        let prefs = UserPreferences(defaults: defaults)
+        XCTAssertFalse(prefs.swiftDataMirrored)
+
+        // Wire a fresh in-memory repo and trigger migration.
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        prefs.attachRepository(repo)
+
+        // SwiftData must have the migrated rows.
+        XCTAssertTrue(repo.isCompleted(experienceId: "exp_comp_1"), "exp_comp_1 must be in SwiftData")
+        XCTAssertTrue(repo.isCompleted(experienceId: "exp_comp_2"), "exp_comp_2 must be in SwiftData")
+        XCTAssertTrue(repo.isFavorited(experienceId: "exp_fav_1"), "exp_fav_1 must be in SwiftData")
+
+        // Old keys must be erased so the migration never reruns.
+        XCTAssertNil(defaults.object(forKey: "completedExperienceIds"), "legacy completed key must be removed")
+        XCTAssertNil(defaults.object(forKey: "favoriteExperienceIds"), "legacy favorited key must be removed")
+
+        // Mirrored flag set.
+        XCTAssertTrue(prefs.swiftDataMirrored)
+
+        // Read-through: isCompleted/isFavorited must now delegate to the repo.
+        XCTAssertTrue(prefs.isCompleted("exp_comp_1"))
+        XCTAssertTrue(prefs.isFavorited("exp_fav_1"))
+        XCTAssertFalse(prefs.isCompleted("exp_unknown"))
+        XCTAssertFalse(prefs.isFavorited("exp_unknown"))
+    }
+
     // MARK: - US-011 Overpass cache 14-day TTL
 
     func testOverpassRegionKeyFormat() {
