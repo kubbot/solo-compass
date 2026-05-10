@@ -27,7 +27,7 @@ public final class UserPreferences {
         var favoritedExperiences: Set<String> = []
         var favoritedAt: [String: Date] = [:]
         var pendingCheckIns: [String: Date] = [:]
-        var lastSelectedCity: String? = nil
+        var lastSelectedCity: String?
         var hasCompletedOnboarding: Bool = false
         var notificationsEnabled: Bool = false
         var quietHoursStart: Int = 22
@@ -35,9 +35,10 @@ public final class UserPreferences {
         var seedImported: Bool = false
         var swiftDataMirrored: Bool = false
         var hasAcceptedExploreConsent: Bool = false
-        var exploreConsentGivenAt: Date? = nil
+        var exploreConsentGivenAt: Date?
         var reviewPromptShown: Bool = false
 
+        // swiftlint:disable:next nesting
         enum CodingKeys: String, CodingKey {
             case preferredCategories, dislikedCategories, soloTravelStyle, maxDistanceKm
             case visitHistory, completedExperiences, favoritedExperiences, favoritedAt, pendingCheckIns
@@ -91,26 +92,26 @@ public final class UserPreferences {
         }
 
         init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            self.preferredCategories = try c.decodeIfPresent([ExperienceCategory].self, forKey: .preferredCategories) ?? []
-            self.dislikedCategories = try c.decodeIfPresent([ExperienceCategory].self, forKey: .dislikedCategories) ?? []
-            self.soloTravelStyle = try c.decodeIfPresent(SoloTravelStyle.self, forKey: .soloTravelStyle) ?? .explorer
-            self.maxDistanceKm = try c.decodeIfPresent(Double.self, forKey: .maxDistanceKm) ?? 5.0
-            self.visitHistory = try c.decodeIfPresent([String: Date].self, forKey: .visitHistory) ?? [:]
-            self.completedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .completedExperiences) ?? []
-            self.favoritedExperiences = try c.decodeIfPresent(Set<String>.self, forKey: .favoritedExperiences) ?? []
-            self.favoritedAt = try c.decodeIfPresent([String: Date].self, forKey: .favoritedAt) ?? [:]
-            self.pendingCheckIns = try c.decodeIfPresent([String: Date].self, forKey: .pendingCheckIns) ?? [:]
-            self.lastSelectedCity = try c.decodeIfPresent(String.self, forKey: .lastSelectedCity)
-            self.hasCompletedOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
-            self.notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
-            self.quietHoursStart = try c.decodeIfPresent(Int.self, forKey: .quietHoursStart) ?? 22
-            self.quietHoursEnd = try c.decodeIfPresent(Int.self, forKey: .quietHoursEnd) ?? 8
-            self.seedImported = try c.decodeIfPresent(Bool.self, forKey: .seedImported) ?? false
-            self.swiftDataMirrored = try c.decodeIfPresent(Bool.self, forKey: .swiftDataMirrored) ?? false
-            self.hasAcceptedExploreConsent = try c.decodeIfPresent(Bool.self, forKey: .hasAcceptedExploreConsent) ?? false
-            self.exploreConsentGivenAt = try c.decodeIfPresent(Date.self, forKey: .exploreConsentGivenAt)
-            self.reviewPromptShown = try c.decodeIfPresent(Bool.self, forKey: .reviewPromptShown) ?? false
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.preferredCategories = try container.decodeIfPresent([ExperienceCategory].self, forKey: .preferredCategories) ?? []
+            self.dislikedCategories = try container.decodeIfPresent([ExperienceCategory].self, forKey: .dislikedCategories) ?? []
+            self.soloTravelStyle = try container.decodeIfPresent(SoloTravelStyle.self, forKey: .soloTravelStyle) ?? .explorer
+            self.maxDistanceKm = try container.decodeIfPresent(Double.self, forKey: .maxDistanceKm) ?? 5.0
+            self.visitHistory = try container.decodeIfPresent([String: Date].self, forKey: .visitHistory) ?? [:]
+            self.completedExperiences = try container.decodeIfPresent(Set<String>.self, forKey: .completedExperiences) ?? []
+            self.favoritedExperiences = try container.decodeIfPresent(Set<String>.self, forKey: .favoritedExperiences) ?? []
+            self.favoritedAt = try container.decodeIfPresent([String: Date].self, forKey: .favoritedAt) ?? [:]
+            self.pendingCheckIns = try container.decodeIfPresent([String: Date].self, forKey: .pendingCheckIns) ?? [:]
+            self.lastSelectedCity = try container.decodeIfPresent(String.self, forKey: .lastSelectedCity)
+            self.hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+            self.notificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
+            self.quietHoursStart = try container.decodeIfPresent(Int.self, forKey: .quietHoursStart) ?? 22
+            self.quietHoursEnd = try container.decodeIfPresent(Int.self, forKey: .quietHoursEnd) ?? 8
+            self.seedImported = try container.decodeIfPresent(Bool.self, forKey: .seedImported) ?? false
+            self.swiftDataMirrored = try container.decodeIfPresent(Bool.self, forKey: .swiftDataMirrored) ?? false
+            self.hasAcceptedExploreConsent = try container.decodeIfPresent(Bool.self, forKey: .hasAcceptedExploreConsent) ?? false
+            self.exploreConsentGivenAt = try container.decodeIfPresent(Date.self, forKey: .exploreConsentGivenAt)
+            self.reviewPromptShown = try container.decodeIfPresent(Bool.self, forKey: .reviewPromptShown) ?? false
         }
     }
 
@@ -402,16 +403,16 @@ public final class UserPreferences {
 
 extension JSONDecoder {
     static let iso8601Decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.dateDecodingStrategy = .iso8601
-        return d
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }()
 }
 
 extension JSONEncoder {
     static let iso8601Encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.dateEncodingStrategy = .iso8601
-        return e
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
     }()
 }

@@ -91,9 +91,9 @@ public final class ExperienceRepository {
         return allRecords()
             .compactMap { record -> (Experience, Double)? in
                 let there = CLLocation(latitude: record.latitude, longitude: record.longitude)
-                let d = here.distance(from: there)
-                guard d <= radiusMeters else { return nil }
-                return (record.asValue, d)
+                let dist = here.distance(from: there)
+                guard dist <= radiusMeters else { return nil }
+                return (record.asValue, dist)
             }
             .sorted { $0.1 < $1.1 }
             .map { $0.0 }
@@ -527,18 +527,22 @@ public final class ExperienceRepository {
 /// snake_case field names match the Postgres column names exactly so the
 /// JSON body serializes 1:1 with no remap.
 struct SyncCompletionPayload: Encodable {
+    // swiftlint:disable identifier_name
     let user_id: String
     let experience_id: String
     let completed_at: Date
+    // swiftlint:enable identifier_name
 }
 
 /// Sent to Supabase `user_favorites`. `favorited_at` is nil when the row
 /// represents an unfavorite (the server's RLS + check constraint allow
 /// the null + we treat null as tombstone in nightly cleanup).
 struct SyncFavoritePayload: Encodable {
+    // swiftlint:disable identifier_name
     let user_id: String
     let experience_id: String
     let favorited_at: Date?
+    // swiftlint:enable identifier_name
 }
 
 /// Sent to Supabase `solo_score_signals` on every MicroSurvey submission
@@ -547,10 +551,12 @@ struct SyncFavoritePayload: Encodable {
 /// We use the anon device ID as `user_id` so the server can dedupe
 /// per-device signals without any PII.
 struct SyncSoloScoreSignalPayload: Encodable {
+    // swiftlint:disable identifier_name
     let user_id: String
     let experience_id: String
     let comfort: Int
     let pressure: Int
     let recommend: String
     let submitted_at: Date
+    // swiftlint:enable identifier_name
 }
