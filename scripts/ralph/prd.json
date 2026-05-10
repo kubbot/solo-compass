@@ -326,7 +326,7 @@
         "Verify in simulator: open a generated Experience (basedOnCount 0) and a seed Experience (basedOnCount > 3), confirm headers and pills differ"
       ],
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

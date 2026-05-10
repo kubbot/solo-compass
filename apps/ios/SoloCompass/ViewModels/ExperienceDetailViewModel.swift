@@ -37,6 +37,26 @@ public final class ExperienceDetailViewModel {
         loadNearby()
     }
 
+    /// Returns the best available SoloScore for display: aggregated from local
+    /// survey responses when any exist, otherwise the seed/AI value.
+    /// The aggregation blends the original overall (50%) with local survey mean
+    /// (50%) plus a +0.5 recommend boost when ≥50% said "yes".
+    public var displaySoloScore: SoloScore {
+        let repo = experienceService.repo
+        guard let agg = repo.aggregatedSoloScore(
+            experienceId: experience.id,
+            seedOverall: experience.soloScore.overall
+        ) else {
+            return experience.soloScore
+        }
+        return SoloScore(
+            overall: agg.overall,
+            breakdown: experience.soloScore.breakdown,
+            hint: experience.soloScore.hint,
+            basedOnCount: agg.count
+        )
+    }
+
     public func toggleComplete() {
         if isCompleted {
             preferences.completedExperiences.remove(experience.id)
