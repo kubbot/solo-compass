@@ -451,7 +451,7 @@
         "Verify in simulator: as free user, tap Explore -> paywall appears; complete trial purchase -> next Explore proceeds normally"
       ],
       "priority": 26,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

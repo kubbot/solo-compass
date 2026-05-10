@@ -1743,6 +1743,44 @@ final class SoloCompassTests: XCTestCase {
                        "yearly product must be sorted first for the Best value card")
     }
 
+    // MARK: - US-027 Restore purchases
+
+    /// With a previously-purchased transaction in the StoreKit test session,
+    /// calling restorePurchases() (AppStore.sync + refreshEntitlement) must
+    /// set entitlement to .pro (or .proTrial).
+    func testRestorePurchasesSetsProEntitlement() async throws {
+        guard let configURL = Bundle.main.url(
+            forResource: "Configuration", withExtension: "storekit"
+        ) else {
+            throw XCTSkip("Configuration.storekit not found in test bundle")
+        }
+
+        _ = KeychainStore.delete(account: "entitlement")
+        defer { _ = KeychainStore.delete(account: "entitlement") }
+
+        let session = try SKTestSession(contentsOf: configURL)
+        session.resetToDefaultState()
+        session.disableDialogs = true
+        session.clearTransactions()
+
+        // Simulate a prior purchase on this Apple ID.
+        _ = try await session.buyProduct(identifier: SubscriptionService.monthlyProductID)
+
+        // Fresh service — Keychain was cleared, so it starts as .free.
+        let service = SubscriptionService()
+        XCTAssertEqual(service.entitlement, .free, "pre-condition: starts free")
+
+        // Restore should resync the existing transaction and grant Pro.
+        let restored = await service.restorePurchases()
+
+        XCTAssertTrue(restored, "restorePurchases() must return true for a previously-purchased product")
+        XCTAssertTrue(
+            service.entitlement == .pro || service.entitlement == .proTrial,
+            "Expected .pro or .proTrial after restore, got \(service.entitlement)"
+        )
+        XCTAssertTrue(service.entitlement.isActive)
+    }
+
     // MARK: - US-010 generated experiences survive across service instances
 
     func testGeneratedExperiencesPersistAcrossServiceInstances() {
