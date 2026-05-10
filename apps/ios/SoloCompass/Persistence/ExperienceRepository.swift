@@ -355,6 +355,47 @@ public final class ExperienceRepository {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    // MARK: - Explore cache (US-011)
+
+    /// Return cached raw Overpass JSON for `regionKey` if it exists and is
+    /// within the 14-day TTL; `nil` otherwise.
+    public func loadExploreCache(regionKey: String) -> Data? {
+        let descriptor = FetchDescriptor<ExploreCacheRecord>(
+            predicate: #Predicate { $0.regionKey == regionKey }
+        )
+        guard let row = (try? context.fetch(descriptor))?.first else { return nil }
+        let age = Date().timeIntervalSince(row.fetchedAt)
+        guard age < OverpassService.cacheTTLSeconds else { return nil }
+        return row.osmJSON
+    }
+
+    /// Persist raw Overpass JSON for `regionKey`. Delete-then-insert keeps
+    /// semantics explicit and side-steps SwiftData's silent upsert on
+    /// `@Attribute(.unique)`.
+    public func writeExploreCache(regionKey: String, raw: Data, poiCount: Int) {
+        let descriptor = FetchDescriptor<ExploreCacheRecord>(
+            predicate: #Predicate { $0.regionKey == regionKey }
+        )
+        if let existing = (try? context.fetch(descriptor))?.first {
+            context.delete(existing)
+        }
+        context.insert(
+            ExploreCacheRecord(
+                regionKey: regionKey,
+                osmJSON: raw,
+                fetchedAt: Date(),
+                poiCount: poiCount
+            )
+        )
+        try? context.save()
+    }
+
+    /// Delete all `ExploreCacheRecord` rows. Called from Settings → Storage.
+    public func clearExploreCache() {
+        try? context.delete(model: ExploreCacheRecord.self)
+        try? context.save()
+    }
+
     // MARK: - Bulk operations
 
     /// Wipe every user-data row. Does NOT delete experiences (they reseed

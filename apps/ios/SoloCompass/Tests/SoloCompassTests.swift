@@ -756,7 +756,8 @@ final class SoloCompassTests: XCTestCase {
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
-        let service = OverpassService(session: session, maxResults: 30, modelContext: context)
+        let repo = ExperienceRepository(context: context)
+        let service = OverpassService(session: session, maxResults: 30, repository: repo)
 
         let coord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
         let firstHit = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
@@ -925,7 +926,8 @@ final class SoloCompassTests: XCTestCase {
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
-        let service = OverpassService(session: session, maxResults: 30, modelContext: context)
+        let repo = ExperienceRepository(context: context)
+        let service = OverpassService(session: session, maxResults: 30, repository: repo)
 
         let coord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
         _ = try await service.fetchPOIs(near: coord, radiusMeters: 3000)
