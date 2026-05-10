@@ -687,7 +687,7 @@
         "Verify in simulator: switch language to Simplified Chinese, open paywall, confirm strings render correctly"
       ],
       "priority": 39,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
