@@ -1814,6 +1814,100 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(ids.contains("exp_osm_1001"))
         XCTAssertTrue(ids.contains("exp_osm_1002"))
     }
+
+    // MARK: - US-030 Anonymous sign-in + DeviceIdentityService
+
+    /// First launch: signInAnonymously called once and userId persisted.
+    @MainActor
+    func testDeviceIdentityBootstrapFirstLaunchCallsSignInAndPersistsUserId() async throws {
+        try XCTSkipUnless(keychainAvailable(), "Keychain unavailable in unsigned CI test bundle")
+
+        // Clean up any leftover state from other test runs.
+        _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount)
+        defer { _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount) }
+
+        let mockClient = MockSupabaseClient(
+            sessionToReturn: SupabaseClient.Session(
+                userId: "anon-user-abc123",
+                accessToken: "access-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date().addingTimeInterval(3600)
+            )
+        )
+        let service = DeviceIdentityService(client: mockClient)
+
+        // Pre-condition: no userId in Keychain yet.
+        XCTAssertNil(KeychainStore.read(account: DeviceIdentityService.userIdKeychainAccount))
+
+        await service.bootstrap()
+
+        XCTAssertEqual(mockClient.signInAnonymouslyCallCount, 1,
+                       "signInAnonymously must be called exactly once on first launch")
+        XCTAssertEqual(
+            KeychainStore.read(account: DeviceIdentityService.userIdKeychainAccount),
+            "anon-user-abc123",
+            "userId must be persisted under sc.anon.userId after first sign-in"
+        )
+    }
+
+    /// Second launch: session already cached → signInAnonymously returns cached session,
+    /// no new signup request is made (existing account reused).
+    @MainActor
+    func testDeviceIdentityBootstrapSecondLaunchRestoresSessionWithoutNewSignup() async throws {
+        try XCTSkipUnless(keychainAvailable(), "Keychain unavailable in unsigned CI test bundle")
+
+        _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount)
+        defer { _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount) }
+
+        // Simulate an already-persisted userId from the first launch.
+        _ = KeychainStore.write(account: DeviceIdentityService.userIdKeychainAccount, value: "anon-user-existing")
+
+        // The mock client simulates "session already valid" by returning
+        // the same userId. In production this is the SupabaseClient fast-
+        // path that returns the cached session without a network round-trip.
+        let mockClient = MockSupabaseClient(
+            sessionToReturn: SupabaseClient.Session(
+                userId: "anon-user-existing",
+                accessToken: "cached-access-token",
+                refreshToken: "cached-refresh-token",
+                expiresAt: Date().addingTimeInterval(3600)
+            )
+        )
+        let service = DeviceIdentityService(client: mockClient)
+
+        await service.bootstrap()
+
+        // signInAnonymously is still called (it's idempotent — it returns
+        // the cached session, not a new signup), but the userId stored
+        // must remain the same (session was restored, not replaced).
+        XCTAssertEqual(mockClient.signInAnonymouslyCallCount, 1,
+                       "signInAnonymously is called once per launch (returns cached session on second launch)")
+        XCTAssertEqual(
+            KeychainStore.read(account: DeviceIdentityService.userIdKeychainAccount),
+            "anon-user-existing",
+            "userId must remain the same across launches — session is restored, not replaced"
+        )
+    }
+
+    /// When FF_BACKEND_SYNC is false, bootstrap is a no-op: no userId persisted.
+    @MainActor
+    func testDeviceIdentityBootstrapIsNoOpWhenBackendSyncDisabled() async throws {
+        try XCTSkipUnless(keychainAvailable(), "Keychain unavailable in unsigned CI test bundle")
+
+        _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount)
+        defer { _ = KeychainStore.delete(account: DeviceIdentityService.userIdKeychainAccount) }
+
+        // MockSupabaseClient returns .backendDisabled to simulate FF_BACKEND_SYNC=false.
+        let mockClient = MockSupabaseClient(backendDisabled: true)
+        let service = DeviceIdentityService(client: mockClient)
+
+        await service.bootstrap()
+
+        XCTAssertNil(
+            KeychainStore.read(account: DeviceIdentityService.userIdKeychainAccount),
+            "userId must NOT be persisted when FF_BACKEND_SYNC is off"
+        )
+    }
 }
 
 // MARK: - URLProtocol stub for HTTP-mocked tests
@@ -1857,5 +1951,46 @@ final class StubReverseGeocodeService: ReverseGeocoding {
 
     func resolve(coordinate: CLLocationCoordinate2D) async -> ReverseGeocodeService.Resolved? {
         result
+    }
+}
+
+// MARK: - SupabaseClient mock (US-030)
+
+/// Minimal mock conforming to `SupabaseClientProtocol` for testing
+/// `DeviceIdentityService` without hitting the network.
+@MainActor
+final class MockSupabaseClient: SupabaseClientProtocol {
+    private(set) var signInAnonymouslyCallCount = 0
+    private(set) var refreshSessionCallCount = 0
+
+    private let fixedSession: SupabaseClient.Session?
+    private let disabled: Bool
+
+    var currentSession: SupabaseClient.Session? { fixedSession }
+
+    /// Initialise with a session to return on success.
+    init(sessionToReturn: SupabaseClient.Session) {
+        self.fixedSession = sessionToReturn
+        self.disabled = false
+    }
+
+    /// Initialise to simulate FF_BACKEND_SYNC = false.
+    init(backendDisabled: Bool) {
+        self.fixedSession = nil
+        self.disabled = backendDisabled
+    }
+
+    func signInAnonymously() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError> {
+        signInAnonymouslyCallCount += 1
+        if disabled { return .failure(.backendDisabled) }
+        if let s = fixedSession { return .success(s) }
+        return .failure(.missingConfig)
+    }
+
+    func refreshSession() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError> {
+        refreshSessionCallCount += 1
+        if disabled { return .failure(.backendDisabled) }
+        if let s = fixedSession { return .success(s) }
+        return .failure(.notSignedIn)
     }
 }

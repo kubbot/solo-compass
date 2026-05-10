@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+/// Protocol allowing `DeviceIdentityService` (and tests) to inject a
+/// different back-end without touching the singleton.
+@MainActor
+public protocol SupabaseClientProtocol: AnyObject {
+    var currentSession: SupabaseClient.Session? { get }
+    func signInAnonymously() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError>
+    func refreshSession() async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError>
+}
+
 /// Minimal Supabase REST client using URLSession — no third-party SDK.
 ///
 /// This keeps the iOS bundle dep-free (project rule: zero deps where
@@ -16,7 +25,7 @@ import Observation
 /// usable when the backend is unreachable.
 @Observable
 @MainActor
-public final class SupabaseClient {
+public final class SupabaseClient: SupabaseClientProtocol {
     public static let shared = SupabaseClient()
 
     public enum SupabaseError: Error, LocalizedError, Sendable {
@@ -104,6 +113,12 @@ public final class SupabaseClient {
         if let s = currentSession, !s.isExpired {
             return .success(s)
         }
+        // Session exists but is expired — try the refresh-token flow first.
+        if let s = currentSession, s.isExpired, !s.refreshToken.isEmpty {
+            let refreshResult = await refreshSession()
+            if case .success = refreshResult { return refreshResult }
+            // Refresh failed (token revoked, network error) — fall through to fresh signup.
+        }
         guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
 
         var req = URLRequest(url: cfg.url.appendingPathComponent("/auth/v1/signup"))
@@ -138,6 +153,57 @@ public final class SupabaseClient {
             )
             persist(s)
             return .success(s)
+        } catch {
+            return .failure(.requestFailed(status: 0, body: error.localizedDescription))
+        }
+    }
+
+    /// Refresh an expired session using the stored refresh token.
+    /// Returns `.failure(.backendDisabled)` when `FF_BACKEND_SYNC` is off.
+    /// Returns `.failure(.notSignedIn)` when there is no session to refresh.
+    @discardableResult
+    public func refreshSession() async -> Result<Session, SupabaseError> {
+        guard FeatureFlags.backendSync else {
+            return .failure(.backendDisabled)
+        }
+        guard let s = currentSession, !s.refreshToken.isEmpty else {
+            return .failure(.notSignedIn)
+        }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/auth/v1/token")
+            .appending(queryItems: [URLQueryItem(name: "grant_type", value: "refresh_token")]))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = try? JSONSerialization.data(withJSONObject: ["refresh_token": s.refreshToken])
+        req.httpBody = body
+
+        do {
+            let (data, response) = try await urlSession.data(for: req)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(.requestFailed(status: 0, body: ""))
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                return .failure(.requestFailed(status: http.statusCode,
+                                               body: String(data: data, encoding: .utf8) ?? ""))
+            }
+            struct RefreshResponse: Decodable {
+                let access_token: String
+                let refresh_token: String
+                let expires_in: Int
+                let user: RefreshUser
+            }
+            struct RefreshUser: Decodable { let id: String }
+            let resp = try JSONDecoder().decode(RefreshResponse.self, from: data)
+            let refreshed = Session(
+                userId: resp.user.id,
+                accessToken: resp.access_token,
+                refreshToken: resp.refresh_token,
+                expiresAt: Date().addingTimeInterval(TimeInterval(resp.expires_in))
+            )
+            persist(refreshed)
+            return .success(refreshed)
         } catch {
             return .failure(.requestFailed(status: 0, body: error.localizedDescription))
         }
