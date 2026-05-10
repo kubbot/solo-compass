@@ -16,7 +16,7 @@
         "Typecheck passes (run: cd apps/ios && xcodebuild build -project SoloCompass.xcodeproj -scheme SoloCompass -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest')"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
