@@ -53,3 +53,4 @@ Stories: 41
 [2026-05-10T10:29:20Z] Story #US-035: Solo-Score signal aggregation via Supabase nightly function — PASSED
 [2026-05-10T10:33:31Z] Story #US-036: Optional Sign-in-with-Apple to upgrade anonymous account — PASSED
 [2026-05-10T10:36:16Z] Story #US-037: First-run Explore-Here consent sheet — PASSED
+[2026-05-10T10:38:33Z] Story #US-038: Privacy manifest (PrivacyInfo.xcprivacy) — PASSED

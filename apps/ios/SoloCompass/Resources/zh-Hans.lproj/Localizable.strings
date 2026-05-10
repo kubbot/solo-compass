@@ -247,6 +247,7 @@
 "explore.quota.dailyLimit" = "今日 AI 调用次数已达上限。明天恢复前会展示真实地点但不再增强。";
 "explore.toast.addedNamed" = "正在探索 %1$@ · 新增 %2$d 处地点";
 "explore.toast.added" = "附近新增 %d 处地点";
+"explore.offline.staleToast" = "正在显示 %@ 的离线缓存数据";
 
 /* Paywall */
 "paywall.hero.title" = "解锁 Solo Compass Pro";
