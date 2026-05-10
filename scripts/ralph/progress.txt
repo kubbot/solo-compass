@@ -9,3 +9,4 @@ Stories: 41
 [2026-05-10T09:01:25Z] Story #US-010: Persist generated Experiences from exploreNearby through SwiftData — PASSED
 [2026-05-10T09:02:12Z] Story #US-001: Add SwiftData ModelContainer with empty schema scaffold — PASSED
 [2026-05-10T09:03:31Z] Story #US-002: Define ExperienceRecord @Model with two-way Experience mapping — PASSED
+[2026-05-10T09:04:51Z] Story #US-003: Add UserCompletionRecord and UserFavoriteRecord @Models — PASSED
