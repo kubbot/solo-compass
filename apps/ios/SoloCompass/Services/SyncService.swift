@@ -57,7 +57,7 @@ public final class SyncService {
     var supabaseClient: any SupabaseClientProtocol = SupabaseClient.shared
     var deviceID: () -> String = { DeviceIdentityService.shared.deviceID }
 
-    private init() {}
+    init() {}
 
     deinit {
         foregroundTimer?.invalidate()

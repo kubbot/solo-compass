@@ -2109,4 +2109,14 @@ final class MockSupabaseClient: SupabaseClientProtocol {
         if disabled { return .failure(.backendDisabled) }
         return invokeResult
     }
+
+    func linkAppleIdentity(identityToken: String, nonce: String) async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError> {
+        if disabled { return .failure(.backendDisabled) }
+        if let s = fixedSession { return .success(s) }
+        return .failure(.missingConfig)
+    }
+
+    var isAnonymous: Bool {
+        get async { false }
+    }
 }
