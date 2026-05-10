@@ -35,14 +35,11 @@ const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 // --- 1. anon cannot read user_completions ----------------------------------
 
 {
-  const { data, error } = await anonClient
-    .from("user_completions")
-    .select("id")
-    .limit(1);
+  const { data, error } = await anonClient.from("user_completions").select("id").limit(1);
   // RLS denies — Supabase returns empty array (no rows match policy), not an error.
   assert(
     !error && Array.isArray(data) && data.length === 0,
-    "anon select on user_completions returns 0 rows (RLS denies)"
+    "anon select on user_completions returns 0 rows (RLS denies)",
   );
 }
 
@@ -77,11 +74,13 @@ if (userA.data.user && userB.data.user) {
     .eq("user_id", userA.data.user.id);
   assert(
     Array.isArray(leakCheck) && leakCheck.length === 0,
-    "user B cannot see user A's completions (RLS isolation)"
+    "user B cannot see user A's completions (RLS isolation)",
   );
 
   // Cleanup with service role.
-  await serviceClient.from("user_completions").delete()
+  await serviceClient
+    .from("user_completions")
+    .delete()
     .or(`user_id.eq.${userA.data.user.id},user_id.eq.${userB.data.user.id}`);
   await serviceClient.auth.admin.deleteUser(userA.data.user.id).catch(() => {});
   await serviceClient.auth.admin.deleteUser(userB.data.user.id).catch(() => {});
@@ -90,10 +89,7 @@ if (userA.data.user && userB.data.user) {
 // --- 3. anon CAN read synthesized_experiences ------------------------------
 
 {
-  const { error } = await anonClient
-    .from("synthesized_experiences")
-    .select("id")
-    .limit(1);
+  const { error } = await anonClient.from("synthesized_experiences").select("id").limit(1);
   assert(!error, `anon select on synthesized_experiences succeeds: ${error?.message ?? "ok"}`);
 }
 
@@ -101,15 +97,13 @@ if (userA.data.user && userB.data.user) {
 
 {
   const probeId = `exp_test_${Date.now()}`;
-  const { error: insertErr } = await serviceClient
-    .from("synthesized_experiences")
-    .insert({
-      id: probeId,
-      city_code: "test-city",
-      payload: {},
-      model_name: "test",
-      source_cache_key: "test-key",
-    });
+  const { error: insertErr } = await serviceClient.from("synthesized_experiences").insert({
+    id: probeId,
+    city_code: "test-city",
+    payload: {},
+    model_name: "test",
+    source_cache_key: "test-key",
+  });
   assert(!insertErr, `service-role insert succeeds: ${insertErr?.message ?? "ok"}`);
 
   await serviceClient.from("synthesized_experiences").delete().eq("id", probeId);

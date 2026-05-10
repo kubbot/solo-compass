@@ -32,12 +32,12 @@ Expected response on cache hit / miss:
 
 Quota / entitlement errors:
 
-| Status | Meaning |
-|---|---|
-| 401 | Bearer token missing / invalid |
-| 402 | Caller's profiles.entitlement_tier is `free` or `pro_expired` |
-| 429 | Caller has used today's 30-call quota |
-| 502 | Anthropic upstream failure or invalid JSON |
+| Status | Meaning                                                       |
+| ------ | ------------------------------------------------------------- |
+| 401    | Bearer token missing / invalid                                |
+| 402    | Caller's profiles.entitlement_tier is `free` or `pro_expired` |
+| 429    | Caller has used today's 30-call quota                         |
+| 502    | Anthropic upstream failure or invalid JSON                    |
 
 ## Environment
 

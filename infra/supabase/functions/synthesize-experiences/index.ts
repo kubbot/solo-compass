@@ -126,10 +126,7 @@ Deno.serve(async (req: Request) => {
   });
   if (!anthropicReq.ok) {
     const text = await anthropicReq.text();
-    return json(
-      { error: `anthropic error ${anthropicReq.status}: ${text}` },
-      502,
-    );
+    return json({ error: `anthropic error ${anthropicReq.status}: ${text}` }, 502);
   }
   const anthropicJson = await anthropicReq.json();
   const text: string = anthropicJson?.content?.[0]?.text ?? "";
@@ -178,9 +175,12 @@ Deno.serve(async (req: Request) => {
 });
 
 function buildPrompt(body: RequestBody): string {
-  const lines = body.pois.map((p) =>
-    `- osmId=${p.osmId} name="${p.name}" nameEn="${p.nameEn ?? p.name}" lat=${p.lat} lon=${p.lon} tags=${JSON.stringify(p.tags)}`
-  ).join("\n");
+  const lines = body.pois
+    .map(
+      (p) =>
+        `- osmId=${p.osmId} name="${p.name}" nameEn="${p.nameEn ?? p.name}" lat=${p.lat} lon=${p.lon} tags=${JSON.stringify(p.tags)}`,
+    )
+    .join("\n");
   return `You are writing solo-traveler-focused entries for real OpenStreetMap places.
 
 CRITICAL: Use ONLY the provided OSM tags. Do NOT invent menu items, hours, prices, owner backstories, or seating positions.
