@@ -34,7 +34,7 @@
         "Tests pass (run: xcodebuild test -project SoloCompass.xcodeproj -scheme SoloCompass -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest')"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
