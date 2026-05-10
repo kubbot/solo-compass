@@ -213,39 +213,38 @@ public struct CompassMapView: View {
 
                         // Explore-here button — pulls real OSM POIs near the
                         // current location and asks AIService to enrich them.
-                        // Free users see a lock overlay; tapping triggers the
-                        // paywall (Epic D US-024) instead of an actual call.
+                        // US-026: free users see "Explore (Pro)" with a lock icon;
+                        // tapping triggers the paywall instead of an actual Pro call.
                         Button {
                             let anchor = viewModel.exploreAnchorCoordinate
                             Task { await viewModel.exploreNearby(at: anchor) }
                         } label: {
                             Group {
-                                if viewModel.isExploring {
+                                if viewModel.isExploring || viewModel.isExploringFreeMode {
                                     ProgressView()
                                         .progressViewStyle(.circular)
+                                } else if viewModel.isProUser {
+                                    Image(systemName: "sparkle.magnifyingglass")
+                                        .font(.title3)
                                 } else {
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(systemName: "sparkle.magnifyingglass")
-                                            .font(.title3)
-                                        if !viewModel.isProUser {
-                                            Image(systemName: "lock.fill")
-                                                .font(.caption2)
-                                                .foregroundStyle(.white)
-                                                .padding(3)
-                                                .background(Circle().fill(Color(red: 0xD4/255, green: 0xA8/255, blue: 0x43/255)))
-                                                .offset(x: 8, y: -8)
-                                        }
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "lock.fill")
+                                            .font(.caption.weight(.semibold))
+                                        Text(NSLocalizedString("explore.button.pro", comment: "Explore (Pro)"))
+                                            .font(.caption.weight(.semibold))
+                                            .lineLimit(1)
                                     }
+                                    .padding(.horizontal, 8)
                                 }
                             }
-                            .frame(width: 48, height: 48)
-                            .background(Circle().fill(.regularMaterial))
+                            .frame(minWidth: 48, minHeight: 48)
+                            .background(Capsule().fill(.regularMaterial))
                             .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                         }
                         .buttonStyle(.plain)
                         .padding(.leading, 12)
                         .padding(.bottom, 80)
-                        .disabled(viewModel.isExploring)
+                        .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
                         .accessibilityLabel(Text(
                             viewModel.isProUser
                                 ? NSLocalizedString("explore.button", comment: "Explore here")
@@ -388,7 +387,8 @@ public struct CompassMapView: View {
                             experience: exp,
                             experienceService: experienceService,
                             aiService: aiService,
-                            preferences: preferences
+                            preferences: preferences,
+                            subscriptionService: subscriptionService
                         ),
                         onClose: { viewModel?.dismissDetail() },
                         onMarkDone: { experience in surveyExperience = experience }

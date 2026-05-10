@@ -54,6 +54,11 @@ public final class MapViewModel {
     /// paywall) call this in `onUnlocked`.
     public var onPaywallUnlocked: (() -> Void)?
 
+    /// Set to true while a free-tier Overpass-only explore is running.
+    /// Separate from `isExploring` so the UI can label the button
+    /// distinctly (no AI spinner; no quota banner).
+    public var isExploringFreeMode: Bool = false
+
     // MARK: - Explore consent (US-034)
 
     /// Set to true the first time a user triggers an Explore action
@@ -720,6 +725,68 @@ public final class MapViewModel {
                     return
                 }
             }
+            lastExploreError = error.localizedDescription
+        }
+    }
+
+    /// Free-tier OSM-only explore: fetches Overpass POIs and converts them
+    /// through the AIService skeleton fallback (no Anthropic call). Wired to
+    /// `isExploringFreeMode` so the paywall button stays visible as the upgrade hook.
+    public func exploreNearbyFreeMode(
+        at coordinate: CLLocationCoordinate2D,
+        radiusMeters: Int = 3000
+    ) async {
+        guard !isExploringFreeMode else { return }
+        isExploringFreeMode = true
+        lastExploreError = nil
+        lastExploreAddedCount = 0
+        lastExploreToast = nil
+        defer { isExploringFreeMode = false }
+
+        // Force skeleton mode so AIService never touches Anthropic.
+        let savedProTier = aiService.isProTier
+        aiService.isProTier = false
+        defer { aiService.isProTier = savedProTier }
+
+        do {
+            let pois = try await overpassService.fetchPOIs(near: coordinate, radiusMeters: radiusMeters)
+            guard !pois.isEmpty else {
+                lastExploreError = NSLocalizedString("explore.error.nothingFound", comment: "No POIs found nearby")
+                return
+            }
+            let resolved = await geocodeService.resolve(coordinate: coordinate)
+            let cityCode = resolved?.cityCode ?? Self.cityCode(for: coordinate)
+            if let resolved {
+                experienceService.repo.recordDiscoveredCity(
+                    cityCode: resolved.cityCode,
+                    name: resolved.name,
+                    countryCode: resolved.countryCode,
+                    center: (lat: coordinate.latitude, lon: coordinate.longitude)
+                )
+            }
+            let generated = try await aiService.synthesizeExperiences(
+                from: pois,
+                cityCode: cityCode,
+                locale: .current
+            )
+            let added = experienceService.appendGenerated(generated)
+            lastExploreAddedCount = added
+            if added > 0 {
+                selectCity(cityCode)
+                if let resolved {
+                    lastExploreToast = String(
+                        format: NSLocalizedString("explore.toast.addedNamed", comment: "Now exploring %@ · %d places added"),
+                        resolved.name, added
+                    )
+                } else {
+                    lastExploreToast = String(
+                        format: NSLocalizedString("explore.toast.added", comment: "%d places added near you"),
+                        added
+                    )
+                }
+            }
+            recenter(on: coordinate)
+        } catch {
             lastExploreError = error.localizedDescription
         }
     }
