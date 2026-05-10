@@ -16,6 +16,7 @@ import { extractTSStructs, SCHEMA_INTERFACES } from "./parity/ts-extractor.js";
 import { extractSwiftStructs } from "./parity/swift-extractor.js";
 import { compareStructs, formatReport } from "./parity/comparator.js";
 import { checkDbParity, formatDbParityReport } from "./parity/db-parity.js";
+import { checkSqlSwiftParity } from "./parity/sql-swift-parity.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -104,9 +105,26 @@ function main(): void {
 
   process.stdout.write(formatDbParityReport(dbResult));
 
+  // ── Supabase SQL ↔ Swift sync-payload parity (Epic F US-035) ─────────────
+
+  if (VERBOSE) {
+    console.log("🔍 Checking Supabase SQL↔Swift sync-payload parity...");
+  }
+
+  let sqlSwiftResult;
+  try {
+    sqlSwiftResult = checkSqlSwiftParity(ROOT, VERBOSE);
+  } catch (err) {
+    console.error("❌ Failed to run SQL↔Swift parity check:");
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+
+  process.stdout.write(sqlSwiftResult.report);
+
   // ── Exit ─────────────────────────────────────────────────────────────────
 
-  if (!swiftResult.ok || !dbResult.ok) {
+  if (!swiftResult.ok || !dbResult.ok || !sqlSwiftResult.passed) {
     process.exit(1);
   }
 }
