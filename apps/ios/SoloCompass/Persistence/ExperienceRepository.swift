@@ -249,6 +249,10 @@ public final class ExperienceRepository {
     /// Record one micro-survey row. Comfort/pressure/recommend are all
     /// independent dimensions; we don't pre-aggregate at write time so
     /// later changes to the formula don't require migrating rows.
+    ///
+    /// US-035: also enqueues an upsert to `solo_score_signals` so the
+    /// nightly `aggregate-solo-scores` Edge Function can include this
+    /// device's signal in the community aggregate.
     public func recordSurvey(
         experienceId: String,
         comfort: Int,
@@ -268,6 +272,23 @@ public final class ExperienceRepository {
             )
         )
         try? context.save()
+        // Epic E US-035: queue a solo_score_signals upsert. The outbox is
+        // durable so the row reaches the server even if the user is offline.
+        // We use the anon device id as user_id so the server can dedupe
+        // per-device-per-experience submissions.
+        SyncService.shared.enqueue(
+            tableName: "solo_score_signals",
+            operation: "upsert",
+            payload: SyncSoloScoreSignalPayload(
+                user_id: anonDeviceId,
+                experience_id: experienceId,
+                comfort: max(1, min(5, comfort)),
+                pressure: max(1, min(5, pressure)),
+                recommend: recommend,
+                submitted_at: date
+            ),
+            context: context
+        )
     }
 
     public func surveyCount(experienceId: String) -> Int {
@@ -279,12 +300,17 @@ public final class ExperienceRepository {
     }
 
     /// Aggregate the local survey signals into a Solo-Score-like value.
-    /// Formula: localSurveyMean = mean of (comfort + pressure) / 2, on a
+    ///
+    /// US-035 preference order:
+    ///   1. Server aggregate (`ExperienceRecord.serverAggregatedSoloScore`) when
+    ///      `serverSignalCount >= 3` — this is authoritative community data.
+    ///   2. Local survey blend (formula below) when local surveys exist.
+    ///   3. `nil` — caller falls back to the seed/AI score.
+    ///
+    /// Local formula: localSurveyMean = mean of (comfort + pressure) / 2, on a
     /// 0–10 scale (raw 1–5 doubled). recommendBoost = +0.5 when ≥ 50 %
     /// of recommendations are "yes". Final = clamp(0...10, original/2 +
-    /// localSurveyMean/2 + recommendBoost). Returns `nil` if no surveys
-    /// exist (caller falls back to the seed/AI score). Cached for 60 s
-    /// per experience id to avoid recomputing on every render.
+    /// localSurveyMean/2 + recommendBoost). Cached for 60 s per experience id.
     public func aggregatedSoloScore(
         experienceId: String,
         seedOverall: Double
@@ -293,6 +319,20 @@ public final class ExperienceRepository {
            Date().timeIntervalSince(cached.cachedAt) < 60 {
             return (cached.overall, cached.count)
         }
+
+        // US-035: prefer the server aggregate when it has enough signals.
+        let expId = experienceId
+        let expDescriptor = FetchDescriptor<ExperienceRecord>(
+            predicate: #Predicate { $0.id == expId }
+        )
+        if let record = (try? context.fetch(expDescriptor))?.first,
+           let serverScore = record.serverAggregatedSoloScore,
+           let signalCount = record.serverSignalCount,
+           signalCount >= 3 {
+            aggregatedScoreCache[experienceId] = (serverScore, signalCount, Date())
+            return (serverScore, signalCount)
+        }
+
         let id = experienceId
         let descriptor = FetchDescriptor<MicroSurveyRecord>(
             predicate: #Predicate { $0.experienceId == id }
@@ -499,4 +539,18 @@ struct SyncFavoritePayload: Encodable {
     let user_id: String
     let experience_id: String
     let favorited_at: Date?
+}
+
+/// Sent to Supabase `solo_score_signals` on every MicroSurvey submission
+/// (US-035). The nightly `aggregate-solo-scores` Edge Function reads these
+/// rows to recompute `synthesized_experiences.aggregated_solo_score`.
+/// We use the anon device ID as `user_id` so the server can dedupe
+/// per-device signals without any PII.
+struct SyncSoloScoreSignalPayload: Encodable {
+    let user_id: String
+    let experience_id: String
+    let comfort: Int
+    let pressure: Int
+    let recommend: String
+    let submitted_at: Date
 }

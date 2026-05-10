@@ -164,6 +164,11 @@ public final class SyncService {
     /// LWW rule: keep the row whose `updated_at` is later. On ties,
     /// the row whose `device_id` sorts lexicographically later wins
     /// — both devices apply the same deterministic rule so they converge.
+    ///
+    /// US-035: also pulls `aggregated_solo_score` + `signal_count` from
+    /// `synthesized_experiences` for any experiences currently in the local
+    /// store and merges the values into `ExperienceRecord` so
+    /// `ExperienceRepository.aggregatedSoloScore()` can prefer server data.
     public func pull(context: ModelContext? = nil) async {
         guard FeatureFlags.backendSync else { return }
         let ctx = context ?? ModelContext(SoloCompassModelContainer.shared)
@@ -181,6 +186,7 @@ public final class SyncService {
             deviceID: myDeviceID,
             merge: mergeFavorite
         )
+        await pullAggregatedSoloScores(context: ctx)
     }
 
     // MARK: - Internals
@@ -302,6 +308,48 @@ public final class SyncService {
             // Remote says unfavorited and we have no local row — already in sync.
         }
         try? context.save()
+    }
+
+    // MARK: - US-035: Pull aggregated Solo Scores
+
+    /// Fetch `aggregated_solo_score` and `signal_count` from
+    /// `synthesized_experiences` for every experience currently in the local
+    /// store. Merges the values into `ExperienceRecord` so the repository's
+    /// `aggregatedSoloScore()` can prefer authoritative community data over
+    /// local-only survey blends when `signal_count >= 3`.
+    ///
+    /// We pull all IDs in one GET (select=id,aggregated_solo_score,signal_count)
+    /// rather than a per-experience call to keep network overhead low.
+    private func pullAggregatedSoloScores(context: ModelContext) async {
+        let descriptor = FetchDescriptor<ExperienceRecord>()
+        guard let records = try? context.fetch(descriptor), !records.isEmpty else { return }
+
+        let query: [URLQueryItem] = [
+            URLQueryItem(name: "select", value: "id,aggregated_solo_score,signal_count"),
+        ]
+        let result = await supabaseClient.get(table: "synthesized_experiences", query: query)
+        guard case .success(let data) = result, !data.isEmpty else { return }
+
+        struct AggRow: Decodable {
+            let id: String
+            let aggregated_solo_score: Double?
+            let signal_count: Int?
+        }
+        guard let rows = try? JSONDecoder().decode([AggRow].self, from: data) else { return }
+
+        let lookup = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        var changed = false
+        for record in records {
+            guard let row = lookup[record.id],
+                  let score = row.aggregated_solo_score,
+                  let count = row.signal_count else { continue }
+            if record.serverAggregatedSoloScore != score || record.serverSignalCount != count {
+                record.serverAggregatedSoloScore = score
+                record.serverSignalCount = count
+                changed = true
+            }
+        }
+        if changed { try? context.save() }
     }
 
     private func refreshCount(context: ModelContext) {
