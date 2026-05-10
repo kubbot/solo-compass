@@ -157,6 +157,22 @@ public final class ExperienceRepository {
     public func recordCompletion(experienceId: String, at date: Date = Date()) {
         context.insert(UserCompletionRecord(experienceId: experienceId, completedAt: date))
         try? context.save()
+        // Epic E US-029: queue an upsert to user_completions. The
+        // outbox is durable; if FF_BACKEND_SYNC is off this still
+        // records the row so we can flush historical data once the
+        // flag flips on.
+        if let userId = SupabaseClient.shared.currentSession?.userId {
+            SyncService.shared.enqueue(
+                tableName: "user_completions",
+                operation: "upsert",
+                payload: SyncCompletionPayload(
+                    user_id: userId,
+                    experience_id: experienceId,
+                    completed_at: date
+                ),
+                context: context
+            )
+        }
     }
 
     public func completionCount(experienceId: String) -> Int {
@@ -183,15 +199,32 @@ public final class ExperienceRepository {
             predicate: #Predicate { $0.experienceId == id }
         )
         let existing = (try? context.fetch(descriptor)) ?? []
+        let nowFavorited: Bool
         if let row = existing.first {
             context.delete(row)
             try? context.save()
-            return false
+            nowFavorited = false
         } else {
             context.insert(UserFavoriteRecord(experienceId: experienceId, favoritedAt: date))
             try? context.save()
-            return true
+            nowFavorited = true
         }
+        // Epic E US-029: queue the favorite mutation. We send an
+        // upsert with a `removed_at` flag the server interprets as
+        // tombstone vs active, so a single table handles both states.
+        if let userId = SupabaseClient.shared.currentSession?.userId {
+            SyncService.shared.enqueue(
+                tableName: "user_favorites",
+                operation: "upsert",
+                payload: SyncFavoritePayload(
+                    user_id: userId,
+                    experience_id: experienceId,
+                    favorited_at: nowFavorited ? date : nil
+                ),
+                context: context
+            )
+        }
+        return nowFavorited
     }
 
     public func allFavorites() -> [String] {
@@ -340,4 +373,24 @@ public final class ExperienceRepository {
         let descriptor = FetchDescriptor<ExperienceRecord>()
         return (try? context.fetch(descriptor)) ?? []
     }
+}
+
+// MARK: - Sync payloads (Epic E US-029)
+
+/// Sent to Supabase `user_completions` table on every completion mutation.
+/// snake_case field names match the Postgres column names exactly so the
+/// JSON body serializes 1:1 with no remap.
+struct SyncCompletionPayload: Encodable {
+    let user_id: String
+    let experience_id: String
+    let completed_at: Date
+}
+
+/// Sent to Supabase `user_favorites`. `favorited_at` is nil when the row
+/// represents an unfavorite (the server's RLS + check constraint allow
+/// the null + we treat null as tombstone in nightly cleanup).
+struct SyncFavoritePayload: Encodable {
+    let user_id: String
+    let experience_id: String
+    let favorited_at: Date?
 }

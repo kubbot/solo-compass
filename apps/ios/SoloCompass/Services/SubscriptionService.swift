@@ -1,6 +1,7 @@
 import Foundation
 import StoreKit
 import Observation
+import SwiftData
 
 /// StoreKit 2 wrapper. The single source of truth for "is this user
 /// Pro?" is `Transaction.currentEntitlements`. Everything else
@@ -91,9 +92,11 @@ public final class SubscriptionService {
     /// entitlement. Updates `entitlement` and writes through to Keychain.
     public func refreshEntitlement() async {
         var resolved: Entitlement = .free
+        var latestTransaction: Transaction?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let txn) = result else { continue }
             guard Self.allProductIDs.contains(txn.productID) else { continue }
+            latestTransaction = txn
             // If revoked or refunded, skip — never count as Pro.
             if txn.revocationDate != nil { continue }
             // Expired transactions count as proExpired only if we don't
@@ -123,7 +126,14 @@ public final class SubscriptionService {
                 }
             }
         }
+        let prior = entitlement
         setEntitlement(resolved)
+        // Epic E US-032: emit a subscription_events row when the
+        // resolved entitlement changes. Routed through the SyncService
+        // outbox so it survives offline boots; FF-off path is a no-op.
+        if prior != resolved, let txn = latestTransaction {
+            emitSubscriptionEvent(prior: prior, current: resolved, transaction: txn)
+        }
     }
 
     /// Initiate a purchase. Returns true on successful verification +
@@ -190,4 +200,55 @@ public final class SubscriptionService {
     public func _setEntitlementForTesting(_ value: Entitlement) {
         setEntitlement(value)
     }
+
+    // MARK: - Subscription event emission (Epic E US-032)
+
+    private func emitSubscriptionEvent(
+        prior: Entitlement,
+        current: Entitlement,
+        transaction: Transaction
+    ) {
+        let eventType: String
+        switch (prior, current) {
+        case (.free, .proTrial), (.free, .pro), (.proExpired, .proTrial), (.proExpired, .pro):
+            eventType = "subscribed"
+        case (.pro, .proExpired), (.proTrial, .proExpired):
+            eventType = "expired"
+        default:
+            eventType = "upgraded"
+        }
+        let payload = SubscriptionEventPayload(
+            user_id: SupabaseClient.shared.currentSession?.userId,
+            event_type: eventType,
+            product_id: transaction.productID,
+            original_purchase_date: transaction.originalPurchaseDate,
+            expires_date: transaction.expirationDate,
+            is_in_trial_period: current == .proTrial,
+            device_id: DeviceIdentityService.shared.deviceID
+        )
+        // No PII (no email, no Apple ID). user_id is anonymous Supabase
+        // UUID; device_id is the random per-device anon UUID.
+        let context = ModelContext(SoloCompassModelContainer.shared)
+        SyncService.shared.enqueue(
+            tableName: "subscription_events",
+            operation: "upsert",
+            payload: payload,
+            context: context
+        )
+        #if DEBUG
+        print("[SubscriptionService] emitted \(eventType) for \(transaction.productID)")
+        #endif
+    }
+}
+
+/// Wire payload for subscription_events. snake_case so PostgREST maps
+/// directly to the column names.
+struct SubscriptionEventPayload: Encodable {
+    let user_id: String?
+    let event_type: String
+    let product_id: String
+    let original_purchase_date: Date?
+    let expires_date: Date?
+    let is_in_trial_period: Bool
+    let device_id: String
 }

@@ -24,6 +24,20 @@ public final class DeviceIdentityService {
         return new
     }
 
+    /// Bootstrap the device identity + Supabase anonymous session
+    /// (Epic E US-028). Called from `SoloCompassApp.onAppear`. When
+    /// `FF_BACKEND_SYNC` is off this is a fast no-op (the
+    /// SupabaseClient short-circuits to `.failure(.backendDisabled)`).
+    /// When on, idempotent: re-runs return the existing session if
+    /// not yet expired.
+    public func bootstrap() async {
+        // Touch deviceID so the keychain row is created on first launch.
+        _ = self.deviceID
+        // Best-effort: anonymous Supabase sign-in. We never block the
+        // UI on this — the local-first app must work without a session.
+        _ = await SupabaseClient.shared.signInAnonymously()
+    }
+
     // MARK: - Keychain
 
     private func readFromKeychain() -> String? {

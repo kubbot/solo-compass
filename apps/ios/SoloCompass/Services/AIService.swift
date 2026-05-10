@@ -348,6 +348,25 @@ public final class AIService {
             return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
         }
 
+        // Epic E US-031: route through Supabase Edge Function instead
+        // of direct Anthropic when the flag is on. This is the path
+        // that lets us remove ANTHROPIC_API_KEY from the iOS bundle.
+        if FeatureFlags.routeAIThroughEdge && FeatureFlags.backendSync {
+            do {
+                let experiences = try await synthesizeViaEdge(
+                    pois: capped, cityCode: cityCode, locale: locale, cacheKey: cacheKey
+                )
+                await incrementQuota(kind: .synthesis)
+                await writeCachedSynthesis(
+                    cacheKey: cacheKey, experiences: experiences, modelName: modelName
+                )
+                return experiences
+            } catch {
+                // Edge Function failed — skeleton fallback (no cache write).
+                return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
+            }
+        }
+
         let prompt = Self.synthesisPrompt(pois: capped, cityCode: cityCode, locale: locale)
         do {
             let raw = try await sendMessage(prompt: prompt, kind: .synthesis)
@@ -364,6 +383,118 @@ public final class AIService {
             // transient network blip doesn't poison the cache for 30
             // days.
             return capped.map { Self.skeletonExperience(from: $0, cityCode: cityCode) }
+        }
+    }
+
+    // MARK: - Edge Function path (Epic E US-031)
+
+    private func synthesizeViaEdge(
+        pois: [OverpassService.POI],
+        cityCode: String,
+        locale: Locale,
+        cacheKey: String
+    ) async throws -> [Experience] {
+        struct EdgePOI: Encodable {
+            let osmId: Int64
+            let name: String
+            let nameEn: String?
+            let lat: Double
+            let lon: Double
+            let tags: [String: String]
+        }
+        struct EdgeRequest: Encodable {
+            let pois: [EdgePOI]
+            let cityCode: String
+            let locale: String
+            let cacheKey: String
+        }
+        let body = EdgeRequest(
+            pois: pois.map { EdgePOI(osmId: $0.osmId, name: $0.name, nameEn: $0.nameEn,
+                                     lat: $0.lat, lon: $0.lon, tags: $0.tags) },
+            cityCode: cityCode,
+            locale: locale.identifier,
+            cacheKey: cacheKey
+        )
+        let bodyData = try JSONEncoder().encode(body)
+        let result = await SupabaseClient.shared.invoke(function: "synthesize-experiences", body: bodyData)
+        switch result {
+        case .success(let data):
+            // Edge response shape: {"experiences": [item, ...], "cached": bool}
+            struct EdgeResponse: Decodable {
+                let experiences: [EdgeItem]
+                let cached: Bool?
+            }
+            struct EdgeItem: Decodable {
+                let osmId: Int64
+                let title: String
+                let oneLiner: String
+                let whyItMatters: String
+                let category: String
+                let bestStartHour: Int?
+                let bestEndHour: Int?
+                let durationMinMinutes: Int?
+                let durationMaxMinutes: Int?
+                let howTo: [String]?
+                let soloHint: String?
+                let soloOverall: Double?
+            }
+            let decoded = try JSONDecoder().decode(EdgeResponse.self, from: data)
+            let poiById = Dictionary(uniqueKeysWithValues: pois.map { ($0.osmId, $0) })
+            let now = Date()
+            return decoded.experiences.compactMap { item -> Experience? in
+                guard let poi = poiById[item.osmId] else { return nil }
+                let category = ExperienceCategory(rawValue: item.category) ?? OverpassService.category(for: poi.tags)
+                let startHour = item.bestStartHour.map { max(0, min(23, $0)) } ?? 9
+                let endHour = item.bestEndHour.map { max(0, min(23, $0)) } ?? 21
+                let dMin = item.durationMinMinutes ?? 30
+                let dMax = max(dMin, item.durationMaxMinutes ?? 90)
+                let overall = max(6.0, min(9.5, item.soloOverall ?? 7.0))
+                let breakdown = SoloScore.Breakdown(
+                    seatingFriendly: overall, soloPatronRatio: overall, staffPressure: overall,
+                    soloPortioning: overall, ambianceFit: overall, safety: overall
+                )
+                let howTo = (item.howTo ?? []).enumerated().map { HowToStep(order: $0.offset + 1, text: $0.element) }
+                return Experience(
+                    id: "exp_osm_\(poi.osmId)",
+                    title: item.title,
+                    oneLiner: item.oneLiner,
+                    whyItMatters: item.whyItMatters,
+                    category: category,
+                    location: ExperienceLocation(
+                        coordinates: [poi.lon, poi.lat],
+                        cityCode: cityCode,
+                        addressHint: nil,
+                        placeNameLocal: poi.name,
+                        placeNameRomanized: poi.nameEn
+                    ),
+                    bestTimes: [TimeWindow(startHour: startHour, endHour: endHour)],
+                    durationMinutes: .init(min: dMin, max: dMax),
+                    howTo: howTo,
+                    realInconveniences: [],
+                    soloScore: SoloScore(overall: overall, breakdown: breakdown, hint: item.soloHint, basedOnCount: 0),
+                    sources: [
+                        InformationSource(
+                            type: .user,
+                            url: URL(string: "https://www.openstreetmap.org/node/\(poi.osmId)"),
+                            attribution: "© OpenStreetMap contributors + AI",
+                            verifiedAt: now
+                        )
+                    ],
+                    confidence: Confidence(
+                        level: 1,
+                        lastVerifiedAt: now,
+                        reason: "AI-synthesized via Edge Function, unverified",
+                        signals: .init(aiScrapeAgeDays: 0, passiveGpsHits30d: 0, activeReports30d: 0, trustedVerifications: 0)
+                    ),
+                    nearbyExperienceIds: [],
+                    stats: .init(completionCount: 0, averageRating: 0),
+                    status: .candidate,
+                    createdAt: now,
+                    updatedAt: now
+                )
+            }
+        case .failure(let err):
+            throw err
         }
     }
 
