@@ -878,7 +878,20 @@ final class SoloCompassTests: XCTestCase {
 
     // MARK: - US-022 KeychainStore round-trip
 
-    func testKeychainStoreWriteReadDelete() {
+    /// Probe whether Keychain is usable in the current process. Unsigned
+    /// xctest bundles on CI runners often lack the entitlements needed
+    /// for SecItemAdd, so any test that touches the Keychain has to
+    /// gate itself on this probe to avoid a false-failure on CI.
+    private func keychainAvailable() -> Bool {
+        let probe = "keychain-probe-\(UUID().uuidString)"
+        let ok = KeychainStore.write(account: probe, value: "x")
+        if ok { _ = KeychainStore.delete(account: probe) }
+        return ok
+    }
+
+    func testKeychainStoreWriteReadDelete() throws {
+        try XCTSkipUnless(keychainAvailable(), "Keychain unavailable in unsigned CI test bundle")
+
         let account = "test-\(UUID().uuidString)"
         defer { _ = KeychainStore.delete(account: account) }
 
@@ -897,7 +910,9 @@ final class SoloCompassTests: XCTestCase {
 
     // MARK: - US-021/022 SubscriptionService entitlement
 
-    func testSubscriptionServiceEntitlementSeedsFromKeychain() {
+    func testSubscriptionServiceEntitlementSeedsFromKeychain() throws {
+        try XCTSkipUnless(keychainAvailable(), "Keychain unavailable in unsigned CI test bundle")
+
         // Pre-seed Keychain with .pro before init so the fresh service
         // reflects that immediately (offline-boot path, US-022).
         _ = KeychainStore.delete(account: "entitlement")

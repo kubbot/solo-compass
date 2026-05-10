@@ -83,10 +83,7 @@ function extractSqlColumns(sql: string, table: string): string[] | null {
 }
 
 function extractSwiftStructFields(source: string, structName: string): string[] | null {
-  const re = new RegExp(
-    `struct\\s+${structName}\\s*:\\s*Encodable\\s*\\{([^}]+)\\}`,
-    "m",
-  );
+  const re = new RegExp(`struct\\s+${structName}\\s*:\\s*Encodable\\s*\\{([^}]+)\\}`, "m");
   const match = source.match(re);
   if (!match) return null;
 
@@ -125,16 +122,15 @@ export function checkSqlSwiftParity(rootDir: string, verbose = false): SqlSwiftP
     }
     const ignored = new Set(rule.ignoreColumns ?? []);
     const missingInSql = swiftFields.filter((f) => !sqlCols.includes(f));
-    const missingInSwift = sqlCols.filter(
-      (c) => !ignored.has(c) && !swiftFields.includes(c),
-    );
+    const missingInSwift = sqlCols.filter((c) => !ignored.has(c) && !swiftFields.includes(c));
 
     if (missingInSql.length === 0 && missingInSwift.length === 0) {
       lines.push(`  ✓ ${rule.swiftStruct} ↔ ${rule.supabaseTable}`);
     } else {
       const detail: string[] = [];
       if (missingInSql.length) detail.push(`Swift fields not in SQL: ${missingInSql.join(", ")}`);
-      if (missingInSwift.length) detail.push(`SQL columns not in Swift: ${missingInSwift.join(", ")}`);
+      if (missingInSwift.length)
+        detail.push(`SQL columns not in Swift: ${missingInSwift.join(", ")}`);
       failures.push(`${rule.swiftStruct} ↔ ${rule.supabaseTable}: ${detail.join("; ")}`);
     }
   }
