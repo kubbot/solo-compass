@@ -11,6 +11,12 @@ public protocol SupabaseClientProtocol: AnyObject {
     func post(table: String, body: Data) async -> Result<Data, SupabaseClient.SupabaseError>
     func get(table: String, query: [URLQueryItem]) async -> Result<Data, SupabaseClient.SupabaseError>
     func invoke(function: String, body: Data) async -> Result<Data, SupabaseClient.SupabaseError>
+    /// Link an anonymous account to an Apple ID using the credential from
+    /// ASAuthorizationAppleIDCredential. Returns the updated session whose
+    /// userId is now the permanent (non-anonymous) Supabase user id.
+    func linkAppleIdentity(identityToken: String, nonce: String) async -> Result<SupabaseClient.Session, SupabaseClient.SupabaseError>
+    /// Whether the current session belongs to an anonymous (not yet linked) user.
+    var isAnonymous: Bool { get async }
 }
 
 /// Minimal Supabase REST client using URLSession — no third-party SDK.
@@ -217,6 +223,96 @@ public final class SupabaseClient: SupabaseClientProtocol {
     /// per se; we just discard the token).
     public func signOut() {
         _ = KeychainStore.delete(account: Self.sessionKey)
+    }
+
+    // MARK: - US-036: Apple ID link
+
+    /// Link the current anonymous account to an Apple ID.
+    ///
+    /// Calls `POST /auth/v1/user/identities/authorize` with the Apple
+    /// OIDC credential. On success Supabase converts the anonymous user
+    /// to a permanent user and issues a new session with a new userId
+    /// (the permanent one). We persist the new session so every
+    /// subsequent `currentSession` read returns the permanent identity.
+    ///
+    /// Returns `.failure(.backendDisabled)` when `FF_BACKEND_SYNC` is off.
+    @discardableResult
+    public func linkAppleIdentity(identityToken: String, nonce: String) async -> Result<Session, SupabaseError> {
+        guard FeatureFlags.backendSync else { return .failure(.backendDisabled) }
+        guard let cfg = Self.loadConfig() else { return .failure(.missingConfig) }
+        guard let token = currentSession?.accessToken else { return .failure(.notSignedIn) }
+
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/auth/v1/user/identities/authorize"))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let bodyDict: [String: Any] = [
+            "provider": "apple",
+            "id_token": identityToken,
+            "nonce": nonce,
+            "skip_http_redirect": true,
+        ]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: bodyDict) else {
+            return .failure(.decoding("could not encode link body"))
+        }
+        req.httpBody = bodyData
+
+        do {
+            let (data, response) = try await urlSession.data(for: req)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(.requestFailed(status: 0, body: ""))
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                return .failure(.requestFailed(status: http.statusCode,
+                                               body: String(data: data, encoding: .utf8) ?? ""))
+            }
+            struct LinkResponse: Decodable {
+                let access_token: String
+                let refresh_token: String
+                let expires_in: Int
+                let user: LinkUser
+            }
+            struct LinkUser: Decodable { let id: String }
+            let resp = try JSONDecoder().decode(LinkResponse.self, from: data)
+            let s = Session(
+                userId: resp.user.id,
+                accessToken: resp.access_token,
+                refreshToken: resp.refresh_token,
+                expiresAt: Date().addingTimeInterval(TimeInterval(resp.expires_in))
+            )
+            persist(s)
+            return .success(s)
+        } catch {
+            return .failure(.requestFailed(status: 0, body: error.localizedDescription))
+        }
+    }
+
+    /// Query Supabase `/auth/v1/user` to check whether the current user is
+    /// still anonymous. Returns `true` when the user has not yet linked an
+    /// Apple ID (or any other provider). Returns `false` when not signed in or
+    /// when `FF_BACKEND_SYNC` is off (treat as non-anonymous to avoid surfacing
+    /// the sign-in prompt when the backend is unreachable).
+    public var isAnonymous: Bool {
+        get async {
+            guard FeatureFlags.backendSync else { return false }
+            guard let cfg = Self.loadConfig(),
+                  let token = currentSession?.accessToken else { return false }
+
+            var req = URLRequest(url: cfg.url.appendingPathComponent("/auth/v1/user"))
+            req.httpMethod = "GET"
+            req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            guard let (data, response) = try? await urlSession.data(for: req),
+                  let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else { return false }
+
+            struct UserResponse: Decodable { let is_anonymous: Bool? }
+            let user = try? JSONDecoder().decode(UserResponse.self, from: data)
+            return user?.is_anonymous ?? false
+        }
     }
 
     // MARK: - REST helpers (used by SyncService US-029)
