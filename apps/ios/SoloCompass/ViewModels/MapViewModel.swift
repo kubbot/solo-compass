@@ -661,6 +661,13 @@ public final class MapViewModel {
             let added = experienceService.appendGenerated(generated)
             lastExploreAddedCount = added
 
+            // US-022: record a successful region so offline fallback can reuse it.
+            experienceService.repo.recordRecentExploreRegion(
+                centerLat: coordinate.latitude,
+                centerLon: coordinate.longitude,
+                radiusMeters: radiusMeters
+            )
+
             // US-015: surface quota banner if AIService just degraded.
             if aiService.quotaExceededAt != nil {
                 lastQuotaInfo = NSLocalizedString(
@@ -688,6 +695,31 @@ public final class MapViewModel {
 
             recenter(on: coordinate)
         } catch {
+            // US-022: on network failure, look for a recent nearby region and
+            // surface its cached SwiftData pins instead of showing an error.
+            if let region = experienceService.repo.closestRecentRegion(to: coordinate) {
+                let offline = experienceService.repo.experiences(in: region)
+                if !offline.isEmpty {
+                    visibleExperiences = offline
+                    nearbySoloCount = 0
+                    updateBottomInfo()
+
+                    let formatter = RelativeDateTimeFormatter()
+                    formatter.unitsStyle = .full
+                    let relDate = formatter.localizedString(for: region.exploredAt, relativeTo: Date())
+                    let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+                    if region.exploredAt < sevenDaysAgo {
+                        lastExploreToast = String(
+                            format: NSLocalizedString(
+                                "explore.offline.staleToast",
+                                comment: "Showing offline data from <relative-date>"
+                            ),
+                            relDate
+                        )
+                    }
+                    return
+                }
+            }
             lastExploreError = error.localizedDescription
         }
     }

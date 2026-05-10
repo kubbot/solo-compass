@@ -399,6 +399,68 @@ public final class ExperienceRepository {
         try? context.save()
     }
 
+    // MARK: - Recent explore regions (US-022 offline fallback)
+
+    /// Write one row for a successful exploreNearby. Keeps only the 3 most
+    /// recent rows; oldest are deleted before inserting the new one.
+    public func recordRecentExploreRegion(
+        centerLat: Double,
+        centerLon: Double,
+        radiusMeters: Int,
+        at date: Date = Date()
+    ) {
+        let descriptor = FetchDescriptor<RecentExploreRegion>(
+            sortBy: [SortDescriptor(\.exploredAt, order: .forward)]
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        // Evict oldest rows so we never exceed 3.
+        let excess = existing.count - 2  // after inserting we'd have count+1; keep ≤ 3
+        if excess > 0 {
+            existing.prefix(excess).forEach { context.delete($0) }
+        }
+        context.insert(
+            RecentExploreRegion(
+                centerLat: centerLat,
+                centerLon: centerLon,
+                radiusMeters: radiusMeters,
+                exploredAt: date
+            )
+        )
+        try? context.save()
+    }
+
+    /// Find the closest RecentExploreRegion within `thresholdKm` of
+    /// `coordinate`. Returns nil when no region qualifies.
+    public func closestRecentRegion(
+        to coordinate: CLLocationCoordinate2D,
+        thresholdKm: Double = 10
+    ) -> RecentExploreRegion? {
+        let descriptor = FetchDescriptor<RecentExploreRegion>()
+        let regions = (try? context.fetch(descriptor)) ?? []
+        let here = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let thresholdMeters = thresholdKm * 1000
+        return regions
+            .map { region -> (RecentExploreRegion, Double) in
+                let there = CLLocation(latitude: region.centerLat, longitude: region.centerLon)
+                return (region, here.distance(from: there))
+            }
+            .filter { $0.1 <= thresholdMeters }
+            .min(by: { $0.1 < $1.1 })
+            .map(\.0)
+    }
+
+    /// Return ExperienceRecord rows whose coordinate falls within `region`.
+    public func experiences(in region: RecentExploreRegion) -> [Experience] {
+        let center = CLLocation(latitude: region.centerLat, longitude: region.centerLon)
+        let radiusMeters = Double(region.radiusMeters)
+        return allRecords()
+            .filter { record in
+                let loc = CLLocation(latitude: record.latitude, longitude: record.longitude)
+                return center.distance(from: loc) <= radiusMeters
+            }
+            .map(\.asValue)
+    }
+
     // MARK: - Bulk operations
 
     /// Wipe every user-data row. Does NOT delete experiences (they reseed
