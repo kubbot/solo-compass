@@ -79,6 +79,9 @@ public final class OverpassService {
     /// Convenience init that uses the shared SwiftData container's main
     /// context for caching. Pass `nil` (default of designated init) in
     /// tests if you want cache disabled.
+    /// `@MainActor` required because `ExperienceRepository` is `@MainActor`-isolated
+    /// (it owns a SwiftData `ModelContext` which is bound to the main actor).
+    @MainActor
     public convenience init(session: URLSession = .shared, maxResults: Int = 30, useSharedCache: Bool) {
         let repo: ExperienceRepository? = useSharedCache
             ? ExperienceRepository()
