@@ -23,7 +23,7 @@ public final class MapViewModel {
     private let experienceService: ExperienceService
     private let aiService: AIService
     private let overpassService: OverpassService
-    private let geocodeService: ReverseGeocodeService
+    private let geocodeService: any ReverseGeocoding
     private let preferences: UserPreferences
     /// Optional so existing tests / previews can construct without a
     /// real StoreKit-aware service. Production wires this from the
@@ -258,7 +258,7 @@ public final class MapViewModel {
         aiService: AIService,
         preferences: UserPreferences,
         overpassService: OverpassService = OverpassService(),
-        geocodeService: ReverseGeocodeService = ReverseGeocodeService()
+        geocodeService: any ReverseGeocoding = ReverseGeocodeService()
     ) {
         self.locationService = locationService
         self.experienceService = experienceService

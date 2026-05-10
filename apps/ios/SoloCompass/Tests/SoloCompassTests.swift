@@ -1251,6 +1251,82 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(ReverseGeocodeService.slugify(""), "")
     }
 
+    /// End-to-end: explore at Hanoi coords with a mocked geocoder →
+    /// generated Experiences carry cityCode "vn-hanoi" and a
+    /// DiscoveredCityRecord row exists with name "Hanoi".
+    @MainActor
+    func testExploreNearbyUsesReverseGeocodedCityCode() async throws {
+        // --- Overpass stub: returns one cafe near Hanoi ---
+        let overpassJSON = #"""
+        {"elements":[{"type":"node","id":7001,"lat":21.0280,"lon":105.8540,"tags":{"amenity":"cafe","name":"Hanoi Cafe"}}]}
+        """#
+        StubURLProtocol.handler = { request in
+            let body: String
+            if request.url?.host?.contains("overpass") == true || request.url?.host?.contains("openstreetmap") == true {
+                body = overpassJSON
+            } else {
+                // AI synthesis: return one skeleton experience
+                let aiJSON = #"[{"osmId":7001,"title":"Hanoi Cafe","oneLiner":"A local cafe","whyItMatters":"Good for solo","category":"coffee","bestStartHour":8,"bestEndHour":18,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":[],"soloHint":"Solo-friendly","soloOverall":8.0}]"#
+                let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
+                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+            }
+            return (HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: sessionConfig)
+
+        let ai = AIService(session: session, modelContext: context)
+        let overpass = OverpassService(session: session)
+
+        let repo = ExperienceRepository(context: context, preferences: nil)
+        let expService = ExperienceService(repository: repo)
+
+        let defaults = UserDefaults(suiteName: "us016-explore-\(UUID().uuidString)")!
+        let prefs = UserPreferences(defaults: defaults)
+        prefs.acceptExploreConsent()
+
+        let stubGeocoder = StubReverseGeocodeService(
+            result: ReverseGeocodeService.Resolved(
+                cityCode: "vn-hanoi",
+                name: "Hanoi",
+                countryCode: "vn"
+            )
+        )
+
+        let vm = MapViewModel(
+            locationService: LocationService(),
+            experienceService: expService,
+            aiService: ai,
+            preferences: prefs,
+            overpassService: overpass,
+            geocodeService: stubGeocoder
+        )
+
+        let hanoiCoord = CLLocationCoordinate2D(latitude: 21.0285, longitude: 105.8542)
+        await vm.exploreNearby(at: hanoiCoord)
+
+        // All generated experiences must use the geocoded city code.
+        let generated = expService.allExperiences.filter { $0.location.cityCode == "vn-hanoi" }
+        XCTAssertGreaterThan(generated.count, 0, "exploreNearby must produce experiences with cityCode 'vn-hanoi'")
+
+        // DiscoveredCityRecord must be persisted.
+        let cities = repo.allDiscoveredCities()
+        let hanoiRow = cities.first { $0.cityCode == "vn-hanoi" }
+        XCTAssertNotNil(hanoiRow, "DiscoveredCityRecord must exist for 'vn-hanoi'")
+        XCTAssertEqual(hanoiRow?.name, "Hanoi")
+    }
+
     // MARK: - US-018 marker low-confidence visual
 
     func testMarkerIconViewLowConfidenceFlag() {
