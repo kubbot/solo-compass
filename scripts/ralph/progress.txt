@@ -11,3 +11,5 @@ Stories: 41
 [2026-05-10T09:03:31Z] Story #US-002: Define ExperienceRecord @Model with two-way Experience mapping — PASSED
 [2026-05-10T09:04:51Z] Story #US-003: Add UserCompletionRecord and UserFavoriteRecord @Models — PASSED
 [2026-05-10T09:06:33Z] Story #US-004: Add MicroSurveyRecord and PendingCheckInRecord @Models — PASSED
+[2026-05-10T09:07:45Z] Story #US-005: Add ExploreCacheRecord and AISynthesisCacheRecord @Models — PASSED
+[2026-05-10T09:08:55Z] Story #US-006: Add DiscoveredCityRecord, RecentExploreRegion, AIUsageRecord @Models — PASSED
