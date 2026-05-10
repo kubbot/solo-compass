@@ -355,6 +355,7 @@ public final class ExperienceRepository {
     /// 60-second per-experience cache for aggregatedSoloScore. Cleared
     /// on app foreground (caller responsibility) so a freshly synced
     /// signal lights up.
+    // swiftlint:disable:next large_tuple
     private var aggregatedScoreCache: [String: (overall: Double, count: Int, cachedAt: Date)] = [:]
 
     // MARK: - Discovered cities (Epic C US-016/017)

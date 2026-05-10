@@ -16,10 +16,20 @@ excluded:
   - .build
   - Pods
   - Carthage
+  - "**/Tests/**"
 
 identifier_name:
   min_length: 2
   max_length: 60
+  excluded:
+    - c
+    - d
+    - e
+    - id
+    - x
+    - y
+    - url
+    - vm
 
 type_name:
   min_length: 3
@@ -27,6 +37,11 @@ type_name:
 
 force_unwrapping:
   severity: error
+  excluded: "**/Tests/**"
+
+large_tuple:
+  warning: 3
+  error: 5
 
 analyzer_rules:
   - unused_import

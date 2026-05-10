@@ -30,7 +30,7 @@ public final class AIUsageRecord {
     /// Truncate `date` to UTC midnight so today's row is keyable as a date.
     public static func todayUTC(_ now: Date = Date()) -> Date {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(abbreviation: "UTC") ?? .current
         return calendar.startOfDay(for: now)
     }
 }
