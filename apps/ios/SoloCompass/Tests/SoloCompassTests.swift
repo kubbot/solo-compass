@@ -843,6 +843,79 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(AIService.modelName(for: .explanation), "claude-opus-4-7")
     }
 
+    @MainActor
+    func testSynthesisRequestBodyContainsSonnetModel() async throws {
+        var capturedBody: [String: Any]?
+        StubURLProtocol.handler = { request in
+            if let data = request.httpBody {
+                capturedBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            }
+            let json = #"""
+            [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
+            """#
+            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+
+        unsetenv("AI_FORCE_OPUS")
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("ANTHROPIC_API_KEY") }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let ai = AIService(session: URLSession(configuration: config))
+
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 1, name: "Cafe", nameEn: nil, lat: 21.03, lon: 105.85, tags: ["amenity": "cafe"])
+        ]
+        _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+
+        let model = capturedBody?["model"] as? String
+        XCTAssertEqual(model, "claude-sonnet-4-6", "synthesis request must use Sonnet 4.6 by default")
+    }
+
+    @MainActor
+    func testSynthesisRequestBodyContainsOpusWhenForced() async throws {
+        var capturedBody: [String: Any]?
+        StubURLProtocol.handler = { request in
+            if let data = request.httpBody {
+                capturedBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            }
+            let json = #"""
+            [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
+            """#
+            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            return (HTTPURLResponse(
+                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                body.data(using: .utf8)!)
+        }
+        StubURLProtocol.requestCount = 0
+
+        setenv("AI_FORCE_OPUS", "1", 1)
+        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        defer {
+            unsetenv("AI_FORCE_OPUS")
+            unsetenv("ANTHROPIC_API_KEY")
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let ai = AIService(session: URLSession(configuration: config))
+
+        let pois: [OverpassService.POI] = [
+            .init(osmId: 1, name: "Cafe", nameEn: nil, lat: 21.03, lon: 105.85, tags: ["amenity": "cafe"])
+        ]
+        _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
+
+        let model = capturedBody?["model"] as? String
+        XCTAssertEqual(model, "claude-opus-4-7", "AI_FORCE_OPUS=1 must route synthesis to Opus 4.7")
+    }
+
     // MARK: - US-015 daily AI quota
 
     @MainActor
