@@ -467,7 +467,7 @@
         "Verify in simulator: with .storekit testing config, simulate a previous purchase, tap Restore, confirm Pro is granted"
       ],
       "priority": 27,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
