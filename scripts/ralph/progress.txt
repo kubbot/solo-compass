@@ -12,3 +12,4 @@ PRD: prd.json (10 stories, TS-only)
 - TypeScript strict, noUncheckedIndexedAccess
 - Build: pnpm typecheck, pnpm format, pnpm test
 ---
+[2026-05-12T08:49:00Z] Story #US-001: Rewrite rank-experiences.ts for DeepSeek JSON mode — PASSED
