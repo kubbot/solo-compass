@@ -168,7 +168,17 @@ public struct PaywallView: View {
     }
 
     private var ctaButton: some View {
-        Button {
+        // In DEBUG builds the StoreKit catalog may be empty (no StoreKit
+        // configuration attached to the scheme), which would otherwise leave
+        // the CTA permanently disabled and make the paywall un-testable on a
+        // bare simulator. Allow taps in that case and fall back to a local
+        // unlock inside `runPurchase()`.
+        #if DEBUG
+        let isDisabled = purchaseInFlight
+        #else
+        let isDisabled = purchaseInFlight || subscription.products.isEmpty
+        #endif
+        return Button {
             Task { await runPurchase() }
         } label: {
             HStack {
@@ -185,7 +195,7 @@ public struct PaywallView: View {
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .disabled(purchaseInFlight || subscription.products.isEmpty)
+        .disabled(isDisabled)
     }
 
     private var fineprint: some View {
@@ -217,6 +227,16 @@ public struct PaywallView: View {
 
     private func runPurchase() async {
         guard let product = subscription.products.first(where: { $0.id == selectedProductID }) else {
+            #if DEBUG
+            // DEBUG-only escape hatch: when StoreKit returned no products
+            // (e.g. simulator without a .storekit config), flip entitlement
+            // locally so the rest of the flow is testable.
+            purchaseInFlight = true
+            defer { purchaseInFlight = false }
+            subscription._setEntitlementForTesting(.proTrial)
+            onUnlocked()
+            dismiss()
+            #endif
             return
         }
         purchaseInFlight = true
