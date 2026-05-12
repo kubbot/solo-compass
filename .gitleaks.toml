@@ -23,6 +23,8 @@ regexes = [
   '''pk\.eyJ[a-zA-Z0-9_\-\.]+''',
   # Supabase placeholder URL (not a real project URL)
   '''xxxxx\.supabase\.co''',
+  # Literal placeholder for DeepSeek/OpenAI-style API keys — cannot authenticate anything
+  '''sk-replace-me''',
   # Literal placeholder asterisks
   '''\*{3}''',
   # Placeholder X's for team ID
