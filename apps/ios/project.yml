@@ -68,6 +68,17 @@ targets:
       properties:
         com.apple.developer.applesignin:
           - Default
+    preBuildScripts:
+      - name: Generate Secrets from .env
+        script: |
+          if [ -f "${SRCROOT}/../../scripts/generate_secrets.sh" ]; then
+            bash "${SRCROOT}/../../scripts/generate_secrets.sh"
+          else
+            echo "[generate_secrets] script not found at ${SRCROOT}/../../scripts/generate_secrets.sh — skipping" >&2
+          fi
+        outputFiles:
+          - $(SRCROOT)/SoloCompass/Config/GeneratedSecrets.swift
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: Supabase
         product: Supabase

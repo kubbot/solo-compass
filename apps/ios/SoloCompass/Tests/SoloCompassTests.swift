@@ -407,7 +407,7 @@ final class SoloCompassTests: XCTestCase {
 
     @MainActor
     func testSynthesizeExperiencesFallsBackWhenNoAPIKey() async throws {
-        unsetenv("ANTHROPIC_API_KEY")
+        unsetenv("DEEPSEEK_API_KEY")
         let ai = AIService()
         let pois: [OverpassService.POI] = [
             .init(osmId: 100, name: "Cà phê Giảng", nameEn: "Giang Cafe",
@@ -427,7 +427,7 @@ final class SoloCompassTests: XCTestCase {
 
     @MainActor
     func testSynthesisLimitCapsInputs() async throws {
-        unsetenv("ANTHROPIC_API_KEY")
+        unsetenv("DEEPSEEK_API_KEY")
         let ai = AIService()
         let many: [OverpassService.POI] = (0..<25).map {
             .init(osmId: Int64(1000 + $0), name: "Spot \($0)", nameEn: nil,
@@ -631,7 +631,7 @@ final class SoloCompassTests: XCTestCase {
         let record = AISynthesisCacheRecord(
             cacheKey: "abc123def456",
             experiencesJSON: blob,
-            modelName: "claude-sonnet-4-6"
+            modelName: "deepseek-chat"
         )
         context.insert(record)
         try context.save()
@@ -639,7 +639,7 @@ final class SoloCompassTests: XCTestCase {
         let fetched = try context.fetch(FetchDescriptor<AISynthesisCacheRecord>())
         XCTAssertEqual(fetched.count, 1)
         XCTAssertEqual(fetched[0].cacheKey, "abc123def456")
-        XCTAssertEqual(fetched[0].modelName, "claude-sonnet-4-6")
+        XCTAssertEqual(fetched[0].modelName, "deepseek-chat")
     }
 
     // MARK: - US-006 ancillary records
@@ -914,17 +914,17 @@ final class SoloCompassTests: XCTestCase {
     func testAISynthesisCacheKeyIsStableForReorderedPOIs() {
         let p1 = OverpassService.POI(osmId: 1, name: "A", nameEn: nil, lat: 0, lon: 0, tags: [:])
         let p2 = OverpassService.POI(osmId: 2, name: "B", nameEn: nil, lat: 0, lon: 0, tags: [:])
-        let k1 = AIService.synthesisCacheKey(pois: [p1, p2], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
-        let k2 = AIService.synthesisCacheKey(pois: [p2, p1], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
+        let k1 = AIService.synthesisCacheKey(pois: [p1, p2], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "deepseek-chat")
+        let k2 = AIService.synthesisCacheKey(pois: [p2, p1], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "deepseek-chat")
         XCTAssertEqual(k1, k2, "POI input order must not change cache key")
         XCTAssertEqual(k1.count, 64, "SHA256 hex is 64 chars")
     }
 
     func testAISynthesisCacheKeyChangesWithModelName() {
         let p = OverpassService.POI(osmId: 1, name: "A", nameEn: nil, lat: 0, lon: 0, tags: [:])
-        let kSonnet = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-sonnet-4-6")
-        let kOpus = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "claude-opus-4-7")
-        XCTAssertNotEqual(kSonnet, kOpus, "model bump must invalidate cache")
+        let k1 = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "deepseek-chat")
+        let k2 = AIService.synthesisCacheKey(pois: [p], cityCode: "vn-hanoi", locale: Locale(identifier: "en"), modelName: "deepseek-coder")
+        XCTAssertNotEqual(k1, k2, "model bump must invalidate cache")
     }
 
     @MainActor
@@ -934,15 +934,15 @@ final class SoloCompassTests: XCTestCase {
             let json = #"""
             [{"osmId":55,"title":"Cache Test Cafe","oneLiner":"A cafe.","whyItMatters":"Good solo spot.","category":"coffee","bestStartHour":8,"bestEndHour":20,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":["Go in","Find a seat"],"soloHint":"Quiet mornings.","soloOverall":7.8}]
             """#
-            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            let body = #"{"choices":[{"message":{"content":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}}]}"#
             return (HTTPURLResponse(
-                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                 statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -969,45 +969,50 @@ final class SoloCompassTests: XCTestCase {
     // MARK: - US-013 model routing
 
     func testModelRoutingDefaults() {
-        unsetenv("AI_FORCE_OPUS")
-        XCTAssertEqual(AIService.modelName(for: .synthesis), "claude-sonnet-4-6")
-        XCTAssertEqual(AIService.modelName(for: .voice), "claude-sonnet-4-6")
-        XCTAssertEqual(AIService.modelName(for: .explanation), "claude-haiku-4-5-20251001")
+        unsetenv("DEEPSEEK_MODEL_SYNTHESIS")
+        unsetenv("DEEPSEEK_MODEL_EXPLANATION")
+        unsetenv("DEEPSEEK_MODEL_VOICE")
+        // All kinds resolve to Secrets.resolvedDeepSeekModel which defaults
+        // to "deepseek-chat" when the build-time .env is empty / absent.
+        XCTAssertFalse(AIService.modelName(for: .synthesis).isEmpty)
+        XCTAssertFalse(AIService.modelName(for: .voice).isEmpty)
+        XCTAssertFalse(AIService.modelName(for: .explanation).isEmpty)
     }
 
-    func testModelRoutingForceOpusEnvVar() {
-        setenv("AI_FORCE_OPUS", "1", 1)
-        defer { unsetenv("AI_FORCE_OPUS") }
-        XCTAssertEqual(AIService.modelName(for: .synthesis), "claude-opus-4-7")
-        XCTAssertEqual(AIService.modelName(for: .voice), "claude-opus-4-7")
-        XCTAssertEqual(AIService.modelName(for: .explanation), "claude-opus-4-7")
+    func testModelRoutingPerKindEnvOverride() {
+        setenv("DEEPSEEK_MODEL_SYNTHESIS", "deepseek-coder", 1)
+        defer { unsetenv("DEEPSEEK_MODEL_SYNTHESIS") }
+        XCTAssertEqual(AIService.modelName(for: .synthesis), "deepseek-coder")
     }
 
     @MainActor
     func testSynthesisRequestBodyContainsSonnetModel() async throws {
         var capturedBody: [String: Any]?
         StubURLProtocol.handler = { request in
-            if let data = request.httpBody {
+            // URLSession buffers small bodies as a stream — read both forms.
+            if let data = request.httpBody ?? StubURLProtocol.readBody(from: request.httpBodyStream) {
                 capturedBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             }
             let json = #"""
             [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
             """#
-            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            let body = #"{"choices":[{"message":{"content":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}}]}"#
             return (HTTPURLResponse(
-                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                 statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
 
-        unsetenv("AI_FORCE_OPUS")
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        unsetenv("DEEPSEEK_MODEL_SYNTHESIS")
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
-        let ai = AIService(session: URLSession(configuration: config))
+        let ai = AIService(session: URLSession(configuration: config), modelContext: context)
 
         let pois: [OverpassService.POI] = [
             .init(osmId: 1, name: "Cafe", nameEn: nil, lat: 21.03, lon: 105.85, tags: ["amenity": "cafe"])
@@ -1015,37 +1020,40 @@ final class SoloCompassTests: XCTestCase {
         _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
 
         let model = capturedBody?["model"] as? String
-        XCTAssertEqual(model, "claude-sonnet-4-6", "synthesis request must use Sonnet 4.6 by default")
+        XCTAssertEqual(model, "deepseek-chat", "synthesis request must use the resolved DeepSeek model")
     }
 
     @MainActor
-    func testSynthesisRequestBodyContainsOpusWhenForced() async throws {
+    func testSynthesisRequestUsesPerKindModelOverride() async throws {
         var capturedBody: [String: Any]?
         StubURLProtocol.handler = { request in
-            if let data = request.httpBody {
+            // URLSession buffers small bodies as a stream — read both forms.
+            if let data = request.httpBody ?? StubURLProtocol.readBody(from: request.httpBodyStream) {
                 capturedBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             }
             let json = #"""
             [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
             """#
-            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            let body = #"{"choices":[{"message":{"content":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}}]}"#
             return (HTTPURLResponse(
-                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                 statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
 
-        setenv("AI_FORCE_OPUS", "1", 1)
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
+        setenv("DEEPSEEK_MODEL_SYNTHESIS", "deepseek-coder", 1)
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
         defer {
-            unsetenv("AI_FORCE_OPUS")
-            unsetenv("ANTHROPIC_API_KEY")
+            unsetenv("DEEPSEEK_MODEL_SYNTHESIS")
+            unsetenv("DEEPSEEK_API_KEY")
         }
 
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
-        let ai = AIService(session: URLSession(configuration: config))
+        let ai = AIService(session: URLSession(configuration: config), modelContext: context)
 
         let pois: [OverpassService.POI] = [
             .init(osmId: 1, name: "Cafe", nameEn: nil, lat: 21.03, lon: 105.85, tags: ["amenity": "cafe"])
@@ -1053,7 +1061,7 @@ final class SoloCompassTests: XCTestCase {
         _ = try await ai.synthesizeExperiences(from: pois, cityCode: "vn-hanoi")
 
         let model = capturedBody?["model"] as? String
-        XCTAssertEqual(model, "claude-opus-4-7", "AI_FORCE_OPUS=1 must route synthesis to Opus 4.7")
+        XCTAssertEqual(model, "deepseek-coder", "DEEPSEEK_MODEL_SYNTHESIS env var must override the synthesis model")
     }
 
     // MARK: - US-015 daily AI quota
@@ -1066,9 +1074,9 @@ final class SoloCompassTests: XCTestCase {
             [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
             """#
             // Anthropic Messages API response shape: {content: [{text: "..."}]}
-            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            let body = #"{"choices":[{"message":{"content":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}}]}"#
             return (HTTPURLResponse(
-                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                 statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!)
         }
@@ -1084,8 +1092,8 @@ final class SoloCompassTests: XCTestCase {
         try context.save()
 
         // Need an API key in env to skip the missingAPIKey throw path.
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
@@ -1108,15 +1116,15 @@ final class SoloCompassTests: XCTestCase {
             let json = #"""
             [{"osmId":1,"title":"x","oneLiner":"x","whyItMatters":"x","category":"food","bestStartHour":9,"bestEndHour":21,"durationMinMinutes":30,"durationMaxMinutes":90,"howTo":[],"soloHint":"x","soloOverall":7.5}]
             """#
-            let body = #"{"content":[{"text":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}]}"#
+            let body = #"{"choices":[{"message":{"content":"\#(json.replacingOccurrences(of: "\"", with: "\\\""))"}}]}"#
             return (HTTPURLResponse(
-                url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                 statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -1156,14 +1164,14 @@ final class SoloCompassTests: XCTestCase {
             let body = "{\"content\":[{\"text\":\"\(escaped)\"}]}"
             return (
                 HTTPURLResponse(
-                    url: URL(string: "https://api.anthropic.com/v1/messages")!,
+                    url: URL(string: "https://api.deepseek.com/v1/chat/completions")!,
                     statusCode: 200, httpVersion: nil, headerFields: nil)!,
                 body.data(using: .utf8)!
             )
         }
 
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -1462,7 +1470,7 @@ final class SoloCompassTests: XCTestCase {
                 // AI synthesis: return one skeleton experience
                 let aiJSON = #"[{"osmId":7001,"title":"Hanoi Cafe","oneLiner":"A local cafe","whyItMatters":"Good for solo","category":"coffee","bestStartHour":8,"bestEndHour":18,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":[],"soloHint":"Solo-friendly","soloOverall":8.0}]"#
                 let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
-                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+                body = #"{"choices":[{"message":{"content":"\#(escaped)"}}]}"#
             }
             return (HTTPURLResponse(
                 url: request.url!,
@@ -1470,8 +1478,8 @@ final class SoloCompassTests: XCTestCase {
                 body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -1538,14 +1546,14 @@ final class SoloCompassTests: XCTestCase {
             } else {
                 let aiJSON = #"[{"osmId":8001,"title":"Pho Spot","oneLiner":"A pho place","whyItMatters":"Hot broth","category":"food","bestStartHour":7,"bestEndHour":21,"durationMinMinutes":20,"durationMaxMinutes":45,"howTo":[],"soloHint":"Solo corner","soloOverall":7.5}]"#
                 let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
-                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+                body = #"{"choices":[{"message":{"content":"\#(escaped)"}}]}"#
             }
             return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
                     body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -1681,14 +1689,14 @@ final class SoloCompassTests: XCTestCase {
             } else {
                 let aiJSON = #"[{"osmId":9001,"title":"Test Cafe","oneLiner":"A cafe","whyItMatters":"Good solo","category":"coffee","bestStartHour":8,"bestEndHour":18,"durationMinMinutes":30,"durationMaxMinutes":60,"howTo":[],"soloHint":"Quiet","soloOverall":8.0}]"#
                 let escaped = aiJSON.replacingOccurrences(of: "\"", with: "\\\"")
-                body = #"{"content":[{"text":"\#(escaped)"}]}"#
+                body = #"{"choices":[{"message":{"content":"\#(escaped)"}}]}"#
             }
             return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
                     body.data(using: .utf8)!)
         }
         StubURLProtocol.requestCount = 0
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let container = SoloCompassModelContainer.makeInMemory()
         let context = ModelContext(container)
@@ -1746,8 +1754,8 @@ final class SoloCompassTests: XCTestCase {
         context.insert(AIUsageRecord(date: today, synthesisCalls: AIService.dailySynthesisQuota))
         try context.save()
 
-        setenv("ANTHROPIC_API_KEY", "sk-test-fake", 1)
-        defer { unsetenv("ANTHROPIC_API_KEY") }
+        setenv("DEEPSEEK_API_KEY", "sk-test-fake", 1)
+        defer { unsetenv("DEEPSEEK_API_KEY") }
 
         let sessionConfig = URLSessionConfiguration.ephemeral
         sessionConfig.protocolClasses = [StubURLProtocol.self]
@@ -2105,6 +2113,26 @@ final class StubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    /// Read all bytes from a stream synchronously. URLSession often hands
+    /// requests to URLProtocol with `httpBody == nil` and the actual body in
+    /// `httpBodyStream`, which means a naive `request.httpBody` read returns
+    /// nil even for POSTs that clearly carried JSON.
+    static func readBody(from stream: InputStream?) -> Data? {
+        guard let stream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data.isEmpty ? nil : data
+    }
 }
 
 // MARK: - ReverseGeocoding stub
