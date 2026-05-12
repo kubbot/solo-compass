@@ -33,6 +33,17 @@ echo "🚀 Ralph starting — Tool: $TOOL, Max iterations: $MAX_ITERATIONS"
 echo "📋 PRD: $PRD_FILE"
 echo ""
 
+# Cache TARGET_BRANCH at start (NEVER re-read from PRD — Claude Code may overwrite it)
+TARGET_BRANCH=$(python3 -c "import json; f=open('$PRD_FILE'); print(json.load(f).get('branchName','main'))")
+echo "🎯 Target branch: $TARGET_BRANCH"
+
+# Verify we're on the correct branch BEFORE first iteration
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
+  echo "   ⚠️ Not on target branch ($CURRENT_BRANCH ≠ $TARGET_BRANCH) — switching"
+  git checkout "$TARGET_BRANCH"
+fi
+
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo "═══════════════════════════════════════════════════════════"
   echo "  Iteration $i / $MAX_ITERATIONS"
@@ -84,11 +95,13 @@ else:
   echo "   Acceptance: $STORY_ACCEPT"
 
   # Build the Claude Code prompt
-  PROMPT="You are implementing a SINGLE user story for the Solo Compass iOS app.
+  PROMPT="You are implementing a SINGLE user story for the Solo Compass DeepSeek Migration (TS-only stories).
 
 PROJECT: Solo Compass (独行罗盘) — living map for solo travelers
-iOS app location: apps/ios/SoloCompass/
-Tech: SwiftUI, MapKit, iOS 17+, MVVM with @Observable
+This PRD: DeepSeek Migration — migrating packages/ai/ from Anthropic Claude to DeepSeek via OpenAI-compatible SDK.
+Working directory: packages/ai/ (TypeScript), packages/core/ (shared types)
+Tech: TypeScript strict, pnpm monorepo, OpenAI SDK, DeepSeek API
+Monorepo structure: apps/ (web, bot, ios), packages/ (core, ai, data)
 
 ⚠️ CRITICAL: You are working on branch '$TARGET_BRANCH'. NEVER run git checkout, git switch, git branch, or any command that changes the current branch. NEVER push or pull. Only git add and git commit.
 
@@ -96,13 +109,14 @@ STORY #$STORY_ID: $STORY_NAME
 DESCRIPTION: $STORY_DESC
 ACCEPTANCE CRITERIA: $STORY_ACCEPT
 
-Read the CLAUDE.md for project conventions. Read existing Swift files to understand the codebase.
+Read the CLAUDE.md for project conventions. Read existing TypeScript files to understand the codebase.
 Implement ONLY this story. Do NOT touch unrelated code.
 After implementing:
-1. Verify the code compiles conceptually (no Xcode available, but check syntax)
-2. Run any relevant tests
-3. Print a summary of what you changed
-4. The acceptance criteria must be satisfied"
+1. Run typecheck: pnpm typecheck
+2. Run format: pnpm format
+3. Run tests: pnpm test
+4. Print a summary of what you changed
+5. The acceptance criteria must be satisfied"
 
   echo "   🤖 Running Claude Code..."
 
@@ -118,20 +132,7 @@ After implementing:
     
     echo "   ✅ Story #$STORY_ID implemented successfully"
 
-    # Git add + commit
-    cd "$REPO_ROOT"
-    if git diff --quiet && git diff --cached --quiet; then
-      echo "   ⚠️ No changes to commit"
-    else
-      git add -A
-      git commit -m "feat(ios): story #$STORY_ID — $STORY_NAME
-
-Implemented: $STORY_DESC
-Acceptance: $STORY_ACCEPT"
-      echo "   📝 Committed: story #$STORY_ID"
-    fi
-
-    # Mark story as passes: true
+    # Mark story as passes: true (BEFORE commit so it's included)
     python3 -c "
 import json
 with open('$PRD_FILE') as f:
@@ -147,6 +148,19 @@ with open('$PRD_FILE', 'w') as f:
 
     # Log progress
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Story #$STORY_ID: $STORY_NAME — PASSED" >> "$PROGRESS_FILE"
+
+    # Git add + commit (includes PRD mark AND progress)
+    cd "$REPO_ROOT"
+    if git diff --quiet && git diff --cached --quiet; then
+      echo "   ⚠️ No changes to commit"
+    else
+      git add -A
+      git commit -m "feat(ai): story #$STORY_ID — $STORY_NAME
+
+Implemented: $STORY_DESC
+Acceptance: $STORY_ACCEPT"
+      echo "   📝 Committed: story #$STORY_ID"
+    fi
 
   else
     echo "   ❌ Story #$STORY_ID FAILED"
