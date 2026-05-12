@@ -4,9 +4,10 @@ import CryptoKit
 import Observation
 import SwiftData
 
-/// Talks to Claude via the Anthropic Messages API. Reads the API key from
-/// `Secrets.plist` (key `ANTHROPIC_API_KEY`) or the `ANTHROPIC_API_KEY` env var.
-/// If neither is present, calls return a fallback that ranks by Solo Score.
+/// Talks to DeepSeek via the OpenAI-compatible chat completions API.
+/// Resolves the API key via `Secrets.resolvedDeepSeekApiKey`
+/// (UserDefaults override > GeneratedSecrets > env var). When no key is
+/// available, calls return a fallback that ranks by Solo Score.
 ///
 /// We keep this surface minimal — three intents the rest of the app actually
 /// needs. Adding more should require a real product reason.
@@ -77,18 +78,26 @@ public final class AIService {
     public var isProTier: Bool = true
 
     private let session: URLSession
-    private let apiURL = URL(string: "https://api.anthropic.com/v1/messages")
     private let modelContext: ModelContext?
+
+    /// Resolve the DeepSeek `/chat/completions` endpoint from current Secrets.
+    /// We strip only a single trailing "/" — `trimmingCharacters` is wrong
+    /// here because it would also eat the leading "https://" slashes.
+    private var apiURL: URL? {
+        var base = Secrets.resolvedDeepSeekBaseURL
+        while base.hasSuffix("/") { base.removeLast() }
+        return URL(string: base + "/chat/completions")
+    }
 
     /// Synthesis cache TTL — 30 days.
     public static let synthesisCacheTTLSeconds: TimeInterval = 30 * 86_400
 
-    /// Default model routing. Sonnet 4.6 for generative tasks (synthesis,
-    /// voice intent, ranking); Haiku 4.5 for lighter explanations. The
-    /// `AI_FORCE_OPUS=1` env var routes everything to Opus for golden-set
-    /// runs. `Secrets.plist` keys (`ANTHROPIC_MODEL_SYNTHESIS`,
-    /// `ANTHROPIC_MODEL_EXPLANATION`, `ANTHROPIC_MODEL_VOICE`) override
-    /// the defaults per build.
+    /// Model routing. DeepSeek currently exposes one general chat model
+    /// (`deepseek-chat` / `deepseek-v4-pro`) via the OpenAI-compatible
+    /// endpoint, so all three call kinds share the same model name resolved
+    /// from `Secrets.resolvedDeepSeekModel`. The kind is still passed
+    /// through so future per-kind tuning (max_tokens, temperature, model
+    /// override env var) can land without changing call sites.
     public enum ModelKind {
         case synthesis, explanation, voice
     }
@@ -115,38 +124,21 @@ public final class AIService {
 
     // MARK: - Model name resolution
 
-    /// Resolve which model to use for a given call kind. Order:
-    /// 1. `AI_FORCE_OPUS=1` env var → opus everywhere (debug only)
-    /// 2. `Secrets.plist` override key
-    /// 3. Hard-coded default
+    /// Resolve which model to use for a given call kind. All kinds share the
+    /// DeepSeek model from `Secrets.resolvedDeepSeekModel`. Per-kind env var
+    /// overrides (`DEEPSEEK_MODEL_SYNTHESIS` etc.) take precedence so QA can
+    /// pin a model per call kind without rebuilding.
     static func modelName(for kind: ModelKind) -> String {
-        if ProcessInfo.processInfo.environment["AI_FORCE_OPUS"] == "1" {
-            return "claude-opus-4-7"
-        }
-        let plistKey: String
-        let defaultName: String
+        let envKey: String
         switch kind {
-        case .synthesis:
-            plistKey = "ANTHROPIC_MODEL_SYNTHESIS"
-            defaultName = "claude-sonnet-4-6"
-        case .explanation:
-            plistKey = "ANTHROPIC_MODEL_EXPLANATION"
-            defaultName = "claude-haiku-4-5-20251001"
-        case .voice:
-            plistKey = "ANTHROPIC_MODEL_VOICE"
-            defaultName = "claude-sonnet-4-6"
+        case .synthesis:   envKey = "DEEPSEEK_MODEL_SYNTHESIS"
+        case .explanation: envKey = "DEEPSEEK_MODEL_EXPLANATION"
+        case .voice:       envKey = "DEEPSEEK_MODEL_VOICE"
         }
-        return resolveSecretsOverride(plistKey) ?? defaultName
-    }
-
-    private static func resolveSecretsOverride(_ key: String) -> String? {
-        guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
-              let data = try? Data(contentsOf: url),
-              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let value = plist[key] as? String,
-              !value.isEmpty
-        else { return nil }
-        return value
+        if let override = ProcessInfo.processInfo.environment[envKey], !override.isEmpty {
+            return override
+        }
+        return Secrets.resolvedDeepSeekModel
     }
 
     // MARK: - Public
@@ -204,6 +196,9 @@ public final class AIService {
 
     // MARK: - HTTP
 
+    /// POST a single user prompt to DeepSeek (`/chat/completions`) and return
+    /// the assistant text content. Strips ``` fences defensively before
+    /// returning so callers can `JSON.parse` the result without re-doing it.
     private func sendMessage(prompt: String, kind: ModelKind = .synthesis) async throws -> String {
         guard let key = Self.resolveAPIKey() else { throw AIError.missingAPIKey }
         guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
@@ -214,13 +209,24 @@ public final class AIService {
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(key, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 60
+
+        // System prompt forbids markdown fences explicitly — DeepSeek can
+        // still emit them, so we also strip defensively after parsing.
+        let systemPrompt =
+            "You are Solo Compass's AI engine for solo travelers. " +
+            "Output exactly what the user prompt asks for. " +
+            "When asked for JSON, return only a single valid JSON value with no markdown fences and no commentary."
 
         let body: [String: Any] = [
             "model": Self.modelName(for: kind),
-            "max_tokens": 1024,
-            "messages": [["role": "user", "content": prompt]],
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": prompt],
+            ],
+            "max_tokens": kind == .synthesis ? 2048 : 1024,
+            "temperature": 0.7,
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -233,31 +239,47 @@ public final class AIService {
             throw AIError.requestFailed(status: http.statusCode, body: bodyText)
         }
 
-        // Anthropic Messages API: content is an array of blocks; we want the
-        // first text block.
+        // OpenAI-compatible: choices[0].message.content
         guard
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let content = json["content"] as? [[String: Any]],
-            let first = content.first,
-            let text = first["text"] as? String
+            let choices = json["choices"] as? [[String: Any]],
+            let first = choices.first,
+            let message = first["message"] as? [String: Any],
+            let content = message["content"] as? String
         else {
             throw AIError.decodingFailed("Unexpected response shape")
         }
-        return text
+        return Self.stripMarkdownFences(content)
     }
 
     // MARK: - Helpers
 
-    // US-034: ANTHROPIC_API_KEY is no longer read from Secrets.plist.
-    // The synthesis path now routes through the Supabase Edge Function
-    // when FF_ROUTE_AI_THROUGH_EDGE is on. Only the env-var path is
-    // kept so local QA runs (explanation/voice) and CI can still inject
-    // a key without bundling it in the app.
+    /// DeepSeek API key resolution. UserDefaults override > GeneratedSecrets >
+    /// `DEEPSEEK_API_KEY` env var (used by tests + simulator runs).
     private static func resolveAPIKey() -> String? {
-        guard let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty else {
-            return nil
+        let runtime = Secrets.resolvedDeepSeekApiKey
+        if !runtime.isEmpty { return runtime }
+        if let env = ProcessInfo.processInfo.environment["DEEPSEEK_API_KEY"], !env.isEmpty {
+            return env
         }
-        return env
+        return nil
+    }
+
+    /// DeepSeek occasionally wraps JSON in ```json … ``` fences despite the
+    /// system prompt. Strip a single outer fence if present; leave plain
+    /// content untouched.
+    static func stripMarkdownFences(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard s.hasPrefix("```") else { return s }
+        // Drop opening fence line (```json or ```)
+        if let firstNewline = s.firstIndex(of: "\n") {
+            s = String(s[s.index(after: firstNewline)...])
+        }
+        // Drop trailing ```
+        if s.hasSuffix("```") {
+            s = String(s.dropLast(3))
+        }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func recommendationPrompt(candidates: [Experience], context: UserContext) -> String {
@@ -318,7 +340,7 @@ public final class AIService {
     ///    return persisted Experiences without HTTP.
     /// 2. Quota check (Pro: 30 synthesis/day) → if exceeded, fall back
     ///    to skeleton mode and set `quotaExceededAt`.
-    /// 3. Real Claude call → on success, persist + return; on failure,
+    /// 3. Real DeepSeek call → on success, persist + return; on failure,
     ///    skeleton fallback (no cache write).
     public func synthesizeExperiences(
         from pois: [OverpassService.POI],
@@ -348,7 +370,7 @@ public final class AIService {
 
         // Epic E US-031: route through Supabase Edge Function instead
         // of direct Anthropic when the flag is on. This is the path
-        // that lets us remove ANTHROPIC_API_KEY from the iOS bundle.
+        // that lets us avoid bundling DEEPSEEK_API_KEY in the iOS app.
         if FeatureFlags.routeAIThroughEdge && FeatureFlags.backendSync {
             do {
                 let experiences = try await synthesizeViaEdge(

@@ -17,16 +17,16 @@ public enum FeatureFlags {
     }
 
     /// When true, AIService.synthesizeExperiences calls the Supabase
-    /// Edge Function instead of Anthropic directly. Requires
-    /// backendSync to also be true. Off in beta.1 so QA can still
-    /// hit Anthropic via the local key for prompt-tuning.
+    /// Edge Function instead of DeepSeek directly. Requires backendSync
+    /// to also be true. Off in beta.1 so QA can still hit DeepSeek via
+    /// the local key for prompt-tuning.
     public static var routeAIThroughEdge: Bool {
         readBool("FF_ROUTE_AI_THROUGH_EDGE", default: false)
     }
 
-    /// When true, explanation and voice intents still call Anthropic
-    /// directly from the device (using the env-var key). Used as a
-    /// staged rollout gate: synthesis moves to the Edge Function first
+    /// When true, explanation and voice intents still call DeepSeek
+    /// directly from the device (using the local key). Used as a staged
+    /// rollout gate: synthesis moves to the Edge Function first
     /// (US-034) while explanation/voice migrate later. Off by default.
     public static var localAIFallback: Bool {
         readBool("FF_LOCAL_AI_FALLBACK", default: false)
