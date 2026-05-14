@@ -73,8 +73,14 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "latitude": { "type": "number", "description": "WGS84 latitude. Omit to use the user's current GPS location." },
-        "longitude": { "type": "number", "description": "WGS84 longitude. Omit to use the user's current GPS location." },
+        "latitude": {
+          "type": "number",
+          "description": "WGS84 latitude. Omit to use the user's current GPS location."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "WGS84 longitude. Omit to use the user's current GPS location."
+        },
         "radius_meters": { "type": "integer", "minimum": 500, "maximum": 8000, "default": 3000 }
       }
     }
@@ -120,7 +126,10 @@
       "type": "object",
       "required": ["experience_id"],
       "properties": {
-        "experience_id": { "type": "string", "description": "The exact id field of an experience in visibleExperiences." }
+        "experience_id": {
+          "type": "string",
+          "description": "The exact id field of an experience in visibleExperiences."
+        }
       }
     }
   }
@@ -205,13 +214,13 @@
 
 ### 5.1 关键约束
 
-| 项 | 值 | 理由 |
-|----|----|----|
-| `messages[]` 长度上限 | 10 条（5 轮 user/assistant pair）+ system | 4K tokens 内，避免成本爆炸 |
-| 单轮 tool_call 上限 | 5 次（DeepSeek 一次性返回不超过 5 个） | 防止 AI 无限递归 |
-| Agent 总递归深度 | 3 次 thinking↔tool_executing 循环 | 第 3 次必须收尾 |
-| 单轮总耗时上限 | 30s（含 tool 执行） | 超时取消并降级 |
-| `visibleExperiences` 摘要注入 | 每轮系统消息追加 ≤ 5 条候选（id + title + category） | 让 AI 知道指代对象 |
+| 项                            | 值                                                   | 理由                       |
+| ----------------------------- | ---------------------------------------------------- | -------------------------- |
+| `messages[]` 长度上限         | 10 条（5 轮 user/assistant pair）+ system            | 4K tokens 内，避免成本爆炸 |
+| 单轮 tool_call 上限           | 5 次（DeepSeek 一次性返回不超过 5 个）               | 防止 AI 无限递归           |
+| Agent 总递归深度              | 3 次 thinking↔tool_executing 循环                    | 第 3 次必须收尾            |
+| 单轮总耗时上限                | 30s（含 tool 执行）                                  | 超时取消并降级             |
+| `visibleExperiences` 摘要注入 | 每轮系统消息追加 ≤ 5 条候选（id + title + category） | 让 AI 知道指代对象         |
 
 ### 5.2 消息历史压缩
 
@@ -348,41 +357,41 @@ App 执行后回灌：
 
 ## 8. 错误降级
 
-| 场景 | 行为 |
-|------|------|
+| 场景                                                                 | 行为                                                                                                                              |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | DeepSeek 返回纯文本无 tool_calls，但用户明显在说指令（如"筛选咖啡"） | 一次重试，重试时在 system 续段加上 "HINT: user is requesting an action, prefer tool_call"；仍失败则把文本作为助手回复展示，不报错 |
-| Tool 执行抛错（e.g. `explore_nearby` Overpass 网络失败） | 回灌 `{"ok":false,"error":"overpass_timeout"}`，让 DeepSeek 自己组织失败回复（"附近的搜索失败了，要不要试现有列表？"） |
-| 同一会话连续 2 次网络断 | 显示 toast"网络不太好"，关闭 sheet 退到 idle |
-| 配额耗尽（`.voiceAgent` quota 触发） | 进入会话前阻断：弹 sheet "今天的语音对话已用完，明天再来或试试手动筛选" + 一个 "了解配额" 链接 |
-| 长按手势但麦克风权限被拒 | 走现有 `VoiceService.requestPermission()` 流程；首次拒绝后弹 alert 指引去设置 |
-| DeepSeek 调用 `tool_choice: "auto"` 但连续 3 轮不调工具，纯聊天 | 不阻断，但记录指标 `voice_agent.no_tool_turns`，超过阈值时考虑 prompt 调优 |
-| `experience_id` 不在 `visibleExperiences` 中（AI 编造） | 回灌 `{"ok":false,"error":"unknown_experience_id"}`，DeepSeek 应自行更正 |
+| Tool 执行抛错（e.g. `explore_nearby` Overpass 网络失败）             | 回灌 `{"ok":false,"error":"overpass_timeout"}`，让 DeepSeek 自己组织失败回复（"附近的搜索失败了，要不要试现有列表？"）            |
+| 同一会话连续 2 次网络断                                              | 显示 toast"网络不太好"，关闭 sheet 退到 idle                                                                                      |
+| 配额耗尽（`.voiceAgent` quota 触发）                                 | 进入会话前阻断：弹 sheet "今天的语音对话已用完，明天再来或试试手动筛选" + 一个 "了解配额" 链接                                    |
+| 长按手势但麦克风权限被拒                                             | 走现有 `VoiceService.requestPermission()` 流程；首次拒绝后弹 alert 指引去设置                                                     |
+| DeepSeek 调用 `tool_choice: "auto"` 但连续 3 轮不调工具，纯聊天      | 不阻断，但记录指标 `voice_agent.no_tool_turns`，超过阈值时考虑 prompt 调优                                                        |
+| `experience_id` 不在 `visibleExperiences` 中（AI 编造）              | 回灌 `{"ok":false,"error":"unknown_experience_id"}`，DeepSeek 应自行更正                                                          |
 
 ## 9. 指标
 
 埋点位置：`apps/ios/SoloCompass/Services/AnalyticsService.swift`（如不存在则新建，复用现有 SwiftData metrics 表）。
 
-| 指标 | 类型 | 目标 |
-|------|------|------|
-| `voice_agent.session_started` | counter | — |
-| `voice_agent.turns_per_session` | histogram | 平均 ≥ 3 |
-| `voice_agent.tools_per_session` | histogram | 平均 ≥ 2.5 |
-| `voice_agent.tool_distribution` | tag (tool name) | filter > show_details > explore > save > dismiss（预期） |
-| `voice_agent.session_end_reason` | enum {user_close, timeout, error, quota} | user_close 占比 ≥ 70% |
-| `voice_agent.avg_turn_latency_ms` | histogram | p50 < 3s, p95 < 8s |
-| `voice_agent.tool_failure_rate` | rate | < 5% |
+| 指标                              | 类型                                     | 目标                                                     |
+| --------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
+| `voice_agent.session_started`     | counter                                  | —                                                        |
+| `voice_agent.turns_per_session`   | histogram                                | 平均 ≥ 3                                                 |
+| `voice_agent.tools_per_session`   | histogram                                | 平均 ≥ 2.5                                               |
+| `voice_agent.tool_distribution`   | tag (tool name)                          | filter > show_details > explore > save > dismiss（预期） |
+| `voice_agent.session_end_reason`  | enum {user_close, timeout, error, quota} | user_close 占比 ≥ 70%                                    |
+| `voice_agent.avg_turn_latency_ms` | histogram                                | p50 < 3s, p95 < 8s                                       |
+| `voice_agent.tool_failure_rate`   | rate                                     | < 5%                                                     |
 
 ## 10. Stories（每个 ≤ 1d）
 
-| ID | 标题 | 验收要点 | 依赖 |
-|----|------|---------|------|
-| **US-VA-01** | Conversation state model | 新建 `VoiceAgentSession` `@MainActor @Observable`，含 `messages`、`state` 枚举、`turnCount`；纯 model 层，无 UI、无网络；单元测试覆盖状态转换 | — |
-| **US-VA-02** | DeepSeek tools 协议集成 | 在 `AIService` 新增 `sendAgentMessage(messages:tools:) async throws -> AgentResponse`，正确序列化 tools schema、解析 `tool_calls`；OpenAI 兼容字段对齐；mock URLSession 单测 | US-VA-01 |
-| **US-VA-03** | 5 个工具实现 | 新建 `VoiceAgentToolRouter`，各工具一个方法，每个工具有 happy path + 错误路径单测；`explore_nearby` 复用现有 `MapViewModel.exploreNearby` 不要重写 | US-VA-01 |
-| **US-VA-04** | 连续对话 UI | 新建 `ConversationSheet.swift`，气泡列表 + 工具状态条 + 底部输入区；用 mock session 跑 #Preview 三种状态（thinking、tool_executing、idle） | US-VA-01 |
-| **US-VA-05** | 麦克风长按手势 | 改 `VoiceButton`，长按 ≥ 0.5s 触发 `onLongPressStart`；松开仅结束本句不关 sheet；触觉反馈；轻点维持旧行为 | US-VA-04 |
-| **US-VA-06** | Agent loop 编排与中断 | `VoiceAgentSession.handleUserTurn(_:)`：transcribe → think → 并行 tool exec → 回灌 → think → speak；60s 超时、3 次递归上限、用户随时打断（cancel 当前 Task） | US-VA-02, US-VA-03 |
-| **US-VA-07** | 配额、降级、指标 | `.voiceAgent` 配额接入；6 个错误降级路径都有 toast/UI；7 个指标埋点；端到端集成测试（mock DeepSeek）覆盖一段 3 轮会话 | US-VA-06 |
+| ID           | 标题                     | 验收要点                                                                                                                                                                     | 依赖               |
+| ------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **US-VA-01** | Conversation state model | 新建 `VoiceAgentSession` `@MainActor @Observable`，含 `messages`、`state` 枚举、`turnCount`；纯 model 层，无 UI、无网络；单元测试覆盖状态转换                                | —                  |
+| **US-VA-02** | DeepSeek tools 协议集成  | 在 `AIService` 新增 `sendAgentMessage(messages:tools:) async throws -> AgentResponse`，正确序列化 tools schema、解析 `tool_calls`；OpenAI 兼容字段对齐；mock URLSession 单测 | US-VA-01           |
+| **US-VA-03** | 5 个工具实现             | 新建 `VoiceAgentToolRouter`，各工具一个方法，每个工具有 happy path + 错误路径单测；`explore_nearby` 复用现有 `MapViewModel.exploreNearby` 不要重写                           | US-VA-01           |
+| **US-VA-04** | 连续对话 UI              | 新建 `ConversationSheet.swift`，气泡列表 + 工具状态条 + 底部输入区；用 mock session 跑 #Preview 三种状态（thinking、tool_executing、idle）                                   | US-VA-01           |
+| **US-VA-05** | 麦克风长按手势           | 改 `VoiceButton`，长按 ≥ 0.5s 触发 `onLongPressStart`；松开仅结束本句不关 sheet；触觉反馈；轻点维持旧行为                                                                    | US-VA-04           |
+| **US-VA-06** | Agent loop 编排与中断    | `VoiceAgentSession.handleUserTurn(_:)`：transcribe → think → 并行 tool exec → 回灌 → think → speak；60s 超时、3 次递归上限、用户随时打断（cancel 当前 Task）                 | US-VA-02, US-VA-03 |
+| **US-VA-07** | 配额、降级、指标         | `.voiceAgent` 配额接入；6 个错误降级路径都有 toast/UI；7 个指标埋点；端到端集成测试（mock DeepSeek）覆盖一段 3 轮会话                                                        | US-VA-06           |
 
 ## 11. Out of Scope（明确不做）
 
