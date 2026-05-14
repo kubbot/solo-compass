@@ -117,9 +117,7 @@ export const DEV_FALLBACK_EXPERIENCES: readonly Experience[] = [
     coords: [98.9893, 18.7973],
     oneLiner: "Cash, no reservations, a stool at the counter — built for one.",
     soloOverall: 8.2,
-    bestTimes: [
-      { startHour: 11, endHour: 14, note: "lunch only — closes when sold out" },
-    ],
+    bestTimes: [{ startHour: 11, endHour: 14, note: "lunch only — closes when sold out" }],
     durationMin: 20,
     durationMax: 35,
   }),

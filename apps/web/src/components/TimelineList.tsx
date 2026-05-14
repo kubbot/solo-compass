@@ -22,9 +22,7 @@ export function TimelineList({ onSelect }: TimelineListProps) {
   }
   if (entries.length === 0) {
     return (
-      <EmptyState>
-        Your footprint will appear here after you mark experiences as done.
-      </EmptyState>
+      <EmptyState>Your footprint will appear here after you mark experiences as done.</EmptyState>
     );
   }
 

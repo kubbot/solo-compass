@@ -53,9 +53,7 @@ export function NearbySheet({
           {/* Drag handle */}
           <button
             type="button"
-            onClick={() =>
-              setSnap(snap === SNAP_POINTS[0] ? SNAP_POINTS[1] : SNAP_POINTS[0])
-            }
+            onClick={() => setSnap(snap === SNAP_POINTS[0] ? SNAP_POINTS[1] : SNAP_POINTS[0])}
             className="mx-auto mt-2 mb-1 flex h-6 w-20 flex-shrink-0 cursor-grab items-center justify-center"
             aria-label={isPeek ? "Expand" : "Collapse"}
           >
@@ -280,9 +278,7 @@ function NearbyCard({
 
 function EmptyState({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="flex h-32 items-center justify-center text-sm text-ink-warm/50">
-      {children}
-    </div>
+    <div className="flex h-32 items-center justify-center text-sm text-ink-warm/50">{children}</div>
   );
 }
 
