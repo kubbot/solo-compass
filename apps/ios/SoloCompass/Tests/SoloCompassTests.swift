@@ -429,7 +429,10 @@ final class SoloCompassTests: XCTestCase {
     func testSynthesisLimitCapsInputs() async throws {
         unsetenv("DEEPSEEK_API_KEY")
         let ai = AIService()
-        let many: [OverpassService.POI] = (0..<25).map {
+        // Always supply more POIs than the cap so this test stays meaningful
+        // when synthesisLimit changes (15 → 60 in US-MR-03, may grow again).
+        let count = AIService.synthesisLimit + 10
+        let many: [OverpassService.POI] = (0..<count).map {
             .init(osmId: Int64(1000 + $0), name: "Spot \($0)", nameEn: nil,
                   lat: 0, lon: 0, tags: ["amenity": "restaurant"])
         }
