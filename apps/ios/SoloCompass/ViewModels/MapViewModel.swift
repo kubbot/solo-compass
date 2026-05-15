@@ -646,7 +646,12 @@ public final class MapViewModel {
         lastExploreAddedCount = 0
         lastQuotaInfo = nil
         lastExploreToast = nil
-        defer { isExploring = false }
+        defer {
+            isExploring = false
+            // US-MR-04: always clear progress on exit so a fail / partial
+            // run doesn't leave the capsule stuck.
+            exploreProgress = .idle
+        }
 
         // Propagate current subscription tier so AIService applies
         // the right daily cap (Pro: 30/60, Free: 0/0).
@@ -682,6 +687,13 @@ public final class MapViewModel {
                 )
             }
 
+            // US-MR-04: switch the progress capsule to "synthesizing" once
+            // Overpass is done. In single-ring legacy mode this never
+            // triggers because exploreProgress stays `.idle` (no scanning
+            // phase was set).
+            if exploreProgress != .idle {
+                exploreProgress = .synthesizing(poiCount: pois.count)
+            }
             let generated = try await aiService.synthesizeExperiences(
                 from: pois,
                 cityCode: cityCode,
@@ -709,18 +721,30 @@ public final class MapViewModel {
 
             // US-017: auto-switch to the city we just discovered so the
             // city filter doesn't hide the new pins. Then build a toast.
+            // US-MR-04: multi-ring runs use the "added across N km" variant
+            // so users understand why distant places appeared.
+            let wasMultiRing = effectiveRadius != radiusMeters
             if added > 0 {
                 selectCity(cityCode)
+                let outerKm = effectiveRadius / 1000
                 if let resolved {
-                    lastExploreToast = String(
-                        format: NSLocalizedString("explore.toast.addedNamed", comment: "Now exploring %@ · %d places added"),
-                        resolved.name, added
-                    )
+                    let key = wasMultiRing
+                        ? "explore.toast.multiRing.addedNamed"
+                        : "explore.toast.addedNamed"
+                    lastExploreToast = wasMultiRing
+                        ? String(format: NSLocalizedString(key, comment: "multi-ring toast with city + count + km"),
+                                 resolved.name, added, outerKm)
+                        : String(format: NSLocalizedString(key, comment: "Now exploring %@ · %d places added"),
+                                 resolved.name, added)
                 } else {
-                    lastExploreToast = String(
-                        format: NSLocalizedString("explore.toast.added", comment: "%d places added near you"),
-                        added
-                    )
+                    let key = wasMultiRing
+                        ? "explore.toast.multiRing.added"
+                        : "explore.toast.added"
+                    lastExploreToast = wasMultiRing
+                        ? String(format: NSLocalizedString(key, comment: "multi-ring toast with count + km"),
+                                 added, outerKm)
+                        : String(format: NSLocalizedString(key, comment: "%d places added near you"),
+                                 added)
                 }
             }
 
@@ -760,6 +784,21 @@ public final class MapViewModel {
     /// when an osmId appears in two rings.
     static let multiRingRadii: [Int] = [1_500, 3_000, 6_000, 12_000]
 
+    /// Coarse-grained UX state for an in-flight Explore. The view binds to
+    /// `exploreProgress` to render an inline progress capsule above the
+    /// BottomInfoBar (PRD §5, US-MR-04). `.idle` is the resting state.
+    /// Single-ring legacy Explore stays `.idle` throughout — the capsule
+    /// only appears for the Pro multi-ring schedule.
+    public enum ExploreProgress: Equatable, Sendable {
+        case idle
+        /// `ringsDone` increments as each ring's Overpass call resolves.
+        case scanning(ringsDone: Int, totalRings: Int)
+        /// Single AI synthesis kicked off with `poiCount` deduped POIs.
+        case synthesizing(poiCount: Int)
+    }
+
+    public var exploreProgress: ExploreProgress = .idle
+
     /// Pull OSM POIs for `exploreNearby`. When the Pro multi-ring flag is
     /// on AND the user is Pro, fans out 4 concurrent Overpass calls and
     /// merges via `OverpassService.dedupe`. Otherwise falls back to a
@@ -796,10 +835,12 @@ public final class MapViewModel {
         // tank the whole Explore. Order in the returned array matches
         // `multiRingRadii` so inner rings win in dedupe.
         let service = overpassService
-        var batches: [[OverpassService.POI]] = Array(
-            repeating: [], count: Self.multiRingRadii.count
-        )
+        let total = Self.multiRingRadii.count
+        var batches: [[OverpassService.POI]] = Array(repeating: [], count: total)
         var failedRings = 0
+
+        // US-MR-04: surface scanning progress for the UI capsule.
+        exploreProgress = .scanning(ringsDone: 0, totalRings: total)
 
         await withTaskGroup(of: (Int, [OverpassService.POI]).self) { group in
             for (index, radius) in Self.multiRingRadii.enumerated() {
@@ -814,9 +855,12 @@ public final class MapViewModel {
                     }
                 }
             }
+            var done = 0
             for await (index, pois) in group {
                 batches[index] = pois
                 if pois.isEmpty { failedRings += 1 }
+                done += 1
+                exploreProgress = .scanning(ringsDone: done, totalRings: total)
             }
         }
 
