@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @Environment(UserPreferences.self) private var preferences
     @Environment(NotificationService.self) private var notificationService
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(LanguageService.self) private var languageService
     @Environment(\.modelContext) private var modelContext
     var onClose: () -> Void
     var onShowFavorites: (() -> Void)?
@@ -15,6 +16,7 @@ public struct SettingsView: View {
     @State private var showingClearConfirm = false
     @State private var restoreToast: String?
     @State private var restoreInFlight = false
+    @State private var showingLanguageRestartAlert = false
 
     // Admin / tester email unlock — bypasses StoreKit for allow-listed
     // emails so internal testers and the project owner can reach Pro
@@ -41,6 +43,7 @@ public struct SettingsView: View {
                 dislikedCategoriesSection
                 distanceSection
                 notificationsSection
+                languageSection
                 subscriptionSection
                 statsSection
                 dataSection
@@ -189,6 +192,56 @@ public struct SettingsView: View {
             Text(NSLocalizedString("settings.notifications.header", comment: "Notifications section header"))
         } footer: {
             Text(NSLocalizedString("settings.notifications.footer", comment: "Notifications footer"))
+        }
+    }
+
+    // MARK: - Language
+
+    private var languageSection: some View {
+        Section {
+            ForEach(LanguageService.Option.allCases) { option in
+                HStack {
+                    Image(systemName: "globe")
+                        .frame(width: 28)
+                        .foregroundStyle(.blue)
+                    Text(languageOptionLabel(option))
+                    Spacer()
+                    if languageService.current == option {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.blue)
+                            .fontWeight(.semibold)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if languageService.setLanguage(option) {
+                        showingLanguageRestartAlert = true
+                    }
+                }
+            }
+        } header: {
+            Text(NSLocalizedString("settings.language", comment: "Language section header"))
+        } footer: {
+            Text(NSLocalizedString("settings.language.footer", comment: "Language footer"))
+        }
+        .alert(
+            NSLocalizedString("settings.language.restart.title", comment: "Restart required"),
+            isPresented: $showingLanguageRestartAlert
+        ) {
+            Button(NSLocalizedString("settings.language.restart.ok", comment: "OK")) {}
+        } message: {
+            Text(NSLocalizedString("settings.language.restart.message", comment: "Restart message"))
+        }
+    }
+
+    private func languageOptionLabel(_ option: LanguageService.Option) -> String {
+        switch option {
+        case .system:
+            return NSLocalizedString("settings.language.system", comment: "Follow system")
+        case .english:
+            return NSLocalizedString("settings.language.english", comment: "English")
+        case .simplifiedChinese:
+            return NSLocalizedString("settings.language.zh-Hans", comment: "Simplified Chinese")
         }
     }
 
@@ -464,4 +517,5 @@ extension UserPreferences.SoloTravelStyle {
 #Preview {
     SettingsView()
         .environment(UserPreferences())
+        .environment(LanguageService())
 }

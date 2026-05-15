@@ -646,6 +646,8 @@ public final class MapViewModel {
         lastExploreAddedCount = 0
         lastQuotaInfo = nil
         lastExploreToast = nil
+        // US-MR-05: stamp wall-clock start; emitted via durationMs.
+        let exploreStart = Date()
         defer {
             isExploring = false
             // US-MR-04: always clear progress on exit so a fail / partial
@@ -697,7 +699,7 @@ public final class MapViewModel {
             let generated = try await aiService.synthesizeExperiences(
                 from: pois,
                 cityCode: cityCode,
-                locale: .current
+                locale: LanguageService.shared.effectiveLocale
             )
             let added = experienceService.appendGenerated(generated)
             lastExploreAddedCount = added
@@ -724,6 +726,23 @@ public final class MapViewModel {
             // US-MR-04: multi-ring runs use the "added across N km" variant
             // so users understand why distant places appeared.
             let wasMultiRing = effectiveRadius != radiusMeters
+
+            // US-MR-05: emit analytics for multi-ring runs even when
+            // added == 0 (a "we tried and got nothing" event is still
+            // signal worth tracking).
+            if wasMultiRing {
+                let durationMs = Int(Date().timeIntervalSince(exploreStart) * 1000)
+                let metrics = ExploreMetrics(
+                    addedCount: added,
+                    maxRadiusMeters: effectiveRadius,
+                    failedRings: pendingFailedRings,
+                    totalRings: Self.multiRingRadii.count,
+                    durationMs: durationMs
+                )
+                lastMultiRingMetrics = metrics
+                Self.emitMultiRingCompleted(metrics)
+            }
+
             if added > 0 {
                 selectCity(cityCode)
                 let outerKm = effectiveRadius / 1000
@@ -799,6 +818,26 @@ public final class MapViewModel {
 
     public var exploreProgress: ExploreProgress = .idle
 
+    /// Telemetry from the most recent multi-ring Explore. Populated only
+    /// when the Pro multi-ring schedule runs; nil after a single-ring
+    /// fetch or before the first Explore. Bound by tests; in production
+    /// it's also emitted as `explore_multi_ring_completed` via the
+    /// DEBUG-print analytics shim below until a real AnalyticsService
+    /// lands. US-MR-05.
+    public struct ExploreMetrics: Equatable, Sendable {
+        public let addedCount: Int
+        public let maxRadiusMeters: Int
+        public let failedRings: Int
+        public let totalRings: Int
+        public let durationMs: Int
+    }
+
+    public private(set) var lastMultiRingMetrics: ExploreMetrics?
+    /// Mutable within `fetchExplorePOIs` (multi-ring path) to plumb
+    /// failed-ring count up to `exploreNearby` without changing the
+    /// existing tuple return signature (which is covered by tests).
+    private var pendingFailedRings: Int = 0
+
     /// Pull OSM POIs for `exploreNearby`. When the Pro multi-ring flag is
     /// on AND the user is Pro, fans out 4 concurrent Overpass calls and
     /// merges via `OverpassService.dedupe`. Otherwise falls back to a
@@ -841,6 +880,8 @@ public final class MapViewModel {
 
         // US-MR-04: surface scanning progress for the UI capsule.
         exploreProgress = .scanning(ringsDone: 0, totalRings: total)
+        // US-MR-05: reset analytics counter before this run.
+        pendingFailedRings = 0
 
         await withTaskGroup(of: (Int, [OverpassService.POI]).self) { group in
             for (index, radius) in Self.multiRingRadii.enumerated() {
@@ -863,6 +904,10 @@ public final class MapViewModel {
                 exploreProgress = .scanning(ringsDone: done, totalRings: total)
             }
         }
+
+        // US-MR-05: stash counters so exploreNearby can emit
+        // `explore_multi_ring_completed` after appendGenerated.
+        pendingFailedRings = failedRings
 
         // If every ring came back empty / failed, surface as a single
         // throw so the outer catch can hit the offline fallback branch.
@@ -913,7 +958,7 @@ public final class MapViewModel {
             let generated = try await aiService.synthesizeExperiences(
                 from: pois,
                 cityCode: cityCode,
-                locale: .current
+                locale: LanguageService.shared.effectiveLocale
             )
             let added = experienceService.appendGenerated(generated)
             lastExploreAddedCount = added
@@ -960,5 +1005,28 @@ public final class MapViewModel {
         // so we use a heuristic — average reports/30d divided down.
         let signals = experiences.reduce(0) { $0 + $1.confidence.signals.passiveGpsHits30d }
         return max(0, signals / 30) // per-day estimate
+    }
+
+    // MARK: - US-MR-05 analytics shim
+    //
+    // Until a real AnalyticsService lands, emit `explore_multi_ring_completed`
+    // as a one-line JSON dictionary visible in the Xcode console under DEBUG.
+    // The shape matches the PRD field names so the eventual transport (Edge
+    // Function / RudderStack / etc.) can wire it through without renames.
+    static func emitMultiRingCompleted(_ metrics: ExploreMetrics) {
+        #if DEBUG
+        let payload: [String: Any] = [
+            "event": "explore_multi_ring_completed",
+            "addedCount": metrics.addedCount,
+            "maxRadiusMeters": metrics.maxRadiusMeters,
+            "failedRings": metrics.failedRings,
+            "totalRings": metrics.totalRings,
+            "durationMs": metrics.durationMs
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: payload),
+           let line = String(data: data, encoding: .utf8) {
+            print("[Analytics] \(line)")
+        }
+        #endif
     }
 }
