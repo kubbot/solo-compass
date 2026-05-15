@@ -158,6 +158,25 @@ public struct CompassMapView: View {
                         .transition(.opacity)
                     }
 
+                    // US-MR-04: multi-ring progress capsule. Sits above the
+                    // toast slot and disappears as soon as exploreProgress
+                    // returns to .idle (success or fail).
+                    if let progressText = Self.progressText(for: viewModel.exploreProgress) {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(progressText)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(.thinMaterial, in: Capsule())
+                        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("exploreProgress")
+                    }
+
                     // Explore success toast — 3-second ephemeral capsule above BottomInfoBar.
                     if let toast = viewModel.lastExploreToast {
                         Text(toast)
@@ -545,6 +564,25 @@ public struct CompassMapView: View {
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         }
                     }
+            )
+        }
+    }
+
+    /// Render the multi-ring Explore progress capsule text. Returns nil
+    /// when `.idle` so the capsule disappears completely. US-MR-04.
+    static func progressText(for progress: MapViewModel.ExploreProgress) -> String? {
+        switch progress {
+        case .idle:
+            return nil
+        case .scanning(let done, let total):
+            return String(
+                format: NSLocalizedString("explore.progress.scanning", comment: "ring m of n"),
+                done, total
+            )
+        case .synthesizing(let count):
+            return String(
+                format: NSLocalizedString("explore.progress.synthesizing", comment: "n places"),
+                count
             )
         }
     }
