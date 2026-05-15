@@ -1050,6 +1050,41 @@ final class SoloCompassTests: XCTestCase {
         }
     }
 
+    // MARK: - US-MR-05 multi-ring analytics
+
+    @MainActor
+    func testMultiRingMetricsShapeIsStableAndEmittable() {
+        // Lock the field set + types so future analytics-transport work
+        // can wire to the same shape the PRD specifies (US-MR-05).
+        let m = MapViewModel.ExploreMetrics(
+            addedCount: 47,
+            maxRadiusMeters: 12_000,
+            failedRings: 1,
+            totalRings: 4,
+            durationMs: 5_234
+        )
+        XCTAssertEqual(m.addedCount, 47)
+        XCTAssertEqual(m.maxRadiusMeters, 12_000)
+        XCTAssertEqual(m.failedRings, 1)
+        XCTAssertEqual(m.totalRings, 4)
+        XCTAssertEqual(m.durationMs, 5_234)
+
+        // Equatable + Sendable conformances are part of the public contract.
+        let copy = MapViewModel.ExploreMetrics(
+            addedCount: 47, maxRadiusMeters: 12_000,
+            failedRings: 1, totalRings: 4, durationMs: 5_234
+        )
+        XCTAssertEqual(m, copy)
+
+        // emitMultiRingCompleted must not crash on a populated payload.
+        MapViewModel.emitMultiRingCompleted(m)
+        // Also must handle the all-failed edge (addedCount=0, failedRings=totalRings).
+        MapViewModel.emitMultiRingCompleted(.init(
+            addedCount: 0, maxRadiusMeters: 12_000,
+            failedRings: 4, totalRings: 4, durationMs: 1_200
+        ))
+    }
+
     @MainActor
     func testFetchExplorePOIsFlagOffUsesSingleRing() async throws {
         // Flag off → behave exactly like pre-MR-01: one Overpass call at
@@ -2420,5 +2455,73 @@ final class MockSupabaseClient: SupabaseClientProtocol {
 
     var isAnonymous: Bool {
         get async { false }
+    }
+}
+
+// MARK: - LanguageService
+
+@MainActor
+final class LanguageServiceTests: XCTestCase {
+    private var suiteName: String!
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "LanguageServiceTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
+    func testDefaultsToSystemWhenNoOverride() {
+        let svc = LanguageService(defaults: defaults)
+        XCTAssertEqual(svc.current, .system)
+        XCTAssertNil(LanguageService.Option.system.locale)
+    }
+
+    func testSetEnglishPersistsAppleLanguages() {
+        let svc = LanguageService(defaults: defaults)
+        let changed = svc.setLanguage(.english)
+        XCTAssertTrue(changed)
+        XCTAssertEqual(svc.current, .english)
+        XCTAssertEqual(defaults.stringArray(forKey: LanguageService.appleLanguagesKey), ["en"])
+        XCTAssertEqual(defaults.string(forKey: LanguageService.overrideKey), "en")
+        XCTAssertEqual(svc.effectiveLocale.identifier, "en")
+    }
+
+    func testSetZhHansPersistsAppleLanguages() {
+        let svc = LanguageService(defaults: defaults)
+        XCTAssertTrue(svc.setLanguage(.simplifiedChinese))
+        XCTAssertEqual(defaults.stringArray(forKey: LanguageService.appleLanguagesKey), ["zh-Hans"])
+        XCTAssertEqual(svc.effectiveLocale.identifier, "zh-Hans")
+    }
+
+    func testSettingSameLanguageReturnsFalse() {
+        let svc = LanguageService(defaults: defaults)
+        XCTAssertTrue(svc.setLanguage(.english))
+        XCTAssertFalse(svc.setLanguage(.english))
+    }
+
+    func testSettingSystemClearsOverride() {
+        let svc = LanguageService(defaults: defaults)
+        _ = svc.setLanguage(.simplifiedChinese)
+        XCTAssertTrue(svc.setLanguage(.system))
+        // override marker is what we own — once cleared, `Bundle` will fall
+        // back to the system language even though UserDefaults may still
+        // surface a system-wide value for `AppleLanguages`.
+        XCTAssertNil(defaults.string(forKey: LanguageService.overrideKey))
+        XCTAssertEqual(svc.current, .system)
+        XCTAssertNil(LanguageService.Option.system.locale)
+    }
+
+    func testInitRestoresPersistedOverride() {
+        defaults.set("zh-Hans", forKey: LanguageService.overrideKey)
+        let svc = LanguageService(defaults: defaults)
+        XCTAssertEqual(svc.current, .simplifiedChinese)
     }
 }

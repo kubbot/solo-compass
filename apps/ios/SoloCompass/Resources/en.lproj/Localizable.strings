@@ -297,3 +297,13 @@
 "explore.consent.bullet.no_pii" = "We never collect contacts, photos, or browsing history. Nothing is shared with advertisers.";
 "explore.consent.accept" = "Got it — explore";
 "explore.consent.cancel" = "Not now";
+
+/* In-app language switcher */
+"settings.language" = "Language";
+"settings.language.footer" = "Choose the language Solo Compass speaks. The app restarts to apply your choice.";
+"settings.language.system" = "Follow system";
+"settings.language.english" = "English";
+"settings.language.zh-Hans" = "简体中文";
+"settings.language.restart.title" = "Restart required";
+"settings.language.restart.message" = "Quit and reopen Solo Compass to finish switching languages.";
+"settings.language.restart.ok" = "OK";

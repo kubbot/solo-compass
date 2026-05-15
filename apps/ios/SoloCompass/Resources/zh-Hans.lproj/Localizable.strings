@@ -297,3 +297,13 @@
 "explore.consent.bullet.no_pii" = "我们不收集通讯录、相册、浏览记录。绝不与广告商共享。";
 "explore.consent.accept" = "了解了 — 开始探索";
 "explore.consent.cancel" = "暂不";
+
+/* In-app language switcher */
+"settings.language" = "语言";
+"settings.language.footer" = "选择 Solo Compass 显示的语言。切换后需重启应用生效。";
+"settings.language.system" = "跟随系统";
+"settings.language.english" = "English";
+"settings.language.zh-Hans" = "简体中文";
+"settings.language.restart.title" = "需要重启";
+"settings.language.restart.message" = "请退出并重新打开 Solo Compass 以完成语言切换。";
+"settings.language.restart.ok" = "好的";
