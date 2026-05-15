@@ -331,9 +331,12 @@ public final class AIService {
 
     // MARK: - Synthesize from OSM POIs (Explore Here)
 
-    /// Maximum POIs sent to the model in one call. Keeps prompt size and cost
-    /// predictable, and matches the product cap of 15 generated experiences.
-    public static let synthesisLimit = 15
+    /// Maximum POIs sent to the model in one call. Sized to accommodate the
+    /// merged output of a 4-ring Pro radial Explore (≈60 POIs after dedupe)
+    /// so the entire ring stack can share a single synthesis call rather
+    /// than burning 4× the daily quota. See docs/PRD/pro-radial-explore.md
+    /// (US-MR-03 / option B).
+    public static let synthesisLimit = 60
 
     /// Convert a batch of OSM POIs into Experiences. The hot path:
     /// 1. Cache hit (SHA256 of inputs + model name + 30-day TTL) →
@@ -735,6 +738,8 @@ public final class AIService {
         - howTo must contain navigation/orientation steps only. Do NOT write "order the X", "try the X", "ask for X", "sit at the bar/window/back".
         - Avoid the phrases: "menu", "specialty", "best seat", "the owner", "opens at", "closes at", "price", "order the", "try the".
         - Solo Score should be a conservative 7.0–8.5 unless tags clearly indicate something exceptional (e.g. tourism=viewpoint with a name → up to 9.0).
+
+        DISTANCE AWARENESS: The POI list may span 0–12 km from the user (a Pro radial Explore covers 4 rings: 1.5/3/6/12 km). Infer approximate distance from each POI's lat/lon relative to the others; closer POIs should lean toward in-the-moment framings (walk-up, sidewalk), farther POIs toward half-day-out framings (worth a transit ride). Do NOT mention distances or rings explicitly in the output — just let the framing reflect the proximity.
 
         Examples of GOOD output (tag-derived, generic):
         - title: "Sit with locals at a Hanoi café"
