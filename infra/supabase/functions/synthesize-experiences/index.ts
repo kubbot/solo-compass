@@ -20,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-6";
 const DAILY_QUOTA_PRO = 30;
+const MAX_POIS_PER_CALL = 60; // US-MR-03: raised from 15 to accommodate the full 4-ring merge
 
 interface POI {
   osmId: number;
@@ -95,8 +96,8 @@ Deno.serve(async (req: Request) => {
   if (!body.cacheKey || !Array.isArray(body.pois) || body.pois.length === 0) {
     return json({ error: "cacheKey + non-empty pois required" }, 400);
   }
-  if (body.pois.length > 15) {
-    return json({ error: "max 15 POIs per call" }, 400);
+  if (body.pois.length > MAX_POIS_PER_CALL) {
+    return json({ error: `max ${MAX_POIS_PER_CALL} POIs per call` }, 400);
   }
 
   const { data: cached } = await admin
@@ -185,9 +186,11 @@ function buildPrompt(body: RequestBody): string {
 
 CRITICAL: Use ONLY the provided OSM tags. Do NOT invent menu items, hours, prices, owner backstories, or seating positions.
 
+DISTANCE AWARENESS: POIs span 0–12 km from the query center (a Pro radial Explore covers 4 rings: 1.5/3/6/12 km). Infer approximate distance from each POI's lat/lon relative to the others; group your output by approximate distance band — near (<2 km), mid (2–6 km), far (6–12 km). Within each band, preserve input order. Do NOT mention distances, rings, or band names explicitly in the output — just let the framing reflect the proximity (walk-up vs half-day-out).
+
 For each POI, return a JSON object with: osmId(int), title, oneLiner, whyItMatters, category(food|coffee|culture|nature|work|wellness|nightlife|hidden), bestStartHour(0-23), bestEndHour(0-23), durationMinMinutes(int), durationMaxMinutes(int), howTo(string[] navigation only), soloHint, soloOverall(6.0-9.5).
 
-Output a JSON array, one object per POI, in input order. No prose, no markdown fences.
+Output a JSON array, one object per POI. No prose, no markdown fences.
 
 Output language: ${body.locale}.
 City code: ${body.cityCode}.

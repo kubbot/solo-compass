@@ -14,6 +14,7 @@
 当前 Solo Compass 的 Voice Agent 只能处理单次、扁平的指令（"找咖啡"、"看详情"、"收藏"）。用户**无法基于已经看到的推荐结果进行追问**——"安全吗？"、"哪个更近？"、"换个更便宜的"、"为什么没推那个？"——这些自然的多轮追问全都失效。
 
 根因有三：
+
 1. **AI 看不到完整数据**：注入的 visibleExperiences 只有 `id + title + category`，丢弃了 `soloScore.breakdown`、`confidence`、`realInconveniences` 等 15+ 字段。
 2. **工具集只支持单数操作**：5 个现有工具无 compare / find_alternative / query_attribute / refine_filter / explain / acknowledge_uncertainty。
 3. **会话状态薄**：无 `turnLog` 快照 → "第二个" 解引用易错；无 `activeConstraints` → 修正循环失败；无 confidence 暴露 → AI 编造而非承认未知。
@@ -40,9 +41,11 @@
 ### 阶段 W1: 数据基础 + 诚实度（P0）
 
 #### US-001: 升级 visibleExperiences 富集字段注入
+
 **Description**: 作为 Voice Agent，我需要看到每个 visible experience 的 solo score 分项、confidence、风险、howTo、bestTimes 等字段，以便回答追问而不编造。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `apps/ios/SoloCompass/Services/AIService.swift` 新增 `buildVisibleExperiencesContext(experiences:limit:)` 静态方法
 - [ ] 注入格式包含字段：`id`、`title`、`category`、`soloScore.overall`、`soloScore.breakdown` 全 6 维（seatingFriendly / soloPatronRatio / staffPressure / soloPortioning / ambianceFit / safety）、`soloScore.basedOnCount`、`confidence.level`、`confidence.lastVerifiedAt`、`realInconveniences` 全文（截断到 200 字符/条）、`howTo` 步骤摘要（前 2 步）、`bestTimes` 时段
 - [ ] Top 10 by `soloScore.overall`（替代当前 top 5）
@@ -58,9 +61,11 @@
 ---
 
 #### US-002: 新增 `query_attribute` 工具
+
 **Description**: 作为用户，我想问"这家有座位吗 / 安全吗 / 有 wifi 吗"等是非属性问题，AI 应基于真实数据回答，不知道时明说不知道。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `apps/ios/SoloCompass/Services/VoiceAgentToolRouter.swift` 新增工具定义（JSON schema 见 §5 FR-2）
 - [ ] 实现 `executeQueryAttribute(args:)` 方法
 - [ ] 支持 attribute 枚举：`seating_friendly`、`solo_safe`、`safe_for_women`、`has_wifi`、`crowded_hours`、`noise_level`、`toilet_access`、`parking`、`pet_friendly`、`wheelchair_accessible`
@@ -76,9 +81,11 @@
 ---
 
 #### US-003: 新增 `acknowledge_uncertainty` 工具 + 诚实度 Prompt 规则
+
 **Description**: 作为用户，我希望当数据不可靠时（评价数 < 3 或 30 天未验证）AI 主动声明"我不太确定"，而不是编造。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentToolRouter` 新增 `acknowledge_uncertainty(topic, reason)` 工具
 - [ ] 实现 `executeAcknowledgeUncertainty(args:)` 返回 `{ok, topic, message, suggestion}`
 - [ ] System prompt 添加"DATA CONFIDENCE RULES"段落（中英双语）：
@@ -96,9 +103,11 @@
 ### 阶段 W2: 对比能力 + UI 引导（P0/P1）
 
 #### US-004: 新增 `compare_experiences` 工具
+
 **Description**: 作为用户，我想说"这三个对比一下"、"A 和 B 哪个更安静"，AI 应返回结构化对比 + 明确的 winner。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentToolRouter` 新增 `compare_experiences(experience_ids, dimension)` 工具
 - [ ] 支持 dimension 枚举：`safety`、`quietness`、`seating`、`solo_friendly`、`cost`、`crowdedness`、`accessibility`
 - [ ] `experience_ids` 参数：minItems=2, maxItems=5
@@ -115,9 +124,11 @@
 ---
 
 #### US-005: 建议追问芯片 UI
+
 **Description**: 作为用户，我希望每次 AI 回复后看到 3 个建议追问芯片，点一下就能继续追问，降低"接下来该问什么"的认知负担。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `AIService.swift` 新增 `suggestedFollowUps(lastResponse:lastToolName:userLocale:) -> [String]` 静态方法
 - [ ] 路由规则：刚 `filter_by_category` → `[最近的, 安全吗, 有座位吗]`；刚 `show_details` → `[怎么去, 要多久, 能带笔记本吗]`；刚 `explore_nearby` → `[筛选咖啡, 最近的, 对比一下]`；刚 `compare_experiences` → `[选第一个, 看详情, 换一组]`；其他 → 空列表
 - [ ] 所有芯片文案走 `NSLocalizedString`，en + zh-Hans 两份资源
@@ -133,9 +144,11 @@
 ---
 
 #### US-006: 约束 Breadcrumb UI + activeConstraints 状态
+
 **Description**: 作为用户，我希望在对话顶部看到当前活跃的过滤约束（"咖啡馆 / 安静 / 5 分钟步行"），并能点 × 移除单个约束。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `apps/ios/SoloCompass/Services/VoiceAgentSession.swift` 新增 `public struct QueryConstraint { dimension: String; value: String; appliedAtTurn: Int; appliedBy: String? }`
 - [ ] 新增 `public private(set) var activeConstraints: [QueryConstraint] = []`
 - [ ] 新增方法：`addConstraint(_:)`、`removeConstraint(dimension:)`、`replaceConstraint(_:)`、`clearConstraints()`
@@ -155,9 +168,11 @@
 ### 阶段 W3: 替代 + 引用机制（P1）
 
 #### US-007: 新增 `find_alternative` 工具
+
 **Description**: 作为用户，我想说"换个更便宜的"、"离我更近的"、"更安静的"，AI 应基于参考 experience 找到改进维度上更好的替代选项。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentToolRouter` 新增 `find_alternative(reference_id, change_type, max_distance_meters?)` 工具
 - [ ] 支持 change_type 枚举：`cheaper`、`closer`、`quieter`、`safer`、`more_crowded`、`less_crowded`、`faster_service`、`different_category`
 - [ ] 在 visibleExperiences 池中按 change_type 启发式排序，返回 top 5 替代候选
@@ -174,9 +189,11 @@
 ---
 
 #### US-008: 新增 `refine_filter` 工具
+
 **Description**: 作为用户，我想说"也要 wifi 的"、"不要咖啡馆"、"换成饭店"，AI 应正确执行 add/remove/replace 操作并刷新 visibleExperiences。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentToolRouter` 新增 `refine_filter(operation, dimension, value?)` 工具
 - [ ] operation 枚举：`add`、`remove`、`replace`
 - [ ] dimension 枚举：`category`、`distance`、`quietness`、`safety`、`crowdedness`、`time_of_day`、`facility`（facility 涵盖 wifi/parking/pet 等）
@@ -192,9 +209,11 @@
 ---
 
 #### US-009: TurnLog 快照机制 + 解引用 Prompt
+
 **Description**: 作为用户，我说"第二个"或"那家咖啡馆"时，AI 应正确锁定到我当时看到的那条 experience，即使后续 visibleExperiences 顺序已变。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentSession.swift` 新增 `public struct Turn { userMessage: String; visibleExperiencesSnapshot: [String]; timestamp: Date }`
 - [ ] 新增 `public private(set) var turnLog: [Turn] = []`
 - [ ] 在 `beginUserTurn(transcript:)` 中接收 visibleExperiences 快照参数并 append 到 turnLog
@@ -214,9 +233,11 @@
 ---
 
 #### US-010: 长按卡片快捷修饰菜单 UI
+
 **Description**: 作为不想说话的用户（嘈杂环境/无障碍场景），我希望长按地图标记或列表卡片，弹出快捷修饰菜单（更便宜/更近/更安静/对比/有 wifi），实现无语音追问。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `apps/ios/SoloCompass/Views/Map/` 相关 view 中为 experience marker / list card 添加 SwiftUI `.contextMenu { ... }`
 - [ ] 菜单项：`[更便宜] [更近] [更安静] [对比这个] [有 wifi]`，每项配 SF Symbol 图标
 - [ ] 点击任一项 → 触发 `onVoiceIntent(transcript: String)` callback，内容为对应的人类语句（如 "我要比这个更便宜的选择"）
@@ -234,9 +255,11 @@
 ### 阶段 W4: 收尾与发布（P1）
 
 #### US-011: 撤销 / 重置按钮
+
 **Description**: 作为用户，我希望在 ConversationSheet 标题栏有"撤销最后一步"和"重置"按钮，快速回退多轮追问的约束。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `ConversationSheet.swift` 标题栏右侧添加两个 Image button：`arrow.uturn.backward.circle`（撤销）和 `arrow.counterclockwise.circle`（重置）
 - [ ] 撤销 → 调 `session.removeConstraint(dimension: activeConstraints.last?.dimension)` 并触发 `beginUserTurn("撤销最后一个限制")`
 - [ ] 重置 → 调 `session.clearConstraints()` 并触发 `beginUserTurn("重置所有限制")`
@@ -251,9 +274,11 @@
 ---
 
 #### US-012: 新增 `explain_recommendation` 工具
+
 **Description**: 作为用户，我想说"为什么推这个"或"为什么推这个不推那个"，AI 应基于 solo score 分项 + confidence + risks 给出透明、可验证的理由。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `VoiceAgentToolRouter` 新增 `explain_recommendation(experience_id, compare_against_id?)` 工具
 - [ ] 返回结构：`{ok, experience_id, explanation: {solo_score_breakdown, data_freshness, risks}, comparison?: {vs_id, winner_by, detailed_diff}}`
 - [ ] 若 `compare_against_id` 提供，附带 breakdown 维度差异（如 "+2.0 on safety, -1.5 on quietness"）
@@ -267,9 +292,11 @@
 ---
 
 #### US-013: 北极星指标 Dashboard 验证 + Token 预算审查
+
 **Description**: 作为 PM，我需要 5 个北极星指标在 Analytics dashboard 可见，并确认新 system prompt + 富集字段没有撑爆 token 预算。
 
 **Acceptance Criteria**:
+
 - [ ] 在 `apps/ios/SoloCompass/Services/` 新建或扩展 `AnalyticsService.swift`，提供 `trackVoiceAgentSession(turnCount, toolCallCount, duration, endReason)` 方法
 - [ ] 在 `VoiceAgentSession.finishSession()` 调用此方法
 - [ ] 5 个指标的派生计算文档化（在 `docs/AI_AUDIT_2026Q2.md` 第 11.7 节追加 "派生公式" 子节）：
@@ -288,9 +315,11 @@
 ---
 
 #### US-014: E2E 验证 5 个真实用户故事
+
 **Description**: 作为 QA，我需要在 Simulator 中端到端跑通 5 个典型追问场景，确认无回归。
 
 **Acceptance Criteria**:
+
 - [ ] 场景 1: 用户找咖啡 → 问"安全吗"（触发 `query_attribute`） → 问"对比前两个"（触发 `compare_experiences`） → 收藏赢家
 - [ ] 场景 2: 用户找餐厅 → 问"换个更便宜的"（触发 `find_alternative`） → 看 breadcrumb 出现 cost 约束 → 点 × 移除
 - [ ] 场景 3: 用户问"第三个怎么样"（验证 `turnLog` 解引用） → AI 正确锁定
@@ -307,11 +336,13 @@
 ## 4. Functional Requirements
 
 ### 数据可见性
+
 - **FR-1**: `AIService.buildVisibleExperiencesContext()` 必须注入 top 10 visible experiences 的富集字段（见 US-001 字段清单）
 - **FR-1.1**: 单次注入 token 预算硬上限 1500 tokens，超出时按 confidence level 降序裁剪
 - **FR-1.2**: 每个 experience 的 `realInconveniences` 单条截断到 200 字符
 
 ### 新工具集（6 个）
+
 - **FR-2**: 新增 `query_attribute(experience_id, attribute)` 工具，attribute ∈ 10 种枚举值，返回 `{answer, explanation, confidence_level}`
 - **FR-3**: 新增 `acknowledge_uncertainty(topic, reason)` 工具，AI 必须在 confidence 不足时主动调用
 - **FR-4**: 新增 `compare_experiences(experience_ids, dimension)` 工具，支持 2-5 个 experience 对比 7 种 dimension
@@ -320,21 +351,25 @@
 - **FR-12**: 新增 `explain_recommendation(experience_id, compare_against_id?)` 工具
 
 ### System Prompt
+
 - **FR-7**: System prompt 必须包含 6 段（中英双语）：解引用规则 / 比较输出格式 / 数据置信度规则 / 诚实度强制 / 反事实回答模板 / 禁止编造
 - **FR-7.1**: System prompt 必须根据 `VoiceAgentSession.detectedLanguage` 在中英之间动态选择（沿用 `docs/AI_AUDIT_2026Q2.md` P1-8 设计）
 
 ### UI 组件（4 个）
+
 - **FR-8**: ConversationSheet 必须在每条 assistant bubble 下方渲染最多 3 个建议追问芯片，路由规则见 US-005
 - **FR-9**: ConversationSheet 必须在 messageList 顶部渲染 activeConstraints breadcrumb，点 × 移除并触发隐含 user turn
 - **FR-10**: ConversationSheet 标题栏必须提供"撤销"和"重置"按钮，无约束时禁用
 - **FR-11**: 地图 marker 与列表卡片必须支持 `.contextMenu` 快捷修饰菜单（5 个动作）
 
 ### 状态与引用
+
 - **FR-13**: `VoiceAgentSession` 必须维护 `activeConstraints: [QueryConstraint]` 和 `turnLog: [Turn]` 两个新状态
 - **FR-14**: `compactIfNeeded()` 不可丢失 turnLog（独立于 messages 压缩）
 - **FR-15**: `beginUserTurn(transcript:)` 必须接收并记录当时的 visibleExperiencesSnapshot
 
 ### 埋点（5 个北极星 + 工具级）
+
 - **FR-16**: 每个新工具调用必须上报 `voice_agent.tool_call{name, ...}` 事件
 - **FR-17**: `VoiceAgentSession.finishSession()` 必须上报 `voice_agent.session_ended{turnCount, toolCallCount, duration, endReason}` 事件
 - **FR-18**: UI 组件交互（chip tap / breadcrumb remove / shortcut menu / undo / reset）必须各自埋点
@@ -359,16 +394,19 @@
 ## 6. Design Considerations
 
 ### UI 复用
+
 - 建议追问芯片复用现有 Capsule 样式（与 category filter chip 一致）
 - Breadcrumb 芯片复用同样 Capsule 但带 `xmark.circle.fill` 后缀
 - 长按 `.contextMenu` 使用 SwiftUI 原生（无需自建）
 - 撤销/重置按钮用 SF Symbol（`arrow.uturn.backward.circle` + `arrow.counterclockwise.circle`）
 
 ### 本地化
+
 - 所有用户可见文案（chip 文案、breadcrumb dimension 名、shortcut menu 项、undo/reset toast）走 `NSLocalizedString`
 - 中英两份资源同步更新：`Resources/en.lproj/Localizable.strings` + `Resources/zh-Hans.lproj/Localizable.strings`
 
 ### Token 预算
+
 - 富集字段注入 + 新 system prompt 会使 input tokens 上升预估 ~30%
 - US-013 必须验证单次 sendAgentMessage 不超过 8000 input tokens
 
@@ -377,6 +415,7 @@
 ## 7. Technical Considerations
 
 ### 依赖与集成点
+
 - **依赖 AIService.swift**: `serializeAgentMessages` 和 `sendAgentMessage` 路径
 - **依赖 VoiceAgentSession.swift**: messages、state machine、compactIfNeeded
 - **依赖 VoiceAgentToolRouter.swift**: allTools 注册 + execute dispatch
@@ -385,15 +424,18 @@
 - **新增依赖**: AnalyticsService.swift（如不存在则创建）
 
 ### 与第 1-10 章改进的并行关系
+
 - 本 PRD 与第 1-10 章 P0/P1 改进**正交**，不互相阻塞
 - 推荐顺序：P0-1（时间上下文，2h）+ P0-2（配额分离，4h）先做完，再启动本 PRD W1，token 预算更稳
 
 ### 性能要求
+
 - 单次 sendAgentMessage 端到端延迟 < 5s（含工具执行）
 - UI 状态更新无可感知卡顿（@MainActor + Observable）
 - Token 预算监控见 FR-1.1 + US-013
 
 ### 测试
+
 - 单测覆盖每个新工具的核心路径（每工具 ≥ 3 个 case）
 - E2E 5 个场景（US-014）
 - 类型与构建：每个 US 必须 `xcodebuild build` + `xcodebuild test` 通过
@@ -402,15 +444,16 @@
 
 ## 8. Success Metrics
 
-| 指标 | 基线（预估） | 目标值 | 测量窗口 |
-|------|------------|-------|---------|
-| 平均追问深度 | ~1.2 轮 | ≥ 3.5 轮 | 上线后 2 周 |
-| 追问解决率 | < 20% | ≥ 65% | 上线后 2 周 |
-| 解引用准确率 | 不可测 | ≥ 85% | 上线后 4 周（需 ≥ 100 个引用样本） |
-| 不确定性诚实度 | < 10% | ≥ 70% | 上线后 2 周 |
-| 追问转化率 | < 15% | ≥ 50% | 上线后 4 周 |
+| 指标           | 基线（预估） | 目标值   | 测量窗口                           |
+| -------------- | ------------ | -------- | ---------------------------------- |
+| 平均追问深度   | ~1.2 轮      | ≥ 3.5 轮 | 上线后 2 周                        |
+| 追问解决率     | < 20%        | ≥ 65%    | 上线后 2 周                        |
+| 解引用准确率   | 不可测       | ≥ 85%    | 上线后 4 周（需 ≥ 100 个引用样本） |
+| 不确定性诚实度 | < 10%        | ≥ 70%    | 上线后 2 周                        |
+| 追问转化率     | < 15%        | ≥ 50%    | 上线后 4 周                        |
 
 **附加成功标准**:
+
 - 8 类追问意图中至少 6 类可用（属性 / 对比 / 替代 / 解释 / 修正 / 元 必须；细节 / 场景 可后续 PRD）
 - Token 预算未爆（单次 ≤ 8000 input tokens）
 - 无 P0/P1 缺陷
