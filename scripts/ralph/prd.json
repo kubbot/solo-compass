@@ -1,290 +1,782 @@
 {
-  "project": "Solo Compass — Voice Agent 追问体验 (iOS-only)",
-  "branchName": "ralph/followup-experience",
-  "description": "为 iOS Voice Agent 补齐深度追问能力：用户能基于推荐结果连续追问属性、对比、替代、解释、修正、不确定性等 6+ 类意图。完整 4 周 sprint 拆为 14 个 user stories，含 6 个新工具 (query_attribute / acknowledge_uncertainty / compare_experiences / find_alternative / refine_filter / explain_recommendation) + 4 个 UI 组件 (建议追问芯片 / 约束 breadcrumb / 长按快捷修饰 / 撤销重置) + 数据可见性升级 + turnLog 引用机制 + 5 个北极星指标埋点。完整设计见 tasks/prd-followup-experience.md。所有 UI 验收用 iPhone 16 Pro Simulator (xcodebuild test / 手动 launch)，非 web 项目。",
+  "project": "Solo Compass Data Engine v2",
+  "branchName": "ralph/data-engine-v2",
+  "description": "Three-leg data engine: AI compilation pipeline (Wikivoyage/OSM/Google Places) + editorial admin app + user signal aggregation. Replaces single-city seed with global geo-aware backend. See tasks/prd-data-engine-v2.md.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "升级 visibleExperiences 注入富集字段",
-      "description": "作为 Voice Agent，我需要看到每个 visible experience 的 solo score 分项 / confidence / risks / howTo / bestTimes 字段，以便回答追问而不编造。",
+      "title": "Bootstrap packages/db with Drizzle + Postgres",
+      "description": "As a developer, I need a new packages/db workspace with Drizzle ORM and a local Postgres dev setup.",
       "acceptanceCriteria": [
-        "在 apps/ios/SoloCompass/Services/AIService.swift 新增 static func buildVisibleExperiencesContext(experiences:limit:) -> String",
-        "注入字段包含 id, title, category, soloScore.overall, soloScore.breakdown 全 6 维, soloScore.basedOnCount, confidence.level, confidence.lastVerifiedAt, realInconveniences 全文 (单条截断 200 字符), howTo 步骤摘要 (前 2 步), bestTimes 时段",
-        "limit 默认 10 (替代当前 top 5),按 soloScore.overall 降序",
-        "serializeAgentMessages() 调用此方法,把输出注入到 system message 续段中",
-        "Token 预算:单次注入若超过 1500 tokens,按 confidence.level 降序裁剪 (低 confidence 先丢)",
-        "新增单测覆盖:空列表 / 单个 experience / 10 个 experience / 单条 inconveniences > 200 字符截断 / token 超限裁剪",
-        "埋点:每次注入上报 voice_agent.visible_experiences_injected{count, tokens}",
-        "xcodebuild build 通过 (iPhone 16 Pro, iOS latest)",
-        "xcodebuild test 通过"
+        "New package packages/db with package.json, tsconfig.json extending root",
+        "Drizzle ORM, drizzle-kit, postgres dependencies added",
+        "docker-compose.yml at repo root brings up postgres:16 + postgis/postgis:16-3.4",
+        "README.md in packages/db documents 'pnpm db:up' and 'pnpm db:migrate'",
+        "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-002",
-      "title": "新增 query_attribute 工具",
-      "description": "作为用户，我想问 '这家有座位吗 / 安全吗 / 有 wifi 吗' 等是非属性问题，AI 应基于真实数据回答，不知道时明说不知道。",
+      "title": "Define experiences table schema with PostGIS",
+      "description": "As a developer, I need the core experiences table with a PostGIS geography column.",
       "acceptanceCriteria": [
-        "在 apps/ios/SoloCompass/Services/VoiceAgentToolRouter.swift 的 allTools 数组新增 query_attribute 工具定义",
-        "JSON schema: {type:object, required:[experience_id, attribute], properties:{experience_id:string, attribute:enum[seating_friendly, solo_safe, safe_for_women, has_wifi, crowded_hours, noise_level, toilet_access, parking, pet_friendly, wheelchair_accessible]}}",
-        "实现 private func executeQueryAttribute(args:) throws -> String，接入 router.execute() 的 dispatch",
-        "数据源映射: seating_friendly → breakdown.seatingFriendly; solo_safe → breakdown.safety; safe_for_women → breakdown.safety + realInconveniences 综合; crowded_hours → bestTimes 反推; 其他 → realInconveniences 关键词匹配",
-        "无数据时返回 {ok:true, answer:'UNKNOWN', explanation:'no data in our schema'}",
-        "正常返回结构 {ok, experience_id, attribute, answer:'YES'|'MAYBE'|'NO'|'UNKNOWN', explanation, confidence_level}",
-        "answer 阈值: score > 6 → YES; 3-6 → MAYBE; < 3 → NO",
-        "单测每个 attribute 至少 1 个 case (含 UNKNOWN 路径)，共 ≥ 10 个 case",
-        "埋点: voice_agent.tool_call{name:'query_attribute', attribute, answer} 上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "Drizzle schema in packages/db/src/schema/experiences.ts",
+        "Columns: id (uuid pk), title, oneLiner, whyItMatters, category, location (geography POINT 4326), confidenceLevel int, status enum, createdAt, updatedAt, lastCompiledAt",
+        "Migration enables postgis extension and creates GIST index on location",
+        "pnpm db:migrate runs successfully against local docker postgres",
+        "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-003",
-      "title": "新增 acknowledge_uncertainty 工具 + 诚实度 Prompt 规则",
-      "description": "作为用户，我希望当数据不可靠时 (评价数 < 3 或 30 天未验证) AI 主动声明 '我不太确定'，而不是编造。",
+      "title": "Define experience_revisions table for audit history",
+      "description": "As a developer, I need a revisions table so every Experience mutation creates an immutable history entry.",
       "acceptanceCriteria": [
-        "在 VoiceAgentToolRouter 新增 acknowledge_uncertainty(topic:string, reason:string) 工具定义和 executeAcknowledgeUncertainty(args:) 实现",
-        "返回结构 {ok, topic, message, suggestion}",
-        "在 AIService.swift 的 agent system prompt 中追加 DATA CONFIDENCE RULES 段落 (中英双语): confidence.level ≤ 1 必须说 '还没有用户报告' / basedOnCount < 3 或 lastVerifiedAt > 30 天 必须调 acknowledge_uncertainty / 禁止使用绝对化语言 (大家都说 / 最好的 / 绝对)",
-        "中英双语版本根据 VoiceAgentSession.detectedLanguage 切换 (若该字段不存在则在本 story 创建并默认 'en')",
-        "单测 3 个场景: 低 confidence 触发 / 缺数据触发 / 超时未验证触发",
-        "埋点: voice_agent.uncertainty_acknowledged{topic, reason} 上报实际调用; voice_agent.uncertainty_should_acknowledge{reason} 上报基线 (基于 confidence/basedOnCount/lastVerifiedAt 判断 '应该承认' 的次数)，用于派生诚实度比率",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "Drizzle schema in packages/db/src/schema/revisions.ts",
+        "Columns: id, experienceId (fk), revisionNumber int, fullPayload jsonb, createdBy text, createdAt",
+        "Index on (experienceId, revisionNumber)",
+        "Migration runs cleanly",
+        "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-004",
-      "title": "新增 compare_experiences 工具",
-      "description": "作为用户，我想说 '这三个对比一下' 或 'A 和 B 哪个更安静'，AI 应返回结构化对比 + 明确的 winner。",
+      "title": "Define sources and dropped_candidates tables",
+      "description": "As a developer, I need tables to store source attribution and rejected candidates.",
       "acceptanceCriteria": [
-        "在 VoiceAgentToolRouter 新增 compare_experiences(experience_ids, dimension) 工具",
-        "JSON schema: experience_ids 数组 minItems=2, maxItems=5; dimension 枚举 [safety, quietness, seating, solo_friendly, cost, crowdedness, accessibility]",
-        "实现按 dimension 排序逻辑，返回 {ok, comparison:[{id, title, score, rank}], winner_id, summary}",
-        "维度映射: safety → breakdown.safety; quietness → breakdown.ambianceFit; seating → breakdown.seatingFriendly; solo_friendly → soloScore.overall; crowdedness → 1 - breakdown.soloPatronRatio",
-        "cost 维度用启发式: 在工具实现中定义 category → tier 映射表 (如 cafe:2, fine_dining:4, street_food:1)，文档化到代码注释",
-        "AIService agent system prompt 新增规则: '用户要求对比时必须调用 compare_experiences，不可逐个念字段'",
-        "单测: 每个 dimension 1 个 case + 边界 (2 个 / 5 个 / 重复 ID / ID 不存在)，共 ≥ 10 个 case",
-        "埋点: voice_agent.tool_call{name:'compare_experiences', dimension, count, winner_id} 上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "sources table: id, experienceId fk, sourceType enum (wikivoyage|osm|google_places), sourceUrl, weight int, evidence jsonb, verifiedAt",
+        "dropped_candidates table: id, evidence jsonb, reason text, droppedAt",
+        "Migration runs cleanly",
+        "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-005",
-      "title": "建议追问芯片 UI",
-      "description": "作为用户，我希望每次 AI 回复后看到 3 个建议追问芯片，点一下就能继续追问。",
+      "title": "Define compilation_jobs and editor_queue tables",
+      "description": "As a developer, I need tables to coordinate async compilation jobs and editor review.",
       "acceptanceCriteria": [
-        "在 AIService.swift 新增 static func suggestedFollowUps(lastResponse:lastToolName:userLocale:) -> [String]",
-        "路由规则: filter_by_category → [最近的, 安全吗, 有座位吗]; show_details → [怎么去, 要多久, 能带笔记本吗]; explore_nearby → [筛选咖啡, 最近的, 对比一下]; compare_experiences → [选第一个, 看详情, 换一组]; query_attribute → [对比类似的, 看详情, 怎么去]; 其他 → 空数组",
-        "所有芯片文案走 NSLocalizedString，en + zh-Hans 两份资源同步更新 (apps/ios/SoloCompass/Resources/en.lproj/Localizable.strings + zh-Hans.lproj/Localizable.strings)",
-        "在 apps/ios/SoloCompass/Views/Voice/ConversationSheet.swift 每条 assistant bubble 下方渲染横向 ScrollView 含最多 3 个芯片",
-        "芯片样式: Capsule 形状, accentColor.opacity(0.15) 背景, caption2 字号, 内边距 horizontal 10 + vertical 6",
-        "点击芯片 → 填充 textDraft @State (用户可二次编辑或直接发送)",
-        "空建议列表时整个芯片区域不渲染 (不留空白)",
-        "埋点: voice_agent.followup_chip_shown{tool_name, chips} 在芯片渲染时上报; voice_agent.followup_chip_tapped{tool_name, chip_text} 点击时上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过",
-        "在 iPhone 16 Pro Simulator 中手动验证视觉与点击行为 (launch app + 触发一次 voice agent 对话 + 截图)"
+        "compilation_jobs table: id, query jsonb, status enum (queued|running|completed|failed), startedAt, completedAt, error",
+        "editor_queue table: id, experienceId fk, priority int, claimedBy text nullable, claimedAt timestamp nullable",
+        "Migration runs cleanly",
+        "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-006",
-      "title": "activeConstraints 状态 + Breadcrumb UI",
-      "description": "作为用户，我希望在对话顶部看到当前活跃的过滤约束 (咖啡馆 / 安静 / 5 分钟步行)，并能点 × 移除单个约束。",
+      "title": "Define user_signals and audit_log tables",
+      "description": "As a developer, I need tables for anonymous user signals and global audit log.",
       "acceptanceCriteria": [
-        "在 VoiceAgentSession.swift 新增 public struct QueryConstraint:Sendable { let dimension:String; let value:String; let appliedAtTurn:Int; let appliedBy:String? }",
-        "新增 public private(set) var activeConstraints:[QueryConstraint] = []",
-        "新增 4 个方法: addConstraint(_:) / removeConstraint(dimension:) / replaceConstraint(_:) / clearConstraints()",
-        "addConstraint 时若同 dimension 已存在则替换 (不允许重复 dimension)",
-        "在 ConversationSheet.swift 顶部 (messageList 上方) 渲染横向 ScrollView 含 breadcrumb 芯片",
-        "每个芯片格式: Text('{dimension}: {value}') + 右侧 Button{Image(systemName:'xmark.circle.fill')}",
-        "点 × → session.removeConstraint(dimension:) + 触发 session.beginUserTurn(transcript:'取消 {dimension} 限制')",
-        "activeConstraints.isEmpty 时整个 breadcrumb 区域不渲染",
-        "埋点: voice_agent.constraint_added{dimension, value, source:'user'|'tool'} 在 addConstraint 时; voice_agent.constraint_removed{dimension, source:'user_tap'|'tool'} 在 removeConstraint 时",
-        "单测: add 后 dimension 重复触发 replace 行为; remove 不存在的 dimension 不崩溃; clearConstraints 清空",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过",
-        "在 iPhone 16 Pro Simulator 中验证 breadcrumb 显示与点 × 移除行为"
+        "user_signals table: id, experienceId fk, anonymousDeviceId text, signalType enum (gps_dwell|micro_survey|user_report), payload jsonb, createdAt",
+        "audit_log table: id, actor text, action text, targetType text, targetId text, payload jsonb, at timestamp",
+        "Index on user_signals(experienceId, signalType)",
+        "Migration runs cleanly",
+        "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-007",
-      "title": "新增 find_alternative 工具",
-      "description": "作为用户，我想说 '换个更便宜的 / 离我更近的 / 更安静的'，AI 应基于参考 experience 找到改进维度上更好的替代选项。",
+      "title": "Extend pnpm parity:check to validate DB schema vs core types",
+      "description": "As CI, I need to fail when Drizzle schema drifts from packages/core/src/experience.ts.",
       "acceptanceCriteria": [
-        "在 VoiceAgentToolRouter 新增 find_alternative(reference_id, change_type, max_distance_meters?) 工具",
-        "change_type 枚举 [cheaper, closer, quieter, safer, more_crowded, less_crowded, faster_service, different_category]",
-        "在 visibleExperiences 池中按 change_type 启发式排序，返回 top 5 替代候选 (排除 reference_id 自身)",
-        "返回结构 {ok, original_id, alternatives:[{id, title, improvement}], best_id}",
-        "improvement 字段格式: '+2.5 on safety' 或 '-30% estimated cost' 或 'category: cafe → tea_house'",
-        "AIService agent system prompt 新增规则: '用户说更 X 的时必须调 find_alternative，不可仅 dismiss'",
-        "工具执行时同步触发 session.addConstraint: cheaper → {dimension:cost, value:low}; closer → {distance, near}; quieter → {quietness, high}; safer → {safety, high}; different_category → {category, exclude_{ref_category}}",
-        "单测: 每个 change_type 至少 1 个 case (共 ≥ 8 个); 边界: reference_id 不存在 / 候选池为空时返回 ok:true alternatives:[] best_id:null",
-        "埋点: voice_agent.tool_call{name:'find_alternative', change_type, found_count} 上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "scripts/check-swift-parity.ts extended with checkDbParity() function",
+        "Compares Drizzle inferred types against Experience type from packages/core",
+        "Exits non-zero on mismatch with diff output",
+        "pnpm parity:check still works for existing TS<->Swift check",
+        "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-008",
-      "title": "新增 refine_filter 工具",
-      "description": "作为用户，我想说 '也要 wifi 的 / 不要咖啡馆 / 换成饭店'，AI 应正确执行 add/remove/replace 操作并刷新 visibleExperiences。",
+      "title": "Define SourceAdapter contract in packages/sources/core",
+      "description": "As the data engine, I need a uniform interface for all source adapters.",
       "acceptanceCriteria": [
-        "在 VoiceAgentToolRouter 新增 refine_filter(operation, dimension, value?) 工具",
-        "operation 枚举 [add, remove, replace]; dimension 枚举 [category, distance, quietness, safety, crowdedness, time_of_day, facility]",
-        "facility 枚举包含子值 wifi / parking / pet_friendly / wheelchair (通过 value 参数传入)",
-        "实现 dispatch: add 调 session.addConstraint; remove 调 session.removeConstraint(dimension); replace 调 session.replaceConstraint",
-        "执行约束更新后通过 mapViewModel?.applyConstraintsRefresh() 重新过滤或 explore (若该方法不存在则在本 story 创建，内部基于 activeConstraints 重新跑现有 filterByCategory / dismissFromVisible 链路)",
-        "返回结构 {ok, operation, dimension, active_constraints:[{dimension, value}], visible_count}",
-        "AIService agent system prompt 新增规则: '用户修正意图时必须调 refine_filter，不可仅靠对话历史推断'",
-        "单测: 3 个 operation × 4 个核心 dimension = 12 个 case + 边界 (replace 不存在的 dimension 退化为 add / remove 不存在的 dimension 不崩溃)",
-        "埋点: voice_agent.tool_call{name:'refine_filter', operation, dimension, visible_count_after} 上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "New package packages/sources/core",
+        "Exports SourceAdapter interface: name string, weight number, fetch(query: SourceQuery): Promise<Candidate[]>, healthCheck(): Promise<boolean>",
+        "Exports Candidate, SourceQuery, BBox types",
+        "Registry function getActiveAdapters(config): SourceAdapter[]",
+        "Unit test for registry with mock adapters",
+        "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-009",
-      "title": "TurnLog 快照机制 + 解引用 Prompt",
-      "description": "作为用户，我说 '第二个' 或 '那家咖啡馆' 时，AI 应正确锁定到我当时看到的那条 experience，即使后续 visibleExperiences 顺序已变。",
+      "title": "Implement Wikivoyage source adapter",
+      "description": "As the data engine, I need to extract POIs from Wikivoyage articles.",
       "acceptanceCriteria": [
-        "在 VoiceAgentSession.swift 新增 public struct Turn:Sendable { let userMessage:String; let visibleExperiencesSnapshot:[String]; let timestamp:Date }",
-        "新增 public private(set) var turnLog:[Turn] = []",
-        "修改 beginUserTurn(transcript:) 签名增加 visibleExperiencesSnapshot:[String] 参数 (调用方传入当前 visibleExperiences.map(\\.id)); 内部 append Turn 到 turnLog",
-        "修改所有现有 beginUserTurn 调用方 (VoiceAgentOrchestrator / ConversationSheet 等) 传入快照",
-        "修改 AIService.serializeAgentMessages() 注入最近 5 轮 turnLog 摘要: 'Turn N: \"<user msg>\" [saw: id1, id2, id3]' 格式",
-        "修改 compactIfNeeded() 在压缩 messages 时不丢失 turnLog (turnLog 独立保留，不被压缩)",
-        "在 AIService agent system prompt 新增 REFERENCE RESOLUTION RULES 段落 (中英双语): 第一个/第二个/the N-th → 映射到当时 turn 的 snapshot[N-1]; '那家咖啡馆/那个' → 在 turnLog 中按 title 模糊匹配; 不确定时反问 '你是指 {name} 吗?'",
-        "单测 3 个场景: 多轮后 visibleExperiences 顺序变化 / messages 压缩后 turnLog 仍可查 / 模糊名匹配 fallback",
-        "埋点: voice_agent.reference_resolved{user_phrase, resolved_id, source:'ordinal'|'name'|'asked_clarification'} 上报 (由 AI 调用 show_details 时附带的来源标记驱动，本 story 也在 router 中新增 source 透传逻辑)",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "New package packages/sources/wikivoyage",
+        "fetchCity(cityName: string): Promise<Candidate[]> parses See/Do/Eat/Drink sections",
+        "Stores attribution: source_url, license: 'CC-BY-SA-3.0'",
+        "Rate limit: max 10 req/min via internal queue",
+        "Cache responses 7 days using node-cache or similar",
+        "Unit test with fixture HTML for Lisbon",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-010",
-      "title": "长按卡片快捷修饰菜单 UI",
-      "description": "作为不想说话的用户 (嘈杂环境/无障碍场景)，我希望长按地图标记或列表卡片弹出快捷修饰菜单，实现无语音追问。",
+      "title": "Implement OpenStreetMap + Overpass source adapter",
+      "description": "As the data engine, I need POI metadata from OSM via Overpass API.",
       "acceptanceCriteria": [
-        "在 apps/ios/SoloCompass/Views/Map/ 下渲染 experience marker 与列表 card 的 SwiftUI view 中添加 .contextMenu { ... }",
-        "菜单含 5 个 Button，每个 Button 配 SF Symbol 图标: 更便宜(dollarsign.circle) / 更近(location.circle) / 更安静(peacesign) / 对比这个(square.on.square) / 有 wifi(wifi)",
-        "点击任一项 → 触发 onVoiceIntent(transcript:) callback (由父 view 注入)，内容为对应的人类语句 (例 '我要比这个更便宜的选择' / '给我离这儿更近的' / '有没有更安静的' / '把这个和其他对比一下' / '只看有 wifi 的')",
-        "callback 最终走 VoiceAgentSession.beginUserTurn(transcript:) (复用 US-009 签名，传入当前 snapshot)，与语音输入路径完全一致",
-        "5 个菜单项文案 + accessibility label 走 NSLocalizedString，en + zh-Hans 资源同步更新",
-        "SwiftUI .contextMenu 原生长按手势 (默认阈值)",
-        "埋点: voice_agent.shortcut_menu_opened{experience_id} 在菜单展示时; voice_agent.shortcut_menu_tapped{experience_id, action} 在选择时",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过",
-        "在 iPhone 16 Pro Simulator 中验证长按手势与菜单交互"
+        "New package packages/sources/osm",
+        "fetchPOIs(bbox, types): Promise<Candidate[]> queries Overpass with QL",
+        "Default types: amenity={cafe,restaurant,bar,place_of_worship,library,bookshop}, tourism={attraction,viewpoint,museum}",
+        "Rate limit: max 1 req/sec",
+        "Cache responses 24h",
+        "Unit test with recorded Overpass JSON fixture",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-011",
-      "title": "撤销 / 重置按钮",
-      "description": "作为用户，我希望在 ConversationSheet 标题栏有 '撤销最后一步' 和 '重置' 按钮，快速回退多轮追问的约束。",
+      "title": "Implement Google Places API source adapter",
+      "description": "As the data engine, I need authoritative hours and ratings from Google Places.",
       "acceptanceCriteria": [
-        "在 ConversationSheet.swift 标题栏 (toolbar trailing) 添加两个 Button: Image(systemName:'arrow.uturn.backward.circle') 和 Image(systemName:'arrow.counterclockwise.circle')",
-        "撤销按钮 action: 获取 session.activeConstraints.last?.dimension; 若非 nil 调 session.removeConstraint(dimension:) + session.beginUserTurn(transcript:'撤销最后一个限制', visibleExperiencesSnapshot:...)",
-        "重置按钮 action: session.clearConstraints() + session.beginUserTurn(transcript:'重置所有限制', visibleExperiencesSnapshot:...)",
-        "两个按钮在 session.activeConstraints.isEmpty 时 .disabled(true) 且呈现灰色",
-        "两个按钮 accessibility label 走 NSLocalizedString，en + zh-Hans",
-        "埋点: voice_agent.undo_tapped{constraint_count_before} 和 voice_agent.reset_tapped{constraint_count_before} 在 action 触发时上报",
-        "单测: disabled 状态切换 (添加约束后启用 / 清空后禁用)",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过",
-        "在 iPhone 16 Pro Simulator 中验证两个按钮的启用/禁用切换和点击行为"
+        "New package packages/sources/google-places",
+        "fetchNearby(lat, lon, radiusM): Promise<Candidate[]>",
+        "API key from GOOGLE_PLACES_API_KEY env var, redacted in logs",
+        "Per-request cost logged to console (Nearby $0.017, Details $0.017+)",
+        "Daily budget cap from env var GOOGLE_PLACES_DAILY_CAP_USD (default 50); refuse calls when exceeded",
+        "Cache nearby 6h, details 24h",
+        "Stores only place_id + derived signals, NOT raw Google fields (ToS compliance)",
+        "Unit test with mocked fetch",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-012",
-      "title": "新增 explain_recommendation 工具",
-      "description": "作为用户，我想说 '为什么推这个 / 为什么推这个不推那个'，AI 应基于 solo score 分项 + confidence + risks 给出透明可验证的理由。",
+      "title": "Implement candidate deduplication",
+      "description": "As the data engine, I need to merge candidates from different sources that reference the same physical location.",
       "acceptanceCriteria": [
-        "在 VoiceAgentToolRouter 新增 explain_recommendation(experience_id, compare_against_id?) 工具",
-        "返回结构 {ok, experience_id, explanation:{solo_score_breakdown:{...6 dims}, data_freshness:{confidence_level, based_on_count, last_verified_at}, risks:[...realInconveniences]}, comparison:{vs_id, winner_by, detailed_diff:{safety_diff, seating_diff, ...}}?}",
-        "若 compare_against_id 提供，detailed_diff 包含 breakdown 全 6 维的差值 (rec - against)",
-        "winner_by 字段: 基于 soloScore.overall 比较，返回 experience_id 或 compare_against_id",
-        "AIService agent system prompt 新增规则: '用户问为什么/why 时必须调 explain_recommendation，不可口头泛化'",
-        "单测 3 个场景: 单解释 (无 compare) / 对比解释 / experience_id 不存在返回 {ok:false, error}",
-        "埋点: voice_agent.tool_call{name:'explain_recommendation', has_comparison} 上报",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "New module packages/ai/compilation/dedup.ts",
+        "dedup(candidates: Candidate[]): MergedCandidate[]",
+        "Match on (name fuzzy similarity >= 0.85 via fast-levenshtein) AND (coords within 50m)",
+        "Merged candidate combines evidence array, preserves all source URLs",
+        "Returns merge stats { input, output, mergedCount }",
+        "Unit test: same place from 3 sources merges to 1",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-013",
-      "title": "AnalyticsService + 北极星指标 Dashboard + Token 预算审查",
-      "description": "作为 PM，我需要 5 个北极星指标在 Analytics dashboard 可见，并确认新 system prompt + 富集字段没有撑爆 token 预算。",
+      "title": "Implement evidence weight scoring",
+      "description": "As the data engine, I need to compute total evidence weight per merged candidate.",
       "acceptanceCriteria": [
-        "在 apps/ios/SoloCompass/Services/ 创建 AnalyticsService.swift (若已存在则扩展)，@MainActor final class，提供 shared 单例和 trackEvent(name:String, properties:[String:Any]) 方法",
-        "后端目标: 默认 PostHog (与 web cost-tracker 一致)，通过 PostHog iOS SDK 或简单 HTTPS POST 上报; 若 PostHog key 缺失则降级到 NSLog (本地调试)",
-        "提供 trackVoiceAgentSession(turnCount, toolCallCount, duration, endReason) 包装方法",
-        "在 VoiceAgentSession 新增 finishSession(endReason:String) 方法，内部调用 AnalyticsService.shared.trackVoiceAgentSession 上报",
-        "在 docs/AI_AUDIT_2026Q2.md 第 11.7 节追加 '11.7.1 派生公式' 子节，文档化 5 个指标的派生公式: 平均追问深度 = mean(turnCount where >=2); 追问解决率 = count(turn>=2 AND followed_by_tool_call) / count(turn>=2); 解引用准确率 = count(source!='asked_clarification') / count(reference_resolved); 不确定性诚实度 = count(uncertainty_acknowledged) / count(uncertainty_should_acknowledge); 追问转化率 = count(turn>=2 AND followed_by_save_or_navigate_or_detail) / count(turn>=2)",
-        "在 docs/AI_AUDIT_2026Q2.md 第 11.7 节追加 '11.7.2 埋点 schema' 子节，列出所有 12 个事件名 + properties",
-        "Token 预算审查: 在 apps/ios/SoloCompass/Tests/SoloCompassTests.swift 新增 testTokenBudgetUnderLimit 测试，构造一个含 10 个 visibleExperiences + 完整 turnLog 5 轮 + 新 system prompt 的 sendAgentMessage payload，断言序列化后字符数 / 4 (近似 token 估算) ≤ 8000",
-        "若 token 估算超 8000，文档化裁剪策略到 docs/AI_AUDIT_2026Q2.md 第 11.8 节并调整 US-001 的 1500 token 上限",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "New module packages/ai/compilation/scoring.ts",
+        "Configurable per-source weights (wikivoyage:3, osm:2, google_places:1) loaded from packages/db/sources_config",
+        "scoreCandidate(c: MergedCandidate): { totalWeight, sourcesCount, qualifies: boolean }",
+        "Threshold: totalWeight >= 5 AND sourcesCount >= 2",
+        "Below-threshold candidates passed to dropCandidate(c, reason) which inserts into dropped_candidates table",
+        "Unit test for scoring logic",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-014",
-      "title": "E2E 验证 5 个真实用户场景 + 撰写测试报告",
-      "description": "作为 QA，我需要在 Simulator 中端到端跑通 5 个典型追问场景，确认无回归并文档化结果。",
+      "title": "Author AI compilation prompt v1",
+      "description": "As the data engine, I need a versioned prompt template for compiling evidence into Experience JSON.",
       "acceptanceCriteria": [
-        "场景 1: 用户找咖啡 → 问 '安全吗' (验证 query_attribute 调用) → 问 '对比前两个' (验证 compare_experiences) → 收藏 winner (验证 save_to_favorites)",
-        "场景 2: 用户找餐厅 → 问 '换个更便宜的' (验证 find_alternative) → 看 breadcrumb 出现 cost 约束 (验证 US-006 UI) → 点 × 移除 (验证 constraint_removed 埋点)",
-        "场景 3: 用户连续 4 轮对话后问 '第三个怎么样' (验证 US-009 turnLog 解引用准确) → AI 锁定正确 ID",
-        "场景 4: 用户问数据缺失的属性 (例 'wifi 速度多快' 或 '排队多久') → AI 调 acknowledge_uncertainty 而非编造 (验证 US-003 prompt 规则生效)",
-        "场景 5: 用户长按 marker → 点 '更安静' (验证 US-010 contextMenu) → 与语音输入产生同样的对话流 (验证 onVoiceIntent → beginUserTurn 链路)",
-        "每个场景在 iPhone 16 Pro Simulator 中手动执行，截图保存到 tasks/prd-followup-experience-e2e-screenshots/ 目录",
-        "每个场景的 dashboard 数据点 (或 NSLog 输出) 验证: tool_call / chip_tapped / constraint_added / uncertainty_acknowledged 等事件如期上报",
-        "撰写测试报告到 tasks/prd-followup-experience-e2e-report.md，含每个场景的 pass/fail / 截图链接 / 发现的 bug 列表",
-        "无 P0/P1 缺陷 (P0=app crash 或 tool 完全不可用; P1=关键交互失败，如 breadcrumb 不显示)",
-        "xcodebuild build 通过",
-        "xcodebuild test 通过"
+        "New file packages/ai/prompts/compile-experience.v1.md",
+        "Defines: Solo Compass voice, output JSON schema, constraints (oneLiner <=100 chars, whyItMatters 80-150 words, realInconveniences >=2)",
+        "Prompt is exported as a constant from packages/ai/prompts/index.ts",
+        "Includes sample input + sample output",
+        "Typecheck passes"
       ],
       "priority": 14,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Implement AI compilation service with Anthropic SDK",
+      "description": "As the data engine, I need to call Claude Opus 4.7 to compile evidence into a structured Experience.",
+      "acceptanceCriteria": [
+        "New module packages/ai/compilation/compile.ts",
+        "compile(candidate: MergedCandidate): Promise<Experience | RejectReason>",
+        "Uses @anthropic-ai/sdk with model claude-opus-4-7",
+        "API key from ANTHROPIC_API_KEY env",
+        "Prompt loaded from US-014 template",
+        "Output validated against Experience Zod schema from packages/core",
+        "Per-call cost logged",
+        "1 retry on JSON parse fail",
+        "Unit test with mocked Anthropic client",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Add voice and depth quality gates",
+      "description": "As the data engine, I need to reject AI outputs that violate Solo Compass voice or depth standards.",
+      "acceptanceCriteria": [
+        "New module packages/ai/compilation/gates.ts",
+        "voiceGate(experience): rejects if oneLiner matches /(amazing|best|must-see|incredible|breathtaking)/i",
+        "depthGate(experience): rejects if whyItMatters word count < 80",
+        "fieldsGate(experience): rejects if realInconveniences.length < 2 or required schema fields missing",
+        "Each gate returns { passed: boolean, reason?: string }",
+        "Unit tests for each gate with passing and failing inputs",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Implement compilation orchestrator (end-to-end pipeline)",
+      "description": "As the data engine, I need an orchestrator that chains: sources -> dedup -> scoring -> compile -> gates -> persist.",
+      "acceptanceCriteria": [
+        "New module packages/ai/compilation/orchestrator.ts",
+        "runCompilationJob(query: { lat, lon, radiusKm }): Promise<{ published: number, dropped: number, jobId: string }>",
+        "Inserts compilation_jobs row with status 'running' at start, 'completed' or 'failed' at end",
+        "On success: inserts experiences (status='awaiting_review', confidenceLevel=2), sources, editor_queue rows",
+        "On gate failure: inserts dropped_candidates row",
+        "Unit test with all sources mocked end-to-end",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Bootstrap apps/api with Hono",
+      "description": "As the backend, I need an API server scaffold connected to the database.",
+      "acceptanceCriteria": [
+        "New app apps/api using Hono framework",
+        "Health endpoint GET /health returns 200 with version + uptime",
+        "Connected to packages/db via Drizzle",
+        "OpenAPI spec scaffold at packages/api/openapi.yaml (just /health for now)",
+        "README with local dev instructions",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Implement GET /v1/experiences geo query endpoint",
+      "description": "As iOS, I need a geo-aware endpoint that returns nearby experiences and triggers backfill when coverage is thin.",
+      "acceptanceCriteria": [
+        "GET /v1/experiences?lat=&lon=&radiusKm=&minTier=2 returns experiences sorted by (confidenceLevel desc, distance asc)",
+        "Uses PostGIS ST_DWithin for geo filter",
+        "When result count < 5 OR oldest > 90d, async-call orchestrator.runCompilationJob (don't await)",
+        "Response shape: { data: Experience[], meta: { compilationStatus: 'idle'|'queued'|'running' } }",
+        "Cache header: public, max-age=60 when idle, 5 when queued/running",
+        "Updated openapi.yaml with this endpoint",
+        "Integration test with seeded DB",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Implement GET /v1/experiences bbox query and GET /v1/experiences/{id}",
+      "description": "As iOS, I need bbox queries for map pan and a single-experience endpoint with full evidence.",
+      "acceptanceCriteria": [
+        "GET /v1/experiences?bbox=minLon,minLat,maxLon,maxLat&minTier=2&limit=50 uses PostGIS ST_Intersects",
+        "GET /v1/experiences/{id} returns Experience with sources array embedded",
+        "Returns 404 with error body on unknown id",
+        "OpenAPI spec updated",
+        "Integration tests cover both endpoints",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 20,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Implement POST /v1/experiences/{id}/signals endpoint",
+      "description": "As the system, I need to accept user signals (gps_dwell, micro_survey, user_report) keyed by anonymous device id.",
+      "acceptanceCriteria": [
+        "POST /v1/experiences/{id}/signals accepts body { signalType, payload }",
+        "Requires X-Device-ID header (UUID format)",
+        "Inserts row into user_signals table",
+        "Sets experiences.pendingSignalAggregation = true",
+        "Per-device rate limit: 10 micro_survey/day, 5 user_report/day",
+        "Returns 201 on success, 429 when rate limited",
+        "OpenAPI spec updated",
+        "Integration test",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 21,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Bootstrap apps/admin Next.js scaffold with Supabase Auth",
+      "description": "As an editor, I need a web admin app with magic-link auth restricted to an allowlist.",
+      "acceptanceCriteria": [
+        "New app apps/admin using Next.js App Router",
+        "Supabase Auth with magic-link email login",
+        "Allowlist read from EDITOR_EMAILS env var (comma-separated)",
+        "Middleware redirects non-allowlisted users to /unauthorized",
+        "Empty pages: /queue, /queue/[id], /published, /dropped, /sources, /metrics",
+        "Tailwind dark mode default",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 22,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Implement /queue list view in admin app",
+      "description": "As an editor, I need to see all candidates awaiting review, prioritized.",
+      "acceptanceCriteria": [
+        "/queue shows experiences where status='awaiting_review'",
+        "Sorted by priority: population proximity DESC, evidence weight DESC, age DESC",
+        "Each row: title, city, source count, weight, age",
+        "Filter controls: city dropdown, source-type checkboxes, weight range",
+        "Each row links to /queue/[id]",
+        "Pagination 50 per page",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 23,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Implement claim mechanism on queue items",
+      "description": "As an editor, I want to claim a candidate so two editors don't review the same one.",
+      "acceptanceCriteria": [
+        "POST action on /queue/[id] sets editor_queue.claimedBy = currentUser.email and claimedAt = now",
+        "Claim auto-expires after 30 min",
+        "Queue list shows 'Claimed by X' indicator for items claimed by others; their rows are dimmed",
+        "Server action 'releaseClaim' clears the claim",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Implement /queue/[id] three-pane review UI",
+      "description": "As an editor, I want to compare raw evidence vs AI output and edit before approving.",
+      "acceptanceCriteria": [
+        "Three columns: left = raw evidence (collapsible per source), center = AI-generated Experience read-only, right = editable form",
+        "Form covers all Experience fields with same Zod validation as backend",
+        "Voice violations highlighted: regex /(amazing|best|must-see|incredible|breathtaking)/i shown in red inline",
+        "Auto-save edit draft to localStorage every 5s",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Add map preview to /queue/[id] review",
+      "description": "As an editor, I want to see the candidate location on a map alongside nearby published experiences.",
+      "acceptanceCriteria": [
+        "Map embedded in /queue/[id] using maplibre-gl",
+        "Marker for candidate location (red)",
+        "Markers for published experiences within 1km (green)",
+        "Click marker shows mini info popup",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Implement approve / approve-with-edits / reject actions",
+      "description": "As an editor, I want to act on a candidate and advance to the next one.",
+      "acceptanceCriteria": [
+        "Approve as-is: sets status='published', confidenceLevel=3, deletes editor_queue row, inserts experience_revisions row",
+        "Approve with edits: same as above but stores diff in revision payload",
+        "Reject: requires reason text, sets status='rejected', inserts audit_log entry",
+        "After action, redirect to next claimed candidate or back to /queue",
+        "Keyboard shortcuts: A approve, E focus edit form, R focus reject reason",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Implement /metrics admin dashboard",
+      "description": "As an operator, I want to see editor throughput and pipeline health.",
+      "acceptanceCriteria": [
+        "/metrics shows: queue depth, throughput per editor (today/week), approval rate, edit rate, top reject reasons",
+        "Per-source health: success rate, latency p50/p95, error counts (last 24h)",
+        "Compilation success rate (passed all gates)",
+        "Auto-refresh every 30s",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Implement /published and /dropped audit views",
+      "description": "As an operator, I want to review past decisions and re-queue false rejects.",
+      "acceptanceCriteria": [
+        "/published lists recently approved with editor attribution, sortable by date/editor",
+        "/dropped lists rejected with reason, bulk-select + 'Re-queue' action",
+        "Audit log searchable: filter by editor, action type, date range",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-030",
+      "title": "Implement passive GPS dwell signal in iOS",
+      "description": "As iOS LocationService, I need to send a gps_dwell signal when a user spends >=15min in a region.",
+      "acceptanceCriteria": [
+        "Modify apps/ios/SoloCompass/Services/LocationService.swift: track entry timestamp per region",
+        "On didExitRegion, compute duration; if >= 900s, POST /v1/experiences/{id}/signals",
+        "Includes X-Device-ID header (UUID from Keychain)",
+        "Privacy: never sends coordinates, only experienceId + duration",
+        "Unit test for dwell duration logic",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-031",
+      "title": "Implement micro-survey UI on Mark-as-done in iOS",
+      "description": "As a user, after marking an experience done I'm asked 3 questions and the answers are sent to the backend.",
+      "acceptanceCriteria": [
+        "New view: apps/ios/SoloCompass/Views/Experience/MicroSurveySheet.swift",
+        "3 questions: comfort 1-5, staff_pressure 1-5 inverted, recommend yes/no/depends",
+        "Skip button allowed; if user skips 3 in a row, don't show for 30 days",
+        "Submit POSTs to /v1/experiences/{id}/signals with payload",
+        "Localized via NSLocalizedString",
+        "Hooked into existing ExperienceDetailViewModel.markAsDone flow",
+        "Snapshot test for each question state",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 31,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-032",
+      "title": "Implement aggregation worker for soloScore recompute",
+      "description": "As the system, I need a periodic worker that recomputes soloScore from user signals.",
+      "acceptanceCriteria": [
+        "New module packages/ai/aggregation/worker.ts with runAggregation(): Promise<{ updated: number }>",
+        "Selects experiences where pendingSignalAggregation = true",
+        "Pulls all user_signals where signal_type='micro_survey'",
+        "Computes new soloScore.breakdown from question medians",
+        "Computes new confidence.level: tier 4 if >=1 user signal, tier 5 if >=5 user signals",
+        "Inserts new experience_revisions row created_by='system'",
+        "Old AI-derived score preserved in revision history",
+        "Schedule via pg_cron hourly",
+        "Unit test with mocked DB",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-033",
+      "title": "Implement staleness detection cron job",
+      "description": "As the system, I need a nightly job that re-compiles experiences older than 90 days.",
+      "acceptanceCriteria": [
+        "New script packages/ai/aggregation/staleness.ts with detectStale(): Promise<{ recompiled: number }>",
+        "Selects experiences where lastCompiledAt < now() - interval '90 days'",
+        "For each: re-runs orchestrator with original lat/lon",
+        "Compares old vs new payload; if material changes (hours, status, name), pushes to editor_queue with REFRESH label (priority high)",
+        "Updates lastCompiledAt regardless",
+        "Scheduled via pg_cron nightly at 03:00 UTC",
+        "Unit test with mocked orchestrator",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-034",
+      "title": "Implement user-report flow in iOS detail view",
+      "description": "As a user, I want a 'Report issue' button on ExperienceDetailView with reason picker.",
+      "acceptanceCriteria": [
+        "Report button in ExperienceDetailView.swift overflow menu",
+        "Sheet with reasons (single-select): closed_permanently, moved, hours_wrong, vibe_different, factually_wrong, other",
+        "Optional free-text field max 200 chars",
+        "POSTs to /v1/experiences/{id}/signals with signal_type=user_report",
+        "Backend: when user_report count >= 3 within 30d, push experience to editor_queue with REPORT label",
+        "Localized",
+        "Snapshot test for sheet",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-035",
+      "title": "Implement abuse detection for user signals",
+      "description": "As the system, I need to quarantine suspicious signals.",
+      "acceptanceCriteria": [
+        "Module apps/api/middleware/abuse.ts",
+        "Checks per-device rate limits: 10 micro_survey/day, 5 user_report/day",
+        "Detects coordinated patterns: N devices submitting identical payloads within 5 min",
+        "Suspicious signals inserted with payload.quarantined = true; aggregation worker filters them out",
+        "Trust officer can review/reverse via /metrics admin page",
+        "Unit test with simulated abuse patterns",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 35,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-036",
+      "title": "Implement per-source cost tracking and caps",
+      "description": "As an operator, I need real-time spend visibility and hard caps per source.",
+      "acceptanceCriteria": [
+        "New table source_costs: id, sourceType, dateBucket date, totalCostUsd, requestCount",
+        "Each adapter increments source_costs after every paid call",
+        "Daily cap enforced before each call: refuse if today's totalCostUsd >= cap",
+        "/metrics page shows daily/monthly spend per source with chart",
+        "Slack webhook env SLACK_ALERT_WEBHOOK_URL alerted at 80% of cap",
+        "Unit test for cap enforcement logic",
+        "Typecheck passes",
+        "Tests pass",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 36,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-037",
+      "title": "Implement pipeline health dashboard data layer",
+      "description": "As an operator, I need /metrics to show pipeline status at a glance.",
+      "acceptanceCriteria": [
+        "Server actions in apps/admin/app/metrics/queries.ts return: jobs queued/running/completed/failed (24h), per-adapter latency p50/p95, compilation gate pass rate, queue depth, oldest queue item age",
+        "/metrics page renders these via charts (recharts)",
+        "Auto-refresh every 30s",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 37,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-038",
+      "title": "Add anonymous device ID generation and storage in iOS",
+      "description": "As iOS, I need a stable UUID stored in Keychain for signal attribution.",
+      "acceptanceCriteria": [
+        "New service apps/ios/SoloCompass/Services/DeviceIdentityService.swift",
+        "On first call: generate UUIDv4, store in Keychain under com.solocompass.deviceId",
+        "Subsequent calls return cached value",
+        "Survives app reinstall (Keychain default behavior)",
+        "Settings has 'Reset device ID' button that wipes Keychain entry",
+        "All API requests automatically attach X-Device-ID header via URLSessionConfiguration extension",
+        "Unit test with mock Keychain",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 38,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-039",
+      "title": "Implement RemoteExperienceService in iOS with offline fallback",
+      "description": "As iOS, I want to fetch from the new backend with bundled-seed fallback on network failure.",
+      "acceptanceCriteria": [
+        "New file apps/ios/SoloCompass/Services/RemoteExperienceService.swift",
+        "Async methods: fetchNearby(lat, lon, radiusKm), fetchByBbox(bbox), fetchById(id), submitSignal(experienceId, type, payload)",
+        "URLSession with 10s timeout",
+        "API base URL from Secrets.plist key API_BASE_URL or env override",
+        "Caches GET responses in URLCache",
+        "On network failure (no connectivity, timeout, 5xx): return bundled seed_experiences.json",
+        "Surfaces error to UI via lastError @Observable property",
+        "Unit test with mocked URLSession (success, 404, timeout, fallback)",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 39,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-040",
+      "title": "Wire MapViewModel to RemoteExperienceService instead of local seed",
+      "description": "As iOS, I want the map to load experiences from the backend by default.",
+      "acceptanceCriteria": [
+        "MapViewModel.loadNearbyExperiences() now calls RemoteExperienceService.fetchNearby(...)",
+        "Existing ExperienceService kept as fallback only (offline mode)",
+        "When meta.compilationStatus = 'queued' or 'running', show 'Finding more nearby...' indicator above BottomInfoBar",
+        "Polls every 30s while compilationStatus != 'idle' (max 5 polls)",
+        "Unit test for MapViewModel with mocked RemoteExperienceService",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 40,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-041",
+      "title": "Implement confidence-tier visual indicators on iOS markers",
+      "description": "As a user, I want to see at a glance which experiences are AI-compiled vs editor-verified vs user-verified.",
+      "acceptanceCriteria": [
+        "MarkerIconView.swift extended: ring color per confidence tier (5=green solid, 4=green, 3=green, 2=yellow, 1=red, 0=gray dashed)",
+        "Existing marker state (bestNow, favorited, etc) composes WITH confidence ring (e.g. yellow ring + bestNow inner)",
+        "Default filter: only tier >= 2 returned by RemoteExperienceService (minTier query param)",
+        "Snapshot tests for each (tier, state) combination",
+        "xcodebuild builds clean",
+        "XCTest passes",
+        "Verify in iPhone 16 Pro simulator"
+      ],
+      "priority": 41,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-042",
+      "title": "Implement confidence-tier explanation in ExperienceDetailView",
+      "description": "As a user, I want to understand what each tier means.",
+      "acceptanceCriteria": [
+        "ExperienceDetailView header includes tier indicator with one-line explanation per tier",
+        "Tap indicator opens help sheet explaining the 6-tier system in <100 words",
+        "Source attribution panel: 'Compiled from Wikivoyage + OSM' or 'Verified by 3 solo travelers'",
+        "Localized strings",
+        "Snapshot tests for each tier",
+        "xcodebuild builds clean",
+        "XCTest passes",
+        "Verify in iPhone 16 Pro simulator"
+      ],
+      "priority": 42,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-043",
+      "title": "Implement 'Show speculative experiences' toggle in iOS Settings",
+      "description": "As a user opting in, I want to see tier-1 (AI single-source) experiences too.",
+      "acceptanceCriteria": [
+        "UserPreferences.Snapshot adds showSpeculativeExperiences: Bool (default false)",
+        "Settings page has toggle in Discovery section with explanatory subtext",
+        "When enabled, RemoteExperienceService passes minTier=1",
+        "When toggled, MapViewModel reloads",
+        "Migration safe (decodeIfPresent default false)",
+        "Snapshot test",
+        "xcodebuild builds clean",
+        "XCTest passes"
+      ],
+      "priority": 43,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-044",
+      "title": "Bootstrap pipeline run for 5 launch cities",
+      "description": "As the team, we need an initial dataset before going live.",
+      "acceptanceCriteria": [
+        "New script packages/ai/scripts/bootstrap.ts that runs orchestrator against 5 cities (Chiang Mai, Lisbon, Tokyo, Mexico City, Bali)",
+        "Runs against staging Supabase project (env var SUPABASE_URL_STAGING)",
+        "Logs per-city: candidates fetched, compiled, dropped, awaiting review",
+        "Total runtime <30 min for 5 cities (parallelized)",
+        "Output written to docs/BOOTSTRAP_REPORT.md",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 44,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-045",
+      "title": "Update CLAUDE.md and docs/PHASES.md with v2 architecture",
+      "description": "As a future contributor, I need the architecture docs to reflect the new data engine.",
+      "acceptanceCriteria": [
+        "CLAUDE.md adds 'Data Engine' section pointing to tasks/prd-data-engine-v2.md",
+        "Adds new packages: packages/db, packages/sources/{core,wikivoyage,osm,google-places}, packages/ai/compilation, apps/api",
+        "Adds new app: apps/admin",
+        "docs/PHASES.md updated to reflect 'Phase 2.5: Data Engine' (between current Phase 2 web and Phase 3 iOS)",
+        "Schema parity table updated to show 3 sources of truth (TS / Swift / DB)",
+        "Typecheck passes"
+      ],
+      "priority": 45,
       "passes": false,
       "notes": ""
     }

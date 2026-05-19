@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@solo-compass/core": "workspace:*",
+    "@solo-compass/db": "workspace:*",
     "@solo-compass/sources-core": "workspace:*",
     "fast-levenshtein": "^3.0.0",
     "openai": "^4.73.0",
