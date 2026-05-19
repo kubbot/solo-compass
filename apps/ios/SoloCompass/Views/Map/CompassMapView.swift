@@ -182,6 +182,26 @@ public struct CompassMapView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     }
 
+                    // Voice result toast — shown after AI resolves a voice intent.
+                    if let toast = viewModel.voiceResultToast {
+                        HStack(spacing: 8) {
+                            Image(systemName: toast == NSLocalizedString("voice.result.none", comment: "No matching places found nearby")
+                                ? "magnifyingglass" : "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(toast == NSLocalizedString("voice.result.none", comment: "No matching places found nearby")
+                                    ? .secondary : .green)
+                            Text(toast)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(.thinMaterial, in: Capsule())
+                        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .accessibilityIdentifier("voiceResultToast")
+                    }
+
                     // Explore success toast — 3-second ephemeral capsule above BottomInfoBar.
                     if let toast = viewModel.lastExploreToast {
                         Text(toast)

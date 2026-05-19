@@ -234,6 +234,8 @@ public final class MapViewModel {
 
     public var isProcessingVoiceIntent: Bool = false
     public var currentVoiceTranscript: String = ""
+    /// Ephemeral toast shown after voice AI resolves. Nil when not active.
+    public var voiceResultToast: String? = nil
 
     // MARK: - Settings
 
@@ -602,11 +604,21 @@ public final class MapViewModel {
             return
         }
         let coordinate = locationService.currentLocation?.coordinate ?? Self.defaultCenter
+        let nearby = experienceService.allExperiences.filter { exp in
+            guard let expCoord = exp.coordinate else { return false }
+            let loc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            let expLoc = CLLocation(latitude: expCoord.latitude, longitude: expCoord.longitude)
+            return expLoc.distance(from: loc) < 10_000
+        }
         isProcessingVoiceIntent = true
         currentVoiceTranscript = transcript
         defer { isProcessingVoiceIntent = false }
         do {
-            let response = try await aiService.processVoiceIntent(transcript: transcript, near: coordinate)
+            let response = try await aiService.processVoiceIntent(
+                transcript: transcript,
+                near: coordinate,
+                nearbyExperiences: nearby
+            )
             currentVoiceTranscript = ""
             aiExplanation = response.explanation
             if let suggestion = response.filterSuggestion {
@@ -618,6 +630,35 @@ public final class MapViewModel {
             }
             bottomInfoText = response.explanation
             lastAIError = nil
+
+            if !response.recommendedIds.isEmpty {
+                voiceResultToast = String(
+                    format: NSLocalizedString("voice.result.found", comment: ""),
+                    response.recommendedIds.count
+                )
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    voiceResultToast = nil
+                }
+            } else if let suggestion = response.filterSuggestion {
+                voiceResultToast = String(
+                    format: NSLocalizedString("voice.result.filtered", comment: ""),
+                    NSLocalizedString("category.\(suggestion.rawValue)", comment: "")
+                )
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    voiceResultToast = nil
+                }
+            } else {
+                voiceResultToast = NSLocalizedString("voice.result.none", comment: "No matching places found nearby")
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                Task {
+                    try? await Task.sleep(for: .seconds(4))
+                    voiceResultToast = nil
+                }
+            }
         } catch {
             // Keep current state on error; record for UI to optionally surface.
             lastAIError = error.localizedDescription

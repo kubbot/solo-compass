@@ -176,11 +176,34 @@ public final class AIService {
         }
     }
 
-    public func processVoiceIntent(transcript: String, near coordinate: CLLocationCoordinate2D) async throws -> AIResponse {
+    public func processVoiceIntent(
+        transcript: String,
+        near coordinate: CLLocationCoordinate2D,
+        nearbyExperiences: [Experience] = []
+    ) async throws -> AIResponse {
+        let nearbyContext: String
+        if nearbyExperiences.isEmpty {
+            nearbyContext = "There are no curated experiences within 10km."
+        } else {
+            nearbyContext = nearbyExperiences.prefix(20).map { exp in
+                "  [\(exp.id)] \(exp.title) — \(exp.category.rawValue) — \(String(format: "%.1f", exp.soloScore.overall))/10"
+            }.joined(separator: "\n")
+        }
+
         let prompt = """
-        A solo traveler said: \"\(transcript)\".
-        Their current coordinates are \(coordinate.latitude), \(coordinate.longitude).
-        Respond as JSON: {"recommendedIds":[],"explanation":"...","filterSuggestion":"culture|nature|food|coffee|work|wellness|nightlife|hidden|null"}
+        A solo traveler said: "\(transcript)".
+        Their location: \(coordinate.latitude), \(coordinate.longitude).
+
+        Nearby curated experiences (use these exact IDs to recommend):
+        \(nearbyContext)
+
+        Respond as JSON:
+        {
+          "recommendedIds": ["id1","id2"],
+          "explanation": "A warm, one-sentence response to the user. If no matches, suggest what kind of place they might look for.",
+          "filterSuggestion": "culture|nature|food|coffee|work|wellness|nightlife|hidden|null"
+        }
+        Only include IDs that match the user request. If nothing matches, use empty array and explain.
         """
         do {
             let raw = try await sendMessage(prompt: prompt, kind: .voice)
