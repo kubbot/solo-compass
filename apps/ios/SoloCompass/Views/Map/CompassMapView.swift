@@ -31,192 +31,14 @@ public struct CompassMapView: View {
                 mapLayer(viewModel: viewModel)
                     .ignoresSafeArea()
 
-                VStack {
-                    HStack {
-                        cityPill(viewModel: viewModel)
-                            .padding(.leading, 12)
-                            .padding(.top, 8)
-                        Spacer()
-                    }
-
-                    FilterBarView(
-                        selectedCategory: viewModel.selectedCategory,
-                        isNowSelected: viewModel.isNowFilter,
-                        onSelectNow: { viewModel.selectNowFilter() },
-                        onSelectAll: { viewModel.clearFilters() },
-                        onSelectCategory: { viewModel.selectCategory($0) }
-                    )
-                    .padding(.top, 4)
-
-                    // AI / voice error banner — dismissible, shown below filter bar.
-                    if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(errorText)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedAIError = errorText
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(errorText))
-                    }
-
-                    // Explore error banner — orange, dismissible, below filter bar.
-                    if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "airplane.slash")
-                                .foregroundStyle(.orange)
-                            Text(exploreError)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedExploreError = exploreError
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(exploreError))
-                        .accessibilityIdentifier("exploreErrorBanner")
-                    }
-
-                    // Quota banner — yellow, persistent until the next UTC day.
-                    if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
-                        HStack(spacing: 8) {
-                            Image(systemName: "clock.badge.exclamationmark")
-                                .foregroundStyle(Color(red: 0.8, green: 0.6, blue: 0))
-                            Text(quotaInfo)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedQuotaInfo = quotaInfo
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss banner")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            Color(red: 1, green: 0.95, blue: 0.7).opacity(0.9),
-                            in: RoundedRectangle(cornerRadius: 12)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color(red: 0.8, green: 0.6, blue: 0).opacity(0.5), lineWidth: 1)
-                        )
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(quotaInfo))
-                        .accessibilityIdentifier("quotaBanner")
-                    }
-
-                    Spacer()
-
-                    // AI processing indicator — shown above the bottom info bar.
-                    if aiService.isProcessing {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text(NSLocalizedString("ai.processing", comment: "AI is processing"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.thinMaterial, in: Capsule())
-                        .transition(.opacity)
-                    }
-
-                    // US-MR-04: multi-ring progress capsule. Delegates to
-                    // ExploreProgressBar which hides itself when .idle.
-                    ExploreProgressBar(progress: viewModel.exploreProgress)
-
-                    // Voice intent processing indicator — shown while AI handles the transcript.
-                    if viewModel.isProcessingVoiceIntent {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text(String(
-                                format: NSLocalizedString("voice.processing", comment: "AI is thinking about your request"),
-                                viewModel.currentVoiceTranscript.truncated(limit: 30)
-                            ))
-                            .font(.caption)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.thinMaterial, in: Capsule())
-                        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
-
-                    // Explore success toast — 3-second ephemeral capsule above BottomInfoBar.
-                    if let toast = viewModel.lastExploreToast {
-                        Text(toast)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(.thinMaterial, in: Capsule())
-                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                            .accessibilityIdentifier("exploreToast")
-                            .onAppear {
-                                Task {
-                                    try? await Task.sleep(for: .seconds(3))
-                                    withAnimation(.easeOut(duration: 0.3)) {
-                                        viewModel.lastExploreToast = nil
-                                    }
-                                }
-                            }
-                    }
-
-                    BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
-                        .padding(.bottom, 8)
-
-                    // Pending check-in banner (geofence fired while user was nearby)
-                    if let pending = viewModel.pendingCheckIn {
-                        PendingCheckInBanner(
-                            experienceTitle: pending.title,
-                            onConfirm: { viewModel.confirmCheckIn() },
-                            onDismiss: { viewModel.dismissCheckIn() }
-                        )
-                        .padding(.bottom, 4)
-                        .animation(.spring(response: 0.4), value: viewModel.pendingCheckIn != nil)
-                    }
-                }
+                MapOverlayView(
+                    viewModel: viewModel,
+                    isAIProcessing: aiService.isProcessing,
+                    isShowingCityPicker: $isShowingCityPicker,
+                    dismissedAIError: $dismissedAIError,
+                    dismissedExploreError: $dismissedExploreError,
+                    dismissedQuotaInfo: $dismissedQuotaInfo
+                )
 
                 VStack {
                     Spacer()
@@ -468,36 +290,6 @@ public struct CompassMapView: View {
         }
     }
 
-    // MARK: - City pill
-
-    @ViewBuilder
-    private func cityPill(viewModel: MapViewModel) -> some View {
-        let cityName: String = {
-            if let code = viewModel.selectedCity,
-               let city = viewModel.availableCities.first(where: { $0.code == code }) {
-                return city.name
-            }
-            return NSLocalizedString("city.all", comment: "All cities option")
-        }()
-
-        Button {
-            isShowingCityPicker = true
-        } label: {
-            HStack(spacing: 4) {
-                Text(cityName)
-                    .font(.subheadline.weight(.medium))
-                Image(systemName: "chevron.down")
-                    .font(.caption.weight(.semibold))
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.regularMaterial, in: Capsule())
-        }
-        .accessibilityLabel(Text(cityName))
-        .accessibilityHint(Text(NSLocalizedString("city.picker.title", comment: "City picker sheet title")))
-    }
-
     @ViewBuilder
     private func mapLayer(viewModel: MapViewModel) -> some View {
         let bindingCamera = Binding<MapCameraPosition>(
@@ -605,6 +397,221 @@ private extension String {
     func truncated(limit: Int) -> String {
         guard count > limit else { return self }
         return String(prefix(limit)) + "…"
+    }
+}
+
+private struct MapOverlayView: View {
+    var viewModel: MapViewModel
+    var isAIProcessing: Bool
+    @Binding var isShowingCityPicker: Bool
+    @Binding var dismissedAIError: String?
+    @Binding var dismissedExploreError: String?
+    @Binding var dismissedQuotaInfo: String?
+
+    var body: some View {
+        VStack {
+            HStack {
+                cityPill
+                    .padding(.leading, 12)
+                    .padding(.top, 8)
+                Spacer()
+            }
+
+            FilterBarView(
+                selectedCategory: viewModel.selectedCategory,
+                isNowSelected: viewModel.isNowFilter,
+                onSelectNow: { viewModel.selectNowFilter() },
+                onSelectAll: { viewModel.clearFilters() },
+                onSelectCategory: { viewModel.selectCategory($0) }
+            )
+            .padding(.top, 4)
+
+            if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
+                DismissibleBanner(
+                    systemImage: "exclamationmark.triangle.fill",
+                    text: errorText,
+                    color: .orange,
+                    onDismiss: { dismissedAIError = errorText }
+                )
+            }
+
+            if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
+                DismissibleBanner(
+                    systemImage: "airplane.slash",
+                    text: exploreError,
+                    color: .orange,
+                    onDismiss: { dismissedExploreError = exploreError }
+                )
+                .accessibilityIdentifier("exploreErrorBanner")
+            }
+
+            if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
+                DismissibleBanner(
+                    systemImage: "clock.badge.exclamationmark",
+                    text: quotaInfo,
+                    color: Color(red: 0.8, green: 0.6, blue: 0),
+                    onDismiss: { dismissedQuotaInfo = quotaInfo }
+                )
+                .accessibilityIdentifier("quotaBanner")
+            }
+
+            Spacer()
+
+            if isAIProcessing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(NSLocalizedString("ai.processing", comment: "AI is processing"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.thinMaterial, in: Capsule())
+                .transition(.opacity)
+            }
+
+            if let progressText = CompassMapView.progressText(for: viewModel.exploreProgress) {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(progressText)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.thinMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                .transition(.opacity)
+                .accessibilityIdentifier("exploreProgress")
+                .accessibilityLabel(Text(progressText))
+            }
+
+            if viewModel.isProcessingVoiceIntent {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(String(
+                        format: NSLocalizedString("voice.processing", comment: "AI is thinking about your request"),
+                        viewModel.currentVoiceTranscript.truncated(limit: 30)
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.thinMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+
+            if let toast = viewModel.voiceResultToast {
+                HStack(spacing: 8) {
+                    Image(systemName: toast == NSLocalizedString("voice.result.none", comment: "No matching places found nearby")
+                        ? "magnifyingglass" : "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(toast == NSLocalizedString("voice.result.none", comment: "No matching places found nearby")
+                            ? Color.secondary : Color.green)
+                    Text(toast)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.thinMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .accessibilityIdentifier("voiceResultToast")
+            }
+
+            if let toast = viewModel.lastExploreToast {
+                Text(toast)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(.thinMaterial, in: Capsule())
+                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .accessibilityIdentifier("exploreToast")
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                viewModel.lastExploreToast = nil
+                            }
+                        }
+                    }
+            }
+
+            BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
+                .padding(.bottom, 8)
+
+            if let pending = viewModel.pendingCheckIn {
+                PendingCheckInBanner(
+                    experienceTitle: pending.title,
+                    onConfirm: { viewModel.confirmCheckIn() },
+                    onDismiss: { viewModel.dismissCheckIn() }
+                )
+                .padding(.bottom, 4)
+                .animation(.spring(response: 0.4), value: viewModel.pendingCheckIn != nil)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cityPill: some View {
+        let cityName: String = {
+            if let code = viewModel.selectedCity,
+               let city = viewModel.availableCities.first(where: { $0.code == code }) {
+                return city.name
+            }
+            return NSLocalizedString("city.all", comment: "All cities option")
+        }()
+
+        Button {
+            isShowingCityPicker = true
+        } label: {
+            HStack(spacing: 4) {
+                Text(cityName)
+                    .font(.subheadline.weight(.medium))
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: Capsule())
+        }
+        .accessibilityLabel(Text(cityName))
+        .accessibilityHint(Text(NSLocalizedString("city.picker.title", comment: "City picker sheet title")))
+    }
+}
+
+private struct DismissibleBanner: View {
+    let systemImage: String
+    let text: String
+    let color: Color
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage).foregroundStyle(color)
+            Text(text).font(.caption).foregroundStyle(.primary).lineLimit(2)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark").font(.caption.bold()).foregroundStyle(.secondary)
+            }
+            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss")))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(text))
     }
 }
 

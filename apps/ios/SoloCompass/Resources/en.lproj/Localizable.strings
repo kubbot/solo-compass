@@ -67,6 +67,9 @@
 /* Voice */
 "voice.processing" = "Thinking: %@";
 "voice.button" = "Voice input";
+"voice.result.found" = "Found %d matching places";
+"voice.result.filtered" = "Showing %@ nearby";
+"voice.result.none" = "No matching places nearby — try a different search";
 "voice.permission.title" = "Microphone access needed";
 "voice.permission.message" = "Solo Compass needs microphone and speech permission to take voice input.";
 
