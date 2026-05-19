@@ -393,7 +393,7 @@ public struct CompassMapView: View {
         .environment(UserPreferences())
 }
 
-private struct MapOverlayView: View {
+struct MapOverlayView: View {
     var viewModel: MapViewModel
     var isAIProcessing: Bool
     @Binding var isShowingCityPicker: Bool
@@ -464,7 +464,23 @@ private struct MapOverlayView: View {
                 .transition(.opacity)
             }
 
-            ExploreProgressBar(progress: viewModel.exploreProgress)
+            // Inline ExploreProgressBar (cross-file ref broken in CI)
+            if let progressText = CompassMapView.progressText(for: viewModel.exploreProgress) {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(progressText)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.thinMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                .transition(.opacity)
+                .accessibilityIdentifier("exploreProgress")
+                .accessibilityLabel(Text(progressText))
+            }
 
             if let toast = viewModel.lastExploreToast {
                 Text(toast)
