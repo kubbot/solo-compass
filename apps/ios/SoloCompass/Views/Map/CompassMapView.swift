@@ -50,94 +50,33 @@ public struct CompassMapView: View {
 
                     // AI / voice error banner — dismissible, shown below filter bar.
                     if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(errorText)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedAIError = errorText
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(errorText))
+                        DismissibleBanner(
+                            systemImage: "exclamationmark.triangle.fill",
+                            text: errorText,
+                            color: .orange,
+                            onDismiss: { dismissedAIError = errorText }
+                        )
                     }
 
                     // Explore error banner — orange, dismissible, below filter bar.
                     if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "airplane.slash")
-                                .foregroundStyle(.orange)
-                            Text(exploreError)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedExploreError = exploreError
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss error")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(exploreError))
+                        DismissibleBanner(
+                            systemImage: "airplane.slash",
+                            text: exploreError,
+                            color: .orange,
+                            onDismiss: { dismissedExploreError = exploreError }
+                        )
                         .accessibilityIdentifier("exploreErrorBanner")
                     }
 
                     // Quota banner — yellow, persistent until the next UTC day.
                     if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
-                        HStack(spacing: 8) {
-                            Image(systemName: "clock.badge.exclamationmark")
-                                .foregroundStyle(Color(red: 0.8, green: 0.6, blue: 0))
-                            Text(quotaInfo)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                dismissedQuotaInfo = quotaInfo
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss banner")))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            Color(red: 1, green: 0.95, blue: 0.7).opacity(0.9),
-                            in: RoundedRectangle(cornerRadius: 12)
+                        DismissibleBanner(
+                            systemImage: "clock.badge.exclamationmark",
+                            text: quotaInfo,
+                            color: Color(red: 0.8, green: 0.6, blue: 0),
+                            onDismiss: { dismissedQuotaInfo = quotaInfo }
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color(red: 0.8, green: 0.6, blue: 0).opacity(0.5), lineWidth: 1)
-                        )
-                        .padding(.horizontal, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text(quotaInfo))
                         .accessibilityIdentifier("quotaBanner")
                     }
 
@@ -579,6 +518,38 @@ public struct CompassMapView: View {
         .environment(ExperienceService())
         .environment(AIService())
         .environment(UserPreferences())
+}
+
+private struct DismissibleBanner: View {
+    let systemImage: String
+    let text: String
+    let color: Color
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundStyle(color)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel(Text(NSLocalizedString("common.dismiss", comment: "Dismiss")))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(text))
+    }
 }
 
 private struct EmptyStateOverlay: View {
