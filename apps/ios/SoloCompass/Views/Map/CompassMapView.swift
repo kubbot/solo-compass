@@ -31,111 +31,14 @@ public struct CompassMapView: View {
                 mapLayer(viewModel: viewModel)
                     .ignoresSafeArea()
 
-                VStack {
-                    HStack {
-                        cityPill(viewModel: viewModel)
-                            .padding(.leading, 12)
-                            .padding(.top, 8)
-                        Spacer()
-                    }
-
-                    FilterBarView(
-                        selectedCategory: viewModel.selectedCategory,
-                        isNowSelected: viewModel.isNowFilter,
-                        onSelectNow: { viewModel.selectNowFilter() },
-                        onSelectAll: { viewModel.clearFilters() },
-                        onSelectCategory: { viewModel.selectCategory($0) }
-                    )
-                    .padding(.top, 4)
-
-                    // AI / voice error banner — dismissible, shown below filter bar.
-                    if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
-                        DismissibleBanner(
-                            systemImage: "exclamationmark.triangle.fill",
-                            text: errorText,
-                            color: .orange,
-                            onDismiss: { dismissedAIError = errorText }
-                        )
-                    }
-
-                    // Explore error banner — orange, dismissible, below filter bar.
-                    if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
-                        DismissibleBanner(
-                            systemImage: "airplane.slash",
-                            text: exploreError,
-                            color: .orange,
-                            onDismiss: { dismissedExploreError = exploreError }
-                        )
-                        .accessibilityIdentifier("exploreErrorBanner")
-                    }
-
-                    // Quota banner — yellow, persistent until the next UTC day.
-                    if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
-                        DismissibleBanner(
-                            systemImage: "clock.badge.exclamationmark",
-                            text: quotaInfo,
-                            color: Color(red: 0.8, green: 0.6, blue: 0),
-                            onDismiss: { dismissedQuotaInfo = quotaInfo }
-                        )
-                        .accessibilityIdentifier("quotaBanner")
-                    }
-
-                    Spacer()
-
-                    // AI processing indicator — shown above the bottom info bar.
-                    if aiService.isProcessing {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text(NSLocalizedString("ai.processing", comment: "AI is processing"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.thinMaterial, in: Capsule())
-                        .transition(.opacity)
-                    }
-
-                    // US-MR-04: multi-ring progress capsule. Delegates to
-                    // ExploreProgressBar which hides itself when .idle.
-                    ExploreProgressBar(progress: viewModel.exploreProgress)
-
-                    // Explore success toast — 3-second ephemeral capsule above BottomInfoBar.
-                    if let toast = viewModel.lastExploreToast {
-                        Text(toast)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(.thinMaterial, in: Capsule())
-                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                            .accessibilityIdentifier("exploreToast")
-                            .onAppear {
-                                Task {
-                                    try? await Task.sleep(for: .seconds(3))
-                                    withAnimation(.easeOut(duration: 0.3)) {
-                                        viewModel.lastExploreToast = nil
-                                    }
-                                }
-                            }
-                    }
-
-                    BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
-                        .padding(.bottom, 8)
-
-                    // Pending check-in banner (geofence fired while user was nearby)
-                    if let pending = viewModel.pendingCheckIn {
-                        PendingCheckInBanner(
-                            experienceTitle: pending.title,
-                            onConfirm: { viewModel.confirmCheckIn() },
-                            onDismiss: { viewModel.dismissCheckIn() }
-                        )
-                        .padding(.bottom, 4)
-                        .animation(.spring(response: 0.4), value: viewModel.pendingCheckIn != nil)
-                    }
-                }
+                MapOverlayView(
+                    viewModel: viewModel,
+                    isAIProcessing: aiService.isProcessing,
+                    isShowingCityPicker: $isShowingCityPicker,
+                    dismissedAIError: $dismissedAIError,
+                    dismissedExploreError: $dismissedExploreError,
+                    dismissedQuotaInfo: $dismissedQuotaInfo
+                )
 
                 VStack {
                     Spacer()
@@ -387,36 +290,6 @@ public struct CompassMapView: View {
         }
     }
 
-    // MARK: - City pill
-
-    @ViewBuilder
-    private func cityPill(viewModel: MapViewModel) -> some View {
-        let cityName: String = {
-            if let code = viewModel.selectedCity,
-               let city = viewModel.availableCities.first(where: { $0.code == code }) {
-                return city.name
-            }
-            return NSLocalizedString("city.all", comment: "All cities option")
-        }()
-
-        Button {
-            isShowingCityPicker = true
-        } label: {
-            HStack(spacing: 4) {
-                Text(cityName)
-                    .font(.subheadline.weight(.medium))
-                Image(systemName: "chevron.down")
-                    .font(.caption.weight(.semibold))
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.regularMaterial, in: Capsule())
-        }
-        .accessibilityLabel(Text(cityName))
-        .accessibilityHint(Text(NSLocalizedString("city.picker.title", comment: "City picker sheet title")))
-    }
-
     @ViewBuilder
     private func mapLayer(viewModel: MapViewModel) -> some View {
         let bindingCamera = Binding<MapCameraPosition>(
@@ -518,6 +391,143 @@ public struct CompassMapView: View {
         .environment(ExperienceService())
         .environment(AIService())
         .environment(UserPreferences())
+}
+
+private struct MapOverlayView: View {
+    var viewModel: MapViewModel
+    var isAIProcessing: Bool
+    @Binding var isShowingCityPicker: Bool
+    @Binding var dismissedAIError: String?
+    @Binding var dismissedExploreError: String?
+    @Binding var dismissedQuotaInfo: String?
+
+    var body: some View {
+        VStack {
+            HStack {
+                cityPill
+                    .padding(.leading, 12)
+                    .padding(.top, 8)
+                Spacer()
+            }
+
+            FilterBarView(
+                selectedCategory: viewModel.selectedCategory,
+                isNowSelected: viewModel.isNowFilter,
+                onSelectNow: { viewModel.selectNowFilter() },
+                onSelectAll: { viewModel.clearFilters() },
+                onSelectCategory: { viewModel.selectCategory($0) }
+            )
+            .padding(.top, 4)
+
+            if let errorText = viewModel.lastAIError, errorText != dismissedAIError {
+                DismissibleBanner(
+                    systemImage: "exclamationmark.triangle.fill",
+                    text: errorText,
+                    color: .orange,
+                    onDismiss: { dismissedAIError = errorText }
+                )
+            }
+
+            if let exploreError = viewModel.lastExploreError, exploreError != dismissedExploreError {
+                DismissibleBanner(
+                    systemImage: "airplane.slash",
+                    text: exploreError,
+                    color: .orange,
+                    onDismiss: { dismissedExploreError = exploreError }
+                )
+                .accessibilityIdentifier("exploreErrorBanner")
+            }
+
+            if let quotaInfo = viewModel.lastQuotaInfo, quotaInfo != dismissedQuotaInfo {
+                DismissibleBanner(
+                    systemImage: "clock.badge.exclamationmark",
+                    text: quotaInfo,
+                    color: Color(red: 0.8, green: 0.6, blue: 0),
+                    onDismiss: { dismissedQuotaInfo = quotaInfo }
+                )
+                .accessibilityIdentifier("quotaBanner")
+            }
+
+            Spacer()
+
+            if isAIProcessing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(NSLocalizedString("ai.processing", comment: "AI is processing"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.thinMaterial, in: Capsule())
+                .transition(.opacity)
+            }
+
+            ExploreProgressBar(progress: viewModel.exploreProgress)
+
+            if let toast = viewModel.lastExploreToast {
+                Text(toast)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(.thinMaterial, in: Capsule())
+                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .accessibilityIdentifier("exploreToast")
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                viewModel.lastExploreToast = nil
+                            }
+                        }
+                    }
+            }
+
+            BottomInfoBar(text: viewModel.bottomInfoText, nearbySoloCount: viewModel.nearbySoloCount)
+                .padding(.bottom, 8)
+
+            if let pending = viewModel.pendingCheckIn {
+                PendingCheckInBanner(
+                    experienceTitle: pending.title,
+                    onConfirm: { viewModel.confirmCheckIn() },
+                    onDismiss: { viewModel.dismissCheckIn() }
+                )
+                .padding(.bottom, 4)
+                .animation(.spring(response: 0.4), value: viewModel.pendingCheckIn != nil)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cityPill: some View {
+        let cityName: String = {
+            if let code = viewModel.selectedCity,
+               let city = viewModel.availableCities.first(where: { $0.code == code }) {
+                return city.name
+            }
+            return NSLocalizedString("city.all", comment: "All cities option")
+        }()
+
+        Button {
+            isShowingCityPicker = true
+        } label: {
+            HStack(spacing: 4) {
+                Text(cityName)
+                    .font(.subheadline.weight(.medium))
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: Capsule())
+        }
+        .accessibilityLabel(Text(cityName))
+        .accessibilityHint(Text(NSLocalizedString("city.picker.title", comment: "City picker sheet title")))
+    }
 }
 
 private struct DismissibleBanner: View {
