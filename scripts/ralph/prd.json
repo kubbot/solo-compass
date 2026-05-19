@@ -402,7 +402,7 @@
       "acceptanceCriteria": [
         "POST action on /queue/[id] sets editor_queue.claimedBy = currentUser.email and claimedAt = now",
         "Claim auto-expires after 30 min",
-        "Queue list shows 'Claimed by X' badge for items claimed by others; their rows are dimmed",
+        "Queue list shows 'Claimed by X' indicator for items claimed by others; their rows are dimmed",
         "Server action 'releaseClaim' clears the claim",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
@@ -696,7 +696,7 @@
     },
     {
       "id": "US-041",
-      "title": "Implement confidence-tier visual badges on iOS markers",
+      "title": "Implement confidence-tier visual indicators on iOS markers",
       "description": "As a user, I want to see at a glance which experiences are AI-compiled vs editor-verified vs user-verified.",
       "acceptanceCriteria": [
         "MarkerIconView.swift extended: ring color per confidence tier (5=green solid, 4=green, 3=green, 2=yellow, 1=red, 0=gray dashed)",
@@ -716,8 +716,8 @@
       "title": "Implement confidence-tier explanation in ExperienceDetailView",
       "description": "As a user, I want to understand what each tier means.",
       "acceptanceCriteria": [
-        "ExperienceDetailView header includes tier badge with one-line explanation per tier",
-        "Tap badge opens help sheet explaining the 6-tier system in <100 words",
+        "ExperienceDetailView header includes tier indicator with one-line explanation per tier",
+        "Tap indicator opens help sheet explaining the 6-tier system in <100 words",
         "Source attribution panel: 'Compiled from Wikivoyage + OSM' or 'Verified by 3 solo travelers'",
         "Localized strings",
         "Snapshot tests for each tier",

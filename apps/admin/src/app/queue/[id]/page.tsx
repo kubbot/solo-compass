@@ -21,7 +21,9 @@ export default async function QueueDetailPage({ params }: PageProps) {
 
   const { data: experience, error } = await supabase
     .from("experiences")
-    .select("id, title, one_liner, why_it_matters, category, city_code, confidence_level, status, created_at, updated_at")
+    .select(
+      "id, title, one_liner, why_it_matters, category, city_code, confidence_level, status, created_at, updated_at",
+    )
     .eq("id", id)
     .eq("status", "candidate")
     .single();
@@ -55,10 +57,7 @@ export default async function QueueDetailPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <header className="border-b border-gray-800 px-6 py-4 flex items-center gap-4">
-        <Link
-          href="/queue"
-          className="text-gray-400 hover:text-gray-200 text-sm transition-colors"
-        >
+        <Link href="/queue" className="text-gray-400 hover:text-gray-200 text-sm transition-colors">
           ← Queue
         </Link>
         <h1 className="text-xl font-semibold truncate">{experience.title}</h1>
@@ -102,9 +101,9 @@ export default async function QueueDetailPage({ params }: PageProps) {
       <div className="px-6 py-6 max-w-3xl space-y-6">
         <section className="space-y-2">
           <div className="flex gap-3 flex-wrap">
-            <Badge label={experience.category} />
-            <Badge label={experience.city_code || "unknown"} variant="city" />
-            <Badge label={`confidence ${experience.confidence_level}/5`} variant="confidence" />
+            <Tag label={experience.category} />
+            <Tag label={experience.city_code || "unknown"} variant="city" />
+            <Tag label={`confidence ${experience.confidence_level}/5`} variant="confidence" />
           </div>
           <p className="text-gray-300">{experience.one_liner}</p>
           <p className="text-gray-400 text-sm">{experience.why_it_matters}</p>
@@ -144,14 +143,16 @@ export default async function QueueDetailPage({ params }: PageProps) {
         <section className="text-xs text-gray-500 space-y-1">
           <p>Created: {new Date(experience.created_at).toLocaleString()}</p>
           <p>Updated: {new Date(experience.updated_at).toLocaleString()}</p>
-          <p>ID: <span className="font-mono">{experience.id}</span></p>
+          <p>
+            ID: <span className="font-mono">{experience.id}</span>
+          </p>
         </section>
       </div>
     </div>
   );
 }
 
-function Badge({
+function Tag({
   label,
   variant = "default",
 }: {

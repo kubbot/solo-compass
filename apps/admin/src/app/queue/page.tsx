@@ -53,9 +53,7 @@ export default async function QueuePage({ searchParams }: PageProps) {
     .eq("status", "candidate")
     .order("city_code");
 
-  const cities = Array.from(
-    new Set((cityRows ?? []).map((r) => r.city_code).filter(Boolean)),
-  );
+  const cities = Array.from(new Set((cityRows ?? []).map((r) => r.city_code).filter(Boolean)));
 
   let query = supabase
     .from("experiences")
@@ -112,8 +110,14 @@ export default async function QueuePage({ searchParams }: PageProps) {
     );
 
     // editor_queue is a one-to-one relation returned as an array
-    const queueRows = Array.isArray(r.editor_queue) ? r.editor_queue : r.editor_queue ? [r.editor_queue] : [];
-    const queueRow = queueRows[0] as { claimed_by: string | null; claimed_at: string | null } | undefined;
+    const queueRows = Array.isArray(r.editor_queue)
+      ? r.editor_queue
+      : r.editor_queue
+        ? [r.editor_queue]
+        : [];
+    const queueRow = queueRows[0] as
+      | { claimed_by: string | null; claimed_at: string | null }
+      | undefined;
     const claimedAt = queueRow?.claimed_at ? new Date(queueRow.claimed_at).getTime() : null;
     const isActive = claimedAt !== null && now - claimedAt < CLAIM_TTL_MS;
 
@@ -138,9 +142,7 @@ export default async function QueuePage({ searchParams }: PageProps) {
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <header className="border-b border-gray-800 px-6 py-4">
         <h1 className="text-xl font-semibold">Review Queue</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          {count ?? 0} candidates awaiting review
-        </p>
+        <p className="text-sm text-gray-400 mt-1">{count ?? 0} candidates awaiting review</p>
       </header>
 
       <div className="px-6 py-4">
@@ -217,9 +219,7 @@ function FilterBar({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400 uppercase tracking-wide">
-          Confidence (Weight)
-        </label>
+        <label className="text-xs text-gray-400 uppercase tracking-wide">Confidence (Weight)</label>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -288,8 +288,7 @@ function QueueTable({ rows, currentEmail }: { rows: QueueRow[]; currentEmail: st
         </thead>
         <tbody className="divide-y divide-gray-800">
           {rows.map((row) => {
-            const isClaimedByOther =
-              row.claimed_by !== null && row.claimed_by !== currentEmail;
+            const isClaimedByOther = row.claimed_by !== null && row.claimed_by !== currentEmail;
             return (
               <tr
                 key={row.id}
@@ -310,12 +309,13 @@ function QueueTable({ rows, currentEmail }: { rows: QueueRow[]; currentEmail: st
                 <td className="px-4 py-3">
                   <WeightBadge level={row.confidence_level} />
                 </td>
-                <td className="px-4 py-3 text-gray-400 text-xs">
-                  {formatAge(row.created_at)}
-                </td>
+                <td className="px-4 py-3 text-gray-400 text-xs">{formatAge(row.created_at)}</td>
                 <td className="px-4 py-3">
                   {row.claimed_by !== null && (
-                    <ClaimedBadge claimedBy={row.claimed_by} isMe={row.claimed_by === currentEmail} />
+                    <ClaimedBadge
+                      claimedBy={row.claimed_by}
+                      isMe={row.claimed_by === currentEmail}
+                    />
                   )}
                 </td>
               </tr>
