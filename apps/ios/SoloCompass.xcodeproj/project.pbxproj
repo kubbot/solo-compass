@@ -70,6 +70,7 @@
 		EF2003CC07F7787C25847BDF /* ReportIssueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576B08910782A58C3597E596 /* ReportIssueSheet.swift */; };
 		F34C1A42668EF5151AFEE3C3 /* AISynthesisCacheRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E69F3EF6F0100CFA47DAFE /* AISynthesisCacheRecord.swift */; };
 		F5677DCF081E506C7E32243F /* VoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120FC7465285714C5FA8F96D /* VoiceService.swift */; };
+		B6D4E28A91C3F07542E8D1AB /* ExploreProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7F92C14D8B6E05F2A31C90 /* ExploreProgressBar.swift */; };
 		FBE9F5951D501A611EB19EEC /* SecretsRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA8C8BF234F3C74D0D8A9BD /* SecretsRuntime.swift */; };
 /* End PBXBuildFile section */
 
@@ -106,6 +107,7 @@
 		4442EDB5CE3602DA3EA32725 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5642EDC714993C8EE0ECDD83 /* GeneratedSecrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedSecrets.swift; sourceTree = "<group>"; };
 		576B08910782A58C3597E596 /* ReportIssueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportIssueSheet.swift; sourceTree = "<group>"; };
+		3A7F92C14D8B6E05F2A31C90 /* ExploreProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreProgressBar.swift; sourceTree = "<group>"; };
 		5AB8B58A4F608F9951CBDF3C /* ExploreConsentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreConsentSheet.swift; sourceTree = "<group>"; };
 		5CA0BAEC05B72704552C0906 /* PendingCheckInRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingCheckInRecord.swift; sourceTree = "<group>"; };
 		5CE16BF3B189BB0F17E4CE92 /* ExperienceDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperienceDetailViewModel.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 				873ACB737A9B43254C17B238 /* CityPickerSheet.swift */,
 				BA6A3144D85CDAD01FA0FECB /* CompassMapView.swift */,
 				5AB8B58A4F608F9951CBDF3C /* ExploreConsentSheet.swift */,
+				3A7F92C14D8B6E05F2A31C90 /* ExploreProgressBar.swift */,
 				0E0157D30FF53B21FF31D519 /* MarkerIconView.swift */,
 			);
 			path = Map;
@@ -565,6 +568,7 @@
 				E7B5B022519434F7C07818CF /* ExperienceService.swift in Sources */,
 				1BF34EAE036021423C1ACE2D /* ExploreCacheRecord.swift in Sources */,
 				0EAA3D2EEA89D212150A6B57 /* ExploreConsentSheet.swift in Sources */,
+				B6D4E28A91C3F07542E8D1AB /* ExploreProgressBar.swift in Sources */,
 				E881A71769542A7C58CF5D10 /* FavoritesListView.swift in Sources */,
 				18D372538603D7A46EE6C86F /* FeatureFlags.swift in Sources */,
 				297541149234668D12EAF272 /* FilterBarView.swift in Sources */,
