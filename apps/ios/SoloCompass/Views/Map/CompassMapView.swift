@@ -336,6 +336,50 @@ public struct CompassMapView: View {
     }
 
     @ViewBuilder
+    private var plusMenuSheetContent: some View {
+        if let vm = viewModel {
+            PlusMenuSheet(
+                isPresented: $isShowingPlusMenu,
+                onQuickAsk: { text in
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: vm,
+                        preferences: preferences
+                    )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    orch.handleTextInput(text)
+                    isShowingVoiceOverlay = true
+                },
+                onFilter: {
+                    isShowingPlusMenu = false
+                },
+                onNavigate: { destination in
+                    isShowingPlusMenu = false
+                    Task { await vm.handleVoiceTranscript("Navigate to \(destination)") }
+                },
+                onVoiceAgent: {
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: vm,
+                        preferences: preferences
+                    )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    isShowingVoiceOverlay = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    @ViewBuilder
     private func mapLayer(viewModel: MapViewModel) -> some View {
         let bindingCamera = Binding<MapCameraPosition>(
             get: { viewModel.cameraPosition },
