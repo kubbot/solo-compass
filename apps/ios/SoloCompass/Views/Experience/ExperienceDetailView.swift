@@ -142,11 +142,19 @@ public struct ExperienceDetailView: View {
 
     // MARK: - Sections
 
+    @ViewBuilder
     private var whyItMattersSection: some View {
-        sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
-            Text(viewModel.experience.whyItMatters)
-                .font(.body)
-                .fixedSize(horizontal: false, vertical: true)
+        let content = viewModel.experience.whyItMatters.trimmingCharacters(in: .whitespacesAndNewlines)
+        if viewModel.isLoadingWhyItMatters {
+            sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
+                SkeletonView(lineCount: 3)
+            }
+        } else if !content.isEmpty {
+            sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
+                Text(content)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

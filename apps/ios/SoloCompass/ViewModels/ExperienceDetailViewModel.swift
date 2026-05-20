@@ -14,6 +14,7 @@ public final class ExperienceDetailViewModel {
     public var isFavorited: Bool
     public var aiExplanation: String?
     public var isLoadingAIExplanation: Bool = false
+    public var isLoadingWhyItMatters: Bool = false
     public var nearbyExperiences: [Experience] = []
     public var visitCount: Int
 
@@ -90,8 +91,13 @@ public final class ExperienceDetailViewModel {
             aiExplanation = NSLocalizedString("detail.aiInsight.gated", comment: "Subscribe to unlock AI Insight")
             return
         }
+        let isOSM = experience.id.hasPrefix("exp_osm_")
         isLoadingAIExplanation = true
-        defer { isLoadingAIExplanation = false }
+        if isOSM { isLoadingWhyItMatters = true }
+        defer {
+            isLoadingAIExplanation = false
+            if isOSM { isLoadingWhyItMatters = false }
+        }
         do {
             aiExplanation = try await aiService.explainRecommendation(for: experience.id)
         } catch {

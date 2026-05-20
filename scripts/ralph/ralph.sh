@@ -4,6 +4,7 @@
 # Usage: ./ralph.sh [--tool claude] [max_iterations]
 
 set -e
+set -o pipefail
 
 TOOL="claude"
 MAX_ITERATIONS=10
@@ -17,7 +18,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/../../prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
