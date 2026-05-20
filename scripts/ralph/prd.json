@@ -395,8 +395,8 @@
         "Typecheck passes"
       ],
       "priority": 24,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "apps/api/: Dockerfile (multi-stage alpine), Makefile (api-run/api-build/api-test), README.md. internal/reviews package with OpenDB + HandleGetSoloScore + unit tests. main_test.go tests /healthz. go test ./... passes in environments with Go installed."
     },
     {
       "id": "US-025",
