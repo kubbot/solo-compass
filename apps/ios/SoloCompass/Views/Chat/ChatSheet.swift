@@ -28,6 +28,11 @@ public struct ChatSheet: View {
     @State private var lastUserTranscript: String = ""
     @State private var didApplyStartMode: Bool = false
 
+    /// True while showing the dedicated voice surface (large mic + live agent
+    /// state). Set on appear when `startInVoiceMode`; user can opt into the
+    /// classic chat list with a single tap.
+    @State private var showVoiceSurface: Bool = false
+
     public init(
         orchestrator: VoiceAgentOrchestrator,
         voiceService: VoiceService,
@@ -49,21 +54,50 @@ public struct ChatSheet: View {
                 permissionDeniedBanner
             }
 
-            messageList
-
-            ChatInputBar(
-                draftText: $draftText,
-                micState: micState,
-                errorMessage: orchestrator.errorMessage,
-                onSend: handleSend,
-                onMicToggle: handleMicToggle,
-                onMicPress: handleMicPress,
-                onRetry: handleRetry
-            )
+            mainContent
         }
         .background(Color(.systemBackground))
         .onAppear { applyStartModeIfNeeded() }
         .onDisappear { teardownVoiceStream() }
+        .onChange(of: orchestrator.session.messages.count) { _, _ in
+            handleMessageCountChange()
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        if showVoiceSurface {
+            voiceSurface
+        } else {
+            messageList
+            textInputBar
+        }
+    }
+
+    private var textInputBar: some View {
+        ChatInputBar(
+            draftText: $draftText,
+            micState: micState,
+            errorMessage: orchestrator.errorMessage,
+            onSend: handleSend,
+            onMicToggle: handleMicToggle,
+            onMicPress: handleMicPress,
+            onRetry: handleRetry
+        )
+    }
+
+    /// First real user/assistant message → drop the voice surface so the
+    /// chat history takes over. Tool-only messages don't count.
+    private func handleMessageCountChange() {
+        guard showVoiceSurface else { return }
+        let hasConversation = orchestrator.session.messages.contains { msg in
+            let role = msg.role
+            return role == .user || role == .assistant
+        }
+        guard hasConversation else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showVoiceSurface = false
+        }
     }
 
     // MARK: - Subviews
@@ -172,6 +206,106 @@ public struct ChatSheet: View {
         }
     }
 
+    /// Voice-first surface shown when the user taps "+" (short-tap entry).
+    /// Renders a large mic + live agent state so the user can see that mic,
+    /// model, and tools are all really running.
+    private var voiceSurface: some View {
+        VStack(spacing: 22) {
+            Spacer(minLength: 12)
+
+            voiceStatusLabel
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+
+            if !orchestrator.streamingContent.isEmpty {
+                Text(orchestrator.streamingContent)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .transition(.opacity)
+            } else if !liveTranscript.isEmpty {
+                Text(liveTranscript)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+
+            Spacer(minLength: 8)
+
+            VoiceMicButton(
+                isListening: voiceService.isListening,
+                isBusy: micState == .thinking,
+                onPress: { handleMicPress(true) },
+                onRelease: { handleMicPress(false) }
+            )
+            .padding(.bottom, 12)
+
+            Button(action: switchToTextMode) {
+                Text(NSLocalizedString("chat.voice.tap.toType", comment: "Switch to typing"))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.tint)
+            }
+            .padding(.bottom, 24)
+
+            if let err = orchestrator.errorMessage {
+                Text(err)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Big status label that mirrors the orchestrator's real-time progress.
+    /// We prefer `thinkingStep` (already-localized strings the orchestrator
+    /// publishes) so tool execution shows "🔍 Searching nearby…" etc.
+    private var voiceStatusLabel: some View {
+        let text: String = {
+            if voiceService.isListening {
+                return NSLocalizedString("chat.voice.listening", comment: "Listening")
+            }
+            if orchestrator.isExecutingTool {
+                return orchestrator.thinkingStep.isEmpty
+                    ? NSLocalizedString("chat.voice.toolRunning", comment: "Working on it")
+                    : orchestrator.thinkingStep
+            }
+            switch orchestrator.session.state {
+            case .thinking:
+                return NSLocalizedString("chat.voice.thinking", comment: "Thinking")
+            case .toolExecuting:
+                return orchestrator.thinkingStep.isEmpty
+                    ? NSLocalizedString("chat.voice.toolRunning", comment: "Working on it")
+                    : orchestrator.thinkingStep
+            default:
+                if !orchestrator.streamingContent.isEmpty {
+                    return NSLocalizedString("chat.voice.responding", comment: "Responding")
+                }
+                return NSLocalizedString("chat.voice.idle", comment: "Hold the mic to speak")
+            }
+        }()
+        return Text(text)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.center)
+            .animation(.easeInOut(duration: 0.2), value: text)
+    }
+
+    private func switchToTextMode() {
+        // Drop the voice stream cleanly before swapping surfaces so the
+        // mic doesn't keep listening while the keyboard appears.
+        teardownVoiceStream()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showVoiceSurface = false
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: 14) {
             Spacer()
@@ -264,6 +398,7 @@ public struct ChatSheet: View {
         guard !didApplyStartMode else { return }
         didApplyStartMode = true
         if startInVoiceMode {
+            showVoiceSurface = true
             beginPushToTalk()
         }
     }
@@ -333,6 +468,73 @@ public struct ChatSheet: View {
         } else {
             proxy.scrollTo(anchor, anchor: .bottom)
         }
+    }
+}
+
+/// Large central mic for the voice-first surface. Holds-to-talk and shows a
+/// pulsing ring while listening / a spinner while the agent is busy. Mirrors
+/// the affordance of `PlusActionButton` but stays put inside the sheet.
+@MainActor
+private struct VoiceMicButton: View {
+    let isListening: Bool
+    let isBusy: Bool
+    let onPress: () -> Void
+    let onRelease: () -> Void
+
+    @State private var pressed: Bool = false
+    @State private var pulse: Bool = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.accentColor.opacity(isListening ? 0.55 : 0.0), lineWidth: 4)
+                .frame(width: 132, height: 132)
+                .scaleEffect(pulse ? 1.18 : 1.0)
+                .opacity(pulse ? 0.0 : 1.0)
+                .animation(
+                    isListening
+                        ? .easeOut(duration: 1.2).repeatForever(autoreverses: false)
+                        : .default,
+                    value: pulse
+                )
+
+            Circle()
+                .fill(isListening ? Color.accentColor : Color.black.opacity(0.85))
+                .frame(width: 108, height: 108)
+                .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+                .scaleEffect(pressed ? 1.06 : 1.0)
+                .overlay(
+                    Group {
+                        if isBusy {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 40, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                )
+        }
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !pressed {
+                        pressed = true
+                        pulse = true
+                        onPress()
+                    }
+                }
+                .onEnded { _ in
+                    pressed = false
+                    pulse = false
+                    onRelease()
+                }
+        )
+        .accessibilityLabel(Text(NSLocalizedString("voiceAgent.orb.a11y", comment: "Hold to speak to Solo Compass")))
+        .accessibilityHint(Text(NSLocalizedString("voiceAgent.orb.hint", comment: "Double tap and hold to speak")))
     }
 }
 
