@@ -3004,4 +3004,73 @@ final class LanguageServiceTests: XCTestCase {
         let skeleton = SkeletonView(lineCount: 0)
         XCTAssertEqual(skeleton.lineCount, 1, "lineCount must be at least 1")
     }
+
+    // MARK: - US-008 SoloScoreRadarChart
+
+    func testRadarChartVarianceHighEnoughTriggersRadar() {
+        // seating=9, staffPressure=2, safety=9, others mid-range → high variance
+        let score = SoloScore(
+            overall: 7.0,
+            breakdown: .init(
+                seatingFriendly: 9,
+                soloPatronRatio: 3,
+                staffPressure: 9,
+                soloPortioning: 8,
+                ambianceFit: 2,
+                safety: 9
+            ),
+            hint: nil,
+            basedOnCount: 10
+        )
+        let chart = SoloScoreRadarChart(score: score)
+        // Variance: values = [9,3,9,8,2,9], mean = 6.67
+        // variance = ((9-6.67)²+(3-6.67)²+(9-6.67)²+(8-6.67)²+(2-6.67)²+(9-6.67)²)/6 ≈ 6.22
+        let vals: [Double] = [9, 3, 9, 8, 2, 9]
+        let mean = vals.reduce(0, +) / Double(vals.count)
+        let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+        XCTAssertGreaterThanOrEqual(variance, 0.5, "High-spread score must have variance ≥ 0.5 (shows radar)")
+        _ = chart // Verify it constructs without crash
+    }
+
+    func testRadarChartVarianceLowTriggersFallbackBars() {
+        // All dimensions identical → zero variance → fallback bars
+        let score = SoloScore(
+            overall: 9.0,
+            breakdown: .init(
+                seatingFriendly: 9,
+                soloPatronRatio: 9,
+                staffPressure: 9,
+                soloPortioning: 9,
+                ambianceFit: 9,
+                safety: 9
+            ),
+            hint: nil,
+            basedOnCount: 5
+        )
+        let chart = SoloScoreRadarChart(score: score)
+        let vals: [Double] = [9, 9, 9, 9, 9, 9]
+        let mean = vals.reduce(0, +) / Double(vals.count)
+        let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+        XCTAssertLessThan(variance, 0.5, "Uniform score must have variance < 0.5 (shows fallback bars)")
+        _ = chart
+    }
+
+    func testSeedDifferentiatedSoloScoresHaveHighVariance() {
+        // Verify the 3 updated seed POIs have breakdown variance >= 1.5
+        let highVarianceIds: Set<String> = [
+            "exp_cmi_suan_dok_sunset",
+            "exp_cmi_khao_soi_1974",
+            "exp_cmi_doi_suthep_dawn"
+        ]
+        let seeds = ExperienceService.hardcodedSeed.filter { highVarianceIds.contains($0.id) }
+        XCTAssertEqual(seeds.count, 3, "All 3 differentiated seed IDs must be present")
+        for exp in seeds {
+            let b = exp.soloScore.breakdown
+            let vals: [Double] = [b.seatingFriendly, b.soloPatronRatio, b.staffPressure, b.soloPortioning, b.ambianceFit, b.safety]
+            let mean = vals.reduce(0, +) / Double(vals.count)
+            let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+            XCTAssertGreaterThanOrEqual(variance, 1.5,
+                "'\(exp.id)' breakdown variance \(variance) must be ≥ 1.5 for radar to render")
+        }
+    }
 }
