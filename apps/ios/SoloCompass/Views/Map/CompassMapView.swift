@@ -229,81 +229,10 @@ public struct CompassMapView: View {
             .environment(experienceService)
             .environment(preferences)
         }
-        // "+" quick-action menu sheet
-        .sheet(isPresented: $isShowingPlusMenu) {
-            if let vm = viewModel {
-                PlusMenuSheet(
-                    isPresented: $isShowingPlusMenu,
-                    onQuickAsk: { text in
-                        isShowingPlusMenu = false
-                        // Create orchestrator for text-based quick ask
-                        let orch = VoiceAgentOrchestrator(
-                            aiService: aiService,
-                            voiceService: voiceService,
-                            mapViewModel: vm,
-                            preferences: preferences
-                        )
-                        orch.start()
-                        voiceOrchestrator = orch
-                        orch.handleTextInput(text)
-                        isShowingVoiceOverlay = true
-                    },
-                    onFilter: {
-                        isShowingPlusMenu = false
-                        // FilterBarView is already visible; scroll/highlight it
-                    },
-                    onNavigate: { destination in
-                        isShowingPlusMenu = false
-                        Task { await vm.handleVoiceTranscript("Navigate to \(destination)") }
-                    },
-                    onVoiceAgent: {
-                        isShowingPlusMenu = false
-                        let orch = VoiceAgentOrchestrator(
-                            aiService: aiService,
-                            voiceService: voiceService,
-                            mapViewModel: vm,
-                            preferences: preferences
-                        )
-                        orch.start()
-                        voiceOrchestrator = orch
-                        isShowingVoiceOverlay = true
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    }
-                )
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-            }
-        }
-        // ConversationSheet kept for text-mode multi-turn (fallback / text input path via overlay)
-        // Voice agent conversation sheet — opened by tapping "Ask Solo" in + menu when already running.
-        .sheet(isPresented: Binding(
-            get: {
-                // Only show sheet when orchestrator is running but NOT showing inline overlay
-                voiceOrchestrator != nil && !isShowingVoiceOverlay
-            },
-            set: { showing in
-                if !showing {
-                    voiceOrchestrator?.stop()
-                    voiceOrchestrator = nil
-                }
-            }
-        )) {
-            if let orch = voiceOrchestrator {
-                ConversationSheet(
-                    onClose: {
-                        orch.stop()
-                        voiceOrchestrator = nil
-                    },
-                    onSubmitText: { orch.handleTextInput($0) },
-                    voiceService: voiceService,
-                    onVoiceTranscript: { orch.handleTranscript($0) },
-                    orchestrator: orch
-                )
-                .environment(orch.session)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-        }
+        // "+" quick-action menu sheet — extracted for type-checker performance
+        .sheet(isPresented: $isShowingPlusMenu) { plusMenuSheetContent }
+        // Voice agent conversation sheet — extracted for type-checker performance
+        .sheet(isPresented: conversationSheetBinding) { conversationSheetContent }
         // US-024 paywall sheet — shown when a free user taps an AI-gated
         // action. The view's onUnlocked closure resumes the original
         // action (saved by MapViewModel as `onPaywallUnlocked`).
@@ -375,6 +304,39 @@ public struct CompassMapView: View {
                 }
             )
             .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var conversationSheetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                voiceOrchestrator != nil && !isShowingVoiceOverlay
+            },
+            set: { showing in
+                if !showing {
+                    voiceOrchestrator?.stop()
+                    voiceOrchestrator = nil
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var conversationSheetContent: some View {
+        if let orch = voiceOrchestrator {
+            ConversationSheet(
+                onClose: {
+                    orch.stop()
+                    voiceOrchestrator = nil
+                },
+                onSubmitText: { orch.handleTextInput($0) },
+                voiceService: voiceService,
+                onVoiceTranscript: { orch.handleTranscript($0) },
+                orchestrator: orch
+            )
+            .environment(orch.session)
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
     }
