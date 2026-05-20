@@ -23,10 +23,75 @@ public struct CompassMapView: View {
     @State private var isShowingFavorites: Bool = false
     @State private var voiceOrchestrator: VoiceAgentOrchestrator? = nil
 
+    // "+" quick-action menu state
+    @State private var isShowingPlusMenu: Bool = false
+
+    // Voice agent inline overlay (long-press path)
+    @State private var isShowingVoiceOverlay: Bool = false
+
 
     public init() {}
 
     public var body: some View {
+        AnyView(mapContent)
+    }
+
+    @ViewBuilder
+    private var mapContent: some View {
+        mapZStack
+            .background(Color(.systemBackground))
+            .onAppear {
+                locationService.requestPermission()
+                if viewModel == nil {
+                    let vm = MapViewModel(
+                        locationService: locationService,
+                        experienceService: experienceService,
+                        aiService: aiService,
+                        preferences: preferences
+                    )
+                    vm.attachSubscriptionService(subscriptionService)
+                    viewModel = vm
+                    // On first launch with no saved city and no GPS, prompt city picker.
+                    if preferences.lastSelectedCity == nil && locationService.currentLocation == nil {
+                        isShowingCityPicker = true
+                    }
+                }
+                viewModel?.checkForPendingCheckIns()
+            }
+            .onChange(of: locationService.currentLocation) { _, _ in
+                viewModel?.bindToLocation()
+            }
+            .onChange(of: preferences.pendingCheckIns) { _, _ in
+                viewModel?.checkForPendingCheckIns()
+            }
+            .sheet(isPresented: settingsSheetBinding) { settingsSheetContent }
+            .sheet(item: $surveyExperience) { exp in surveySheetContent(exp: exp) }
+            .alert(
+                NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
+                isPresented: addExperienceAlertBinding
+            ) {
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
+                    viewModel?.cancelAddExperience()
+                }
+                Button(NSLocalizedString("addExperience.confirm.add", comment: "Add")) {
+                    viewModel?.confirmAddExperience()
+                }
+            } message: {
+                Text(NSLocalizedString("addExperience.confirm.message", comment: "Describe it with your voice"))
+            }
+            .sheet(isPresented: recordExperienceSheetBinding) { recordExperienceSheetContent }
+            .sheet(isPresented: detailSheetBinding) { detailSheetContent }
+            .sheet(isPresented: $isShowingCityPicker) { cityPickerSheetContent }
+            .sheet(isPresented: $isShowingFavorites) { favoritesSheetContent }
+            .sheet(isPresented: $isShowingPlusMenu) { plusMenuSheetContent }
+            .sheet(isPresented: conversationSheetBinding) { conversationSheetContent }
+            .sheet(isPresented: paywallSheetBinding) { paywallSheetContent }
+            .modifier(ExploreConsentSheetModifier(viewModel: viewModel, preferences: preferences))
+            .fullScreenCover(isPresented: onboardingCoverBinding) { onboardingCoverContent }
+    }
+
+    @ViewBuilder
+    private var mapZStack: some View {
         ZStack {
             if let viewModel {
                 mapLayer(viewModel: viewModel)
@@ -43,85 +108,15 @@ public struct CompassMapView: View {
 
                 VStack {
                     Spacer()
-                    HStack(alignment: .bottom) {
-                        Button {
-                            viewModel.isShowingSettings = true
-                        } label: {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.title3)
-                                .frame(width: 48, height: 48)
-                                .background(Circle().fill(.regularMaterial))
-                                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 20)
-                        .padding(.bottom, 80)
-                        .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
-
-                        // Explore-here button — pulls real OSM POIs near the
-                        // current location and asks AIService to enrich them.
-                        // US-026: free users see "Explore (Pro)" with a lock icon;
-                        // tapping triggers the paywall instead of an actual Pro call.
-                        Button {
-                            let anchor = viewModel.exploreAnchorCoordinate
-                            Task { await viewModel.exploreNearby(at: anchor) }
-                        } label: {
-                            Group {
-                                if viewModel.isExploring || viewModel.isExploringFreeMode {
-                                    ProgressView()
-                                        .progressViewStyle(.circular)
-                                } else if viewModel.isProUser {
-                                    Image(systemName: "sparkle.magnifyingglass")
-                                        .font(.title3)
-                                } else {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "lock.fill")
-                                            .font(.caption.weight(.semibold))
-                                        Text(NSLocalizedString("explore.button.pro", comment: "Explore (Pro)"))
-                                            .font(.caption.weight(.semibold))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 8)
-                                }
-                            }
-                            .frame(minWidth: 48, minHeight: 48)
-                            .background(Capsule().fill(.regularMaterial))
-                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 12)
-                        .padding(.bottom, 80)
-                        .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
-                        .accessibilityLabel(Text(
-                            viewModel.isProUser
-                                ? NSLocalizedString("explore.button", comment: "Explore here")
-                                : NSLocalizedString("explore.button.pro", comment: "Explore (Pro)")
-                        ))
-
-                        Spacer()
-
-                        // Tap (short press) → quick single-shot voice ask.
-                        // Long-press (≥1 s) → opens the multi-turn ConversationSheet.
-                        VoiceButton(voiceService: voiceService) { transcript in
-                            Task { await viewModel.handleVoiceTranscript(transcript) }
-                        }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 1.0)
-                                .onEnded { _ in
-                                    let orch = VoiceAgentOrchestrator(
-                                        aiService: aiService,
-                                        voiceService: voiceService,
-                                        mapViewModel: viewModel,
-                                        preferences: preferences
-                                    )
-                                    orch.start()
-                                    voiceOrchestrator = orch
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                }
-                        )
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 80)
-                    }
+                    MapControlBar(
+                        viewModel: viewModel,
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        preferences: preferences,
+                        isShowingPlusMenu: $isShowingPlusMenu,
+                        isShowingVoiceOverlay: $isShowingVoiceOverlay,
+                        voiceOrchestrator: $voiceOrchestrator
+                    )
                 }
 
                 if let selected = viewModel.selectedExperience, !viewModel.isShowingDetail {
@@ -137,7 +132,19 @@ public struct CompassMapView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                if viewModel.visibleExperiences.isEmpty {
+                if isShowingVoiceOverlay, let orch = voiceOrchestrator {
+                    VoiceAgentInlineOverlay(
+                        orchestrator: orch,
+                        voiceService: voiceService,
+                        onDismiss: {
+                            orch.stop()
+                            voiceOrchestrator = nil
+                            isShowingVoiceOverlay = false
+                        }
+                    )
+                }
+
+                if viewModel.visibleExperiences.isEmpty && !isShowingVoiceOverlay {
                     EmptyStateOverlay(
                         viewModel: viewModel,
                         preferences: preferences,
@@ -149,135 +156,221 @@ public struct CompassMapView: View {
                     .accessibilityLabel(Text(NSLocalizedString("map.loading", comment: "Loading map")))
             }
         }
-        .background(Color(.systemBackground))
-        .onAppear {
-            locationService.requestPermission()
-            if viewModel == nil {
-                let vm = MapViewModel(
-                    locationService: locationService,
-                    experienceService: experienceService,
-                    aiService: aiService,
-                    preferences: preferences
-                )
-                vm.attachSubscriptionService(subscriptionService)
-                viewModel = vm
-                // On first launch with no saved city and no GPS, prompt city picker.
-                if preferences.lastSelectedCity == nil && locationService.currentLocation == nil {
-                    isShowingCityPicker = true
-                }
-            }
-            viewModel?.checkForPendingCheckIns()
-        }
-        .onChange(of: locationService.currentLocation) { _, _ in
-            viewModel?.bindToLocation()
-        }
-        .onChange(of: preferences.pendingCheckIns) { _, _ in
-            viewModel?.checkForPendingCheckIns()
-        }
-        // Settings sheet
-        .sheet(isPresented: Binding(
+    }
+
+    // MARK: - Sheet Bindings
+
+    private var settingsSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isShowingSettings ?? false },
             set: { if !$0 { viewModel?.isShowingSettings = false } }
-        )) {
-            SettingsView(
-                onClose: { viewModel?.isShowingSettings = false },
-                onShowFavorites: { isShowingFavorites = true }
-            )
-            .environment(preferences)
-            .environment(notificationService)
-        }
-        // MicroSurvey sheet (shown after marking an experience done)
-        .sheet(item: $surveyExperience) { exp in
-            MicroSurveySheet(
-                experience: exp,
-                onSubmit: { comfort, pressure, recommend in
-                    // US-020: persist via the repo so the aggregated
-                    // SoloScore reflects this immediately.
-                    experienceService.repo.recordSurvey(
-                        experienceId: exp.id,
-                        comfort: comfort,
-                        pressure: pressure,
-                        recommend: recommend.rawValue,
-                        anonDeviceId: DeviceIdentityService.shared.deviceID
-                    )
-                    surveyExperience = nil
-                },
-                onSkip: { surveyExperience = nil }
-            )
-        }
-        .alert(
-            NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
-            isPresented: Binding(
-                get: { (viewModel?.pendingAddCoordinate != nil) && (viewModel?.isRecordingNewExperience == false) },
-                set: { if !$0 { viewModel?.cancelAddExperience() } }
-            )
-        ) {
-            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
-                viewModel?.cancelAddExperience()
-            }
-            Button(NSLocalizedString("addExperience.confirm.add", comment: "Add")) {
-                viewModel?.confirmAddExperience()
-            }
-        } message: {
-            Text(NSLocalizedString("addExperience.confirm.message", comment: "Describe it with your voice"))
-        }
-        .sheet(isPresented: Binding(
+        )
+    }
+
+    private var addExperienceAlertBinding: Binding<Bool> {
+        Binding(
+            get: { (viewModel?.pendingAddCoordinate != nil) && (viewModel?.isRecordingNewExperience == false) },
+            set: { if !$0 { viewModel?.cancelAddExperience() } }
+        )
+    }
+
+    private var recordExperienceSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isRecordingNewExperience ?? false },
             set: { if !$0 { viewModel?.cancelAddExperience() } }
-        )) {
-            VStack(spacing: 24) {
-                Text(NSLocalizedString("addExperience.record.title", comment: "Tell us about this place"))
-                    .font(.headline)
-                Text(NSLocalizedString("addExperience.record.hint", comment: "Hold the mic and describe what makes it worth a solo visit"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                VoiceButton(voiceService: voiceService) { transcript in
-                    Task { await viewModel?.handleNewExperienceTranscript(transcript) }
-                }
-            }
-            .padding(32)
-            .presentationDetents([.medium])
-        }
-        .sheet(isPresented: Binding(
+        )
+    }
+
+    private var detailSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isShowingDetail ?? false },
             set: { if !$0 { viewModel?.isShowingDetail = false } }
-        )) {
-            if let exp = viewModel?.selectedExperience {
-                NavigationStack {
-                    ExperienceDetailView(
-                        viewModel: ExperienceDetailViewModel(
-                            experience: exp,
-                            experienceService: experienceService,
-                            aiService: aiService,
-                            preferences: preferences,
-                            subscriptionService: subscriptionService
-                        ),
-                        onClose: { viewModel?.dismissDetail() },
-                        onMarkDone: { experience in surveyExperience = experience }
+        )
+    }
+
+    private var paywallSheetBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel?.isShowingPaywall ?? false },
+            set: { if !$0 { viewModel?.isShowingPaywall = false } }
+        )
+    }
+
+    private var onboardingCoverBinding: Binding<Bool> {
+        Binding(
+            get: { !preferences.hasCompletedOnboarding },
+            set: { if $0 { } else { preferences.completeOnboarding() } }
+        )
+    }
+
+    // MARK: - Sheet Contents
+
+    @ViewBuilder
+    private var settingsSheetContent: some View {
+        SettingsView(
+            onClose: { viewModel?.isShowingSettings = false },
+            onShowFavorites: { isShowingFavorites = true }
+        )
+        .environment(preferences)
+        .environment(notificationService)
+    }
+
+    @ViewBuilder
+    private func surveySheetContent(exp: Experience) -> some View {
+        MicroSurveySheet(
+            experience: exp,
+            onSubmit: { comfort, pressure, recommend in
+                // US-020: persist via the repo so the aggregated
+                // SoloScore reflects this immediately.
+                experienceService.repo.recordSurvey(
+                    experienceId: exp.id,
+                    comfort: comfort,
+                    pressure: pressure,
+                    recommend: recommend.rawValue,
+                    anonDeviceId: DeviceIdentityService.shared.deviceID
+                )
+                surveyExperience = nil
+            },
+            onSkip: { surveyExperience = nil }
+        )
+    }
+
+    @ViewBuilder
+    private var recordExperienceSheetContent: some View {
+        VStack(spacing: 24) {
+            Text(NSLocalizedString("addExperience.record.title", comment: "Tell us about this place"))
+                .font(.headline)
+            Text(NSLocalizedString("addExperience.record.hint", comment: "Hold the mic and describe what makes it worth a solo visit"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            VoiceButton(voiceService: voiceService) { transcript in
+                Task { await viewModel?.handleNewExperienceTranscript(transcript) }
+            }
+        }
+        .padding(32)
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder
+    private var detailSheetContent: some View {
+        if let exp = viewModel?.selectedExperience {
+            NavigationStack {
+                ExperienceDetailView(
+                    viewModel: ExperienceDetailViewModel(
+                        experience: exp,
+                        experienceService: experienceService,
+                        aiService: aiService,
+                        preferences: preferences,
+                        subscriptionService: subscriptionService
+                    ),
+                    onClose: { viewModel?.dismissDetail() },
+                    onMarkDone: { experience in surveyExperience = experience }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cityPickerSheetContent: some View {
+        if let vm = viewModel {
+            CityPickerSheet(viewModel: vm) {
+                isShowingCityPicker = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var favoritesSheetContent: some View {
+        FavoritesListView { exp in
+            isShowingFavorites = false
+            viewModel?.selectExperience(exp)
+            viewModel?.isShowingDetail = true
+        }
+        .environment(experienceService)
+        .environment(preferences)
+    }
+
+    @ViewBuilder
+    private var paywallSheetContent: some View {
+        PaywallView(onUnlocked: {
+            let resume = viewModel?.onPaywallUnlocked
+            viewModel?.onPaywallUnlocked = nil
+            resume?()
+        })
+        .environment(subscriptionService)
+    }
+
+    @ViewBuilder
+    private var onboardingCoverContent: some View {
+        OnboardingView {
+            // onComplete — preferences.hasCompletedOnboarding already set inside
+        }
+        .environment(locationService)
+        .environment(preferences)
+    }
+
+
+    @ViewBuilder
+    private var plusMenuSheetContent: some View {
+        if let vm = viewModel {
+            PlusMenuSheet(
+                isPresented: $isShowingPlusMenu,
+                onQuickAsk: { text in
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: vm,
+                        preferences: preferences
                     )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    orch.handleTextInput(text)
+                    isShowingVoiceOverlay = true
+                },
+                onFilter: {
+                    isShowingPlusMenu = false
+                },
+                onNavigate: { destination in
+                    isShowingPlusMenu = false
+                    Task { await vm.handleVoiceTranscript("Navigate to \(destination)") }
+                },
+                onVoiceAgent: {
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: vm,
+                        preferences: preferences
+                    )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    isShowingVoiceOverlay = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var conversationSheetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                voiceOrchestrator != nil && !isShowingVoiceOverlay
+            },
+            set: { showing in
+                if !showing {
+                    voiceOrchestrator?.stop()
+                    voiceOrchestrator = nil
                 }
             }
-        }
-        .sheet(isPresented: $isShowingCityPicker) {
-            if let vm = viewModel {
-                CityPickerSheet(viewModel: vm) {
-                    isShowingCityPicker = false
-                }
-            }
-        }
-        // Favorites list sheet
-        .sheet(isPresented: $isShowingFavorites) {
-            FavoritesListView { exp in
-                isShowingFavorites = false
-                viewModel?.selectExperience(exp)
-                viewModel?.isShowingDetail = true
-            }
-            .environment(experienceService)
-            .environment(preferences)
-        }
-        // Voice agent conversation sheet — opened by long-pressing the mic button.
-        .sheet(item: $voiceOrchestrator) { orch in
+        )
+    }
+
+    @ViewBuilder
+    private var conversationSheetContent: some View {
+        if let orch = voiceOrchestrator {
             ConversationSheet(
                 onClose: {
                     orch.stop()
@@ -285,40 +378,12 @@ public struct CompassMapView: View {
                 },
                 onSubmitText: { orch.handleTextInput($0) },
                 voiceService: voiceService,
-                onVoiceTranscript: { orch.handleTranscript($0) }
+                onVoiceTranscript: { orch.handleTranscript($0) },
+                orchestrator: orch
             )
             .environment(orch.session)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-        }
-        // US-024 paywall sheet — shown when a free user taps an AI-gated
-        // action. The view's onUnlocked closure resumes the original
-        // action (saved by MapViewModel as `onPaywallUnlocked`).
-        .sheet(isPresented: Binding(
-            get: { viewModel?.isShowingPaywall ?? false },
-            set: { if !$0 { viewModel?.isShowingPaywall = false } }
-        )) {
-            PaywallView(onUnlocked: {
-                let resume = viewModel?.onPaywallUnlocked
-                viewModel?.onPaywallUnlocked = nil
-                resume?()
-            })
-            .environment(subscriptionService)
-        }
-        .modifier(ExploreConsentSheetModifier(
-            viewModel: viewModel,
-            preferences: preferences
-        ))
-        // First-run onboarding
-        .fullScreenCover(isPresented: Binding(
-            get: { !preferences.hasCompletedOnboarding },
-            set: { if $0 { } else { preferences.completeOnboarding() } }
-        )) {
-            OnboardingView {
-                // onComplete — preferences.hasCompletedOnboarding already set inside
-            }
-            .environment(locationService)
-            .environment(preferences)
         }
     }
 
@@ -644,6 +709,291 @@ private struct DismissibleBanner: View {
         .transition(.move(edge: .top).combined(with: .opacity))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(text))
+    }
+}
+
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// fires `onLongPress` and provides haptic feedback.
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// Bottom control bar: settings, explore, spacer, \"+\" button.
+/// Extracted to prevent type-check timeouts in the CompassMapView body.
+private struct MapControlBar: View {
+    let viewModel: MapViewModel
+    let aiService: AIService
+    let voiceService: VoiceService
+    let preferences: UserPreferences
+    @Binding var isShowingPlusMenu: Bool
+    @Binding var isShowingVoiceOverlay: Bool
+    @Binding var voiceOrchestrator: VoiceAgentOrchestrator?
+
+    var body: some View {
+        HStack(alignment: .bottom) {
+            Button {
+                viewModel.isShowingSettings = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.title3)
+                    .frame(width: 48, height: 48)
+                    .background(Circle().fill(.regularMaterial))
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 20)
+            .padding(.bottom, 80)
+            .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
+
+            Button {
+                let anchor = viewModel.exploreAnchorCoordinate
+                Task { await viewModel.exploreNearby(at: anchor) }
+            } label: {
+                Group {
+                    if viewModel.isExploring || viewModel.isExploringFreeMode {
+                        ProgressView().progressViewStyle(.circular)
+                    } else if viewModel.isProUser {
+                        Image(systemName: "sparkle.magnifyingglass").font(.title3)
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.fill").font(.caption.weight(.semibold))
+                            Text(NSLocalizedString("explore.button.pro", comment: "Explore (Pro)"))
+                                .font(.caption.weight(.semibold)).lineLimit(1)
+                        }.padding(.horizontal, 8)
+                    }
+                }
+                .frame(minWidth: 48, minHeight: 48)
+                .background(Capsule().fill(.regularMaterial))
+                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 12)
+            .padding(.bottom, 80)
+            .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
+
+            Spacer()
+
+            PlusActionButton(
+                isShowingMenu: $isShowingPlusMenu,
+                onShortTap: {
+                    guard !isShowingVoiceOverlay else { return }
+                    isShowingPlusMenu = true
+                },
+                onLongPress: {
+                    guard !isShowingVoiceOverlay, voiceOrchestrator == nil else { return }
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: viewModel,
+                        preferences: preferences
+                    )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    isShowingVoiceOverlay = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            )
+            .padding(.trailing, 20)
+            .padding(.bottom, 80)
+        }
+    }
+}
+
+/// Inline voice agent overlay that dims the map and shows the thinking
+/// overlay + hold-to-speak orb. Extracted to prevent type-check timeouts
+/// in the CompassMapView body.
+private struct VoiceAgentInlineOverlay: View {
+    let orchestrator: VoiceAgentOrchestrator
+    let voiceService: VoiceService
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(0.25)
+                .ignoresSafeArea()
+                .onTapGesture { } // absorb taps to map
+
+            VStack(spacing: 0) {
+                ThinkingOverlay(
+                    stepLabel: orchestrator.thinkingStep,
+                    streamingText: orchestrator.streamingContent,
+                    isExecutingTool: orchestrator.isExecutingTool,
+                    errorMessage: orchestrator.errorMessage
+                )
+                .padding(.top, 100)
+
+                Spacer()
+
+                VoiceAgentOverlay(
+                    orchestrator: orchestrator,
+                    voiceService: voiceService,
+                    onDismiss: onDismiss
+                )
+            }
+        }
+        .transition(.opacity)
+    }
+}
+
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// fires `onLongPress` and provides haptic feedback.
+///
+/// Uses a sequenced ExclusiveGesture: long press takes priority over tap so
+/// a held gesture doesn't also fire the menu.
+private struct PlusActionButton: View {
+    @Binding var isShowingMenu: Bool
+    let onShortTap: () -> Void
+    let onLongPress: () -> Void
+
+    @State private var longPressFired = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.85))
+                .frame(width: 56, height: 56)
+                .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
+                .scaleEffect(longPressFired ? 1.12 : 1.0)
+                .animation(.spring(response: 0.25), value: longPressFired)
+
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+        }
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    defer { longPressFired = false }
+                    guard !longPressFired else { return }
+                    onShortTap()
+                }
+        )
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.8)
+                .onEnded { _ in
+                    longPressFired = true
+                    onLongPress()
+                }
+        )
+        .accessibilityLabel(Text(NSLocalizedString("plus.button.a11y", comment: "Quick actions")))
+        .accessibilityHint(Text(NSLocalizedString("plus.button.hint", comment: "Tap for quick actions, hold for voice")))
+    }
+}
+
+/// Quick-action sheet opened by tapping the "+" button.
+private struct PlusMenuSheet: View {
+    @Binding var isPresented: Bool
+    let onQuickAsk: (String) -> Void
+    let onFilter: () -> Void
+    let onNavigate: (String) -> Void
+    let onVoiceAgent: () -> Void
+
+    @State private var askText: String = ""
+    @State private var navigateText: String = ""
+    @FocusState private var askFieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    // Quick Ask
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(
+                            NSLocalizedString("plus.menu.ask", comment: "Ask Solo"),
+                            systemImage: "bubble.left.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+
+                        HStack(spacing: 8) {
+                            TextField(
+                                NSLocalizedString("plus.menu.ask.placeholder", comment: "What are you looking for?"),
+                                text: $askText
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.send)
+                            .focused($askFieldFocused)
+                            .onSubmit { submitAsk() }
+
+                            Button(action: submitAsk) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(askText.isEmpty ? Color.secondary : Color.accentColor)
+                            }
+                            .disabled(askText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding(.vertical, 4)
+
+                    // Voice agent
+                    Button(action: onVoiceAgent) {
+                        Label(
+                            NSLocalizedString("plus.menu.voice", comment: "Voice Agent"),
+                            systemImage: "mic.fill"
+                        )
+                    }
+                    .foregroundStyle(.primary)
+                }
+
+                Section {
+                    // Filter Map
+                    Button(action: onFilter) {
+                        Label(
+                            NSLocalizedString("plus.menu.filter", comment: "Filter Map"),
+                            systemImage: "line.3.horizontal.decrease.circle"
+                        )
+                    }
+                    .foregroundStyle(.primary)
+
+                    // Navigate To
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(
+                            NSLocalizedString("plus.menu.navigate", comment: "Navigate To…"),
+                            systemImage: "arrow.triangle.turn.up.right.circle.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+
+                        HStack(spacing: 8) {
+                            TextField(
+                                NSLocalizedString("plus.menu.navigate.placeholder", comment: "Destination…"),
+                                text: $navigateText
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.go)
+                            .onSubmit { submitNavigate() }
+
+                            Button(action: submitNavigate) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(navigateText.isEmpty ? Color.secondary : Color.accentColor)
+                            }
+                            .disabled(navigateText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle(NSLocalizedString("plus.menu.title", comment: "Quick Actions"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(NSLocalizedString("common.close", comment: "Close")) {
+                        isPresented = false
+                    }
+                }
+            }
+        }
+        .onAppear { askFieldFocused = true }
+    }
+
+    private func submitAsk() {
+        let trimmed = askText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onQuickAsk(trimmed)
+    }
+
+    private func submitNavigate() {
+        let trimmed = navigateText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onNavigate(trimmed)
     }
 }
 

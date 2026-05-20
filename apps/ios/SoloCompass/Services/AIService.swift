@@ -217,6 +217,124 @@ public final class AIService {
         }
     }
 
+    // MARK: - Voice agent streaming (US-VA-08)
+
+    /// Events emitted by `sendAgentMessageStreaming`. The orchestrator
+    /// subscribes and updates the UI progressively.
+    public enum StreamEvent: Sendable {
+        /// The model is streaming its text content word-by-word (delta).
+        case contentDelta(String)
+        /// The model decided to call a tool. `args` is raw JSON.
+        case toolCall(id: String, name: String, args: String)
+        /// All content + tool calls have been emitted.
+        case done
+    }
+
+    /// Stream one agent turn via SSE (`stream: true`). Emits `.toolCall`
+    /// events as function-call chunks arrive, then `.contentDelta` events
+    /// for plain-text tokens. Ends with `.done`. Falls back to the
+    /// non-streaming path on servers that don't support SSE.
+    public func sendAgentMessageStreaming(
+        messages: [VoiceAgentSession.Message],
+        tools: [AgentTool]
+    ) -> AsyncThrowingStream<StreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                await MainActor.run { self.isProcessing = true }
+                do {
+                    guard let key = Self.resolveAPIKey() else {
+                        throw AIError.missingAPIKey
+                    }
+                    guard let apiURL else {
+                        throw AIError.requestFailed(status: 0, body: "bad URL")
+                    }
+
+                    var request = URLRequest(url: apiURL)
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+                    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                    request.timeoutInterval = 60
+
+                    let body: [String: Any] = [
+                        "model": Self.modelName(for: .voice),
+                        "messages": Self.serializeAgentMessages(messages),
+                        "tools": Self.serializeAgentTools(tools),
+                        "tool_choice": "auto",
+                        "stream": true,
+                        "max_tokens": 512,
+                        "temperature": 0.3,
+                    ]
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+                    // Accumulate tool-call deltas keyed by index.
+                    var toolCallAccum: [Int: (id: String, name: String, args: String)] = [:]
+                    var contentAccum = ""
+
+                    let (bytes, response) = try await session.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else {
+                        throw AIError.requestFailed(status: 0, body: "no response")
+                    }
+                    guard (200..<300).contains(http.statusCode) else {
+                        throw AIError.requestFailed(status: http.statusCode, body: "streaming error")
+                    }
+
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data: ") else { continue }
+                        let payload = String(line.dropFirst(6))
+                        if payload == "[DONE]" { break }
+                        guard
+                            let data = payload.data(using: .utf8),
+                            let chunk = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                            let choices = chunk["choices"] as? [[String: Any]],
+                            let delta = choices.first?["delta"] as? [String: Any]
+                        else { continue }
+
+                        // Text content delta
+                        if let text = delta["content"] as? String, !text.isEmpty {
+                            contentAccum += text
+                            continuation.yield(.contentDelta(text))
+                        }
+
+                        // Tool call deltas
+                        if let rawCalls = delta["tool_calls"] as? [[String: Any]] {
+                            for rawCall in rawCalls {
+                                guard let idx = rawCall["index"] as? Int else { continue }
+                                let id = rawCall["id"] as? String ?? ""
+                                let fn = rawCall["function"] as? [String: Any]
+                                let name = fn?["name"] as? String ?? ""
+                                let argChunk = fn?["arguments"] as? String ?? ""
+                                if var existing = toolCallAccum[idx] {
+                                    existing.args += argChunk
+                                    if !id.isEmpty { existing.id = id }
+                                    if !name.isEmpty { existing.name = name }
+                                    toolCallAccum[idx] = existing
+                                } else {
+                                    toolCallAccum[idx] = (id: id, name: name, args: argChunk)
+                                }
+                            }
+                        }
+                    }
+
+                    // Emit accumulated tool calls in index order
+                    for idx in toolCallAccum.keys.sorted() {
+                        let call = toolCallAccum[idx]!
+                        continuation.yield(.toolCall(id: call.id, name: call.name, args: call.args))
+                    }
+
+                    continuation.yield(.done)
+                    continuation.finish()
+                    await MainActor.run { self.isProcessing = false }
+                } catch {
+                    await MainActor.run { self.isProcessing = false }
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+
+
     // MARK: - Voice agent (US-VA-02)
 
     /// Function-calling tool definition sent to DeepSeek. The `parameters`

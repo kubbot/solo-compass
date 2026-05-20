@@ -324,6 +324,43 @@
 "conversation.input.mic.a11y" = "Hold to speak";
 "conversation.input.send.a11y" = "Send message";
 
+/* Voice agent orchestrator step labels */
+"agent.step.listening" = "Listening…";
+"agent.step.thinking" = "Thinking…";
+"agent.step.exploreNearby" = "🔍 Searching nearby…";
+"agent.step.filter" = "🗂 Filtering map…";
+"agent.step.showDetails" = "📍 Opening details…";
+"agent.step.save" = "❤️ Saving to favorites…";
+"agent.step.dismiss" = "✕ Dismissing…";
+"agent.step.search" = "🔍 Searching places…";
+"agent.step.navigate" = "🗺 Opening navigation…";
+"agent.step.executing" = "⚙️ Executing…";
+
+/* Voice agent inline overlay (VoiceAgentOverlay) */
+"voiceAgent.orb.a11y" = "Hold to speak to Solo Compass";
+"voiceAgent.orb.hint" = "Double tap and hold to speak";
+"voiceAgent.orb.listening" = "Listening…";
+"voiceAgent.orb.release" = "Release to send";
+"voiceAgent.orb.responding" = "Responding…";
+"voiceAgent.orb.holdToSpeak" = "Hold to speak";
+"voiceAgent.permissionDenied" = "Microphone access needed — enable in Settings";
+"voiceAgent.error.streaming" = "Connection interrupted — please try again";
+"voiceAgent.tts.fallback" = "Response ready";
+
+/* "+" quick-action button and menu */
+"plus.button.a11y" = "Quick actions";
+"plus.button.hint" = "Tap for quick actions, hold for voice agent";
+"plus.menu.title" = "Quick Actions";
+"plus.menu.ask" = "Ask Solo";
+"plus.menu.ask.placeholder" = "What are you looking for?";
+"plus.menu.voice" = "Voice Agent";
+"plus.menu.filter" = "Filter Map";
+"plus.menu.navigate" = "Navigate To…";
+"plus.menu.navigate.placeholder" = "Destination…";
+
+/* Common */
+"common.settings" = "Settings";
+
 /* Location card + navigation picker */
 "location.navigate" = "Navigate";
 "location.copyCoords" = "Copy coordinates";
