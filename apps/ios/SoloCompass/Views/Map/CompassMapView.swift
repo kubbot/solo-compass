@@ -21,6 +21,7 @@ public struct CompassMapView: View {
     @State private var isShowingCityPicker: Bool = false
     @State private var surveyExperience: Experience? = nil
     @State private var isShowingFavorites: Bool = false
+    @State private var voiceOrchestrator: VoiceAgentOrchestrator? = nil
 
 
     public init() {}
@@ -99,9 +100,25 @@ public struct CompassMapView: View {
 
                         Spacer()
 
+                        // Tap (short press) → quick single-shot voice ask.
+                        // Long-press (≥1 s) → opens the multi-turn ConversationSheet.
                         VoiceButton(voiceService: voiceService) { transcript in
                             Task { await viewModel.handleVoiceTranscript(transcript) }
                         }
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 1.0)
+                                .onEnded { _ in
+                                    let orch = VoiceAgentOrchestrator(
+                                        aiService: aiService,
+                                        voiceService: voiceService,
+                                        mapViewModel: viewModel,
+                                        preferences: preferences
+                                    )
+                                    orch.start()
+                                    voiceOrchestrator = orch
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                }
+                        )
                         .padding(.trailing, 20)
                         .padding(.bottom, 80)
                     }
@@ -258,6 +275,21 @@ public struct CompassMapView: View {
             }
             .environment(experienceService)
             .environment(preferences)
+        }
+        // Voice agent conversation sheet — opened by long-pressing the mic button.
+        .sheet(item: $voiceOrchestrator) { orch in
+            ConversationSheet(
+                onClose: {
+                    orch.stop()
+                    voiceOrchestrator = nil
+                },
+                onSubmitText: { orch.handleTextInput($0) },
+                voiceService: voiceService,
+                onVoiceTranscript: { orch.handleTranscript($0) }
+            )
+            .environment(orch.session)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         // US-024 paywall sheet — shown when a free user taps an AI-gated
         // action. The view's onUnlocked closure resumes the original

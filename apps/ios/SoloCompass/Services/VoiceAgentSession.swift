@@ -224,6 +224,13 @@ public final class VoiceAgentSession {
         state = .idle
     }
 
+    /// Inject a system-role message mid-conversation (e.g. budget overflow
+    /// notice). Called by the orchestrator to steer the model without
+    /// adding a user turn that increments `turnCount`.
+    public func appendSystemContinuation(_ text: String) {
+        messages.append(Message(role: .system, content: text))
+    }
+
     /// Terminate the session. Idempotent — only the first call wins.
     public func end(reason: EndReason) {
         guard endReason == nil else { return }

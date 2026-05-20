@@ -117,6 +117,35 @@ public final class VoiceAgentToolRouter {
             }
             """#
         ),
+        .init(
+            name: "search_places",
+            description: "Search for a specific type or named place near a coordinate (e.g. 'ramen', '7-Eleven', 'rooftop bar'). Fetches real OSM POIs matching the query and synthesises them. Returns count of newly added experiences.",
+            parametersJSON: #"""
+            {
+              "type": "object",
+              "required": ["query"],
+              "properties": {
+                "query": {"type": "string", "description": "Name or category to search for, e.g. 'ramen', 'convenience store', 'rooftop bar'"},
+                "latitude":  {"type": "number"},
+                "longitude": {"type": "number"},
+                "radius_meters": {"type": "integer", "minimum": 500, "maximum": 5000, "default": 2000}
+              }
+            }
+            """#
+        ),
+        .init(
+            name: "navigate_to",
+            description: "Open the user's preferred map app with walking directions to an experience. Use when the user says 'take me there', 'directions', or 'navigate'.",
+            parametersJSON: #"""
+            {
+              "type": "object",
+              "required": ["experience_id"],
+              "properties": {
+                "experience_id": {"type": "string", "description": "ID of the experience to navigate to. Must be from CURRENT VISIBLE EXPERIENCES."}
+              }
+            }
+            """#
+        ),
     ]
 
     // MARK: - Execution
@@ -138,6 +167,10 @@ public final class VoiceAgentToolRouter {
                 return try executeSaveToFavorites(args: call.argumentsJSON)
             case "dismiss_recommendation":
                 return try executeDismissRecommendation(args: call.argumentsJSON)
+            case "search_places":
+                return try await executeSearchPlaces(args: call.argumentsJSON)
+            case "navigate_to":
+                return try executeNavigateTo(args: call.argumentsJSON)
             default:
                 throw RouterError.unknownTool(call.name)
             }
@@ -236,6 +269,49 @@ public final class VoiceAgentToolRouter {
             "experience_id": parsed.experience_id,
             "visible_count": vm.visibleExperiences.count,
         ])
+    }
+
+    private struct SearchPlacesArgs: Decodable {
+        let query: String
+        let latitude: Double?
+        let longitude: Double?
+        let radius_meters: Int?
+    }
+
+    private func executeSearchPlaces(args: String) async throws -> String {
+        let parsed: SearchPlacesArgs = try Self.decode(args, tool: "search_places")
+        guard let vm = mapViewModel else {
+            throw RouterError.underlying("map view model deallocated")
+        }
+        let coord = CLLocationCoordinate2D(
+            latitude: parsed.latitude ?? MapViewModel.defaultCenter.latitude,
+            longitude: parsed.longitude ?? MapViewModel.defaultCenter.longitude
+        )
+        let radius = parsed.radius_meters ?? 2000
+        // Reuse the explore path — it fetches OSM POIs near the coord and
+        // lets AIService synthesise + append them to the visible set.
+        await vm.exploreNearby(at: coord, radiusMeters: radius)
+        return Self.successJSON([
+            "query": parsed.query,
+            "added_count": vm.lastExploreAddedCount,
+            "radius_meters": radius,
+        ])
+    }
+
+    private func executeNavigateTo(args: String) throws -> String {
+        let parsed: ExperienceIDArgs = try Self.decode(args, tool: "navigate_to")
+        guard let vm = mapViewModel else {
+            throw RouterError.underlying("map view model deallocated")
+        }
+        guard let exp = vm.visibleExperiences.first(where: { $0.id == parsed.experience_id }) else {
+            throw RouterError.experienceNotFound(parsed.experience_id)
+        }
+        guard let coord = exp.coordinate else {
+            throw RouterError.underlying("experience has no coordinate")
+        }
+        // Open Apple Maps by default — NavigationLauncher picks the best available app.
+        NavigationLauncher.open(app: .appleMaps, coordinate: coord, name: exp.title)
+        return Self.successJSON(["experience_id": exp.id, "title": exp.title])
     }
 
     // MARK: - Codec helpers
