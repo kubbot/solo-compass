@@ -10,3 +10,5 @@ Tool: claude
 [2026-05-20T11:42:29Z] Story #US-006: Add camera offset when POI selected to avoid sheet overlap — PASSED
 [2026-05-20T11:45:31Z] Story #US-007: Remove placeholder copy from ExperienceDetailView Why-worth section — PASSED (salvaged after interrupted run)
 [2026-05-20T11:48:32Z] Story #US-008: Create SoloScoreRadarChart component with differentiated demo data — FAILED (iteration 1)
+[2026-05-20T11:50:21Z] Story #US-008: Create SoloScoreRadarChart component with differentiated demo data — FAILED (iteration 2)
+[2026-05-20T11:53:05Z] Story #US-008: Create SoloScoreRadarChart component with differentiated demo data — PASSED (committed by Claude, PRD sync)
