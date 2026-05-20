@@ -194,9 +194,9 @@ extension ExperienceService {
                     RealInconvenience(category: .crowds, text: "Tour buses occasionally arrive at sunset; weekdays are quieter."),
                 ],
                 soloScore: SoloScore(
-                    overall: 9.2,
-                    breakdown: .init(seatingFriendly: 9, soloPatronRatio: 8, staffPressure: 10, soloPortioning: 10, ambianceFit: 9, safety: 9),
-                    hint: "Sit anywhere, no one will bother you.",
+                    overall: 8.5,
+                    breakdown: .init(seatingFriendly: 9, soloPatronRatio: 5, staffPressure: 10, soloPortioning: 10, ambianceFit: 9, safety: 6),
+                    hint: "Sit anywhere, no one will bother you. Watch for tour groups at peak times.",
                     basedOnCount: 14
                 ),
                 sources: [
@@ -268,9 +268,9 @@ extension ExperienceService {
                     RealInconvenience(category: .logistics, text: "Cash only. Closed Sundays."),
                 ],
                 soloScore: SoloScore(
-                    overall: 8.8,
-                    breakdown: .init(seatingFriendly: 9, soloPatronRatio: 9, staffPressure: 9, soloPortioning: 10, ambianceFit: 8, safety: 9),
-                    hint: "Round table is the solo seat. Just sit down.",
+                    overall: 7.8,
+                    breakdown: .init(seatingFriendly: 6, soloPatronRatio: 9, staffPressure: 9, soloPortioning: 10, ambianceFit: 4, safety: 9),
+                    hint: "Great local food with high solo traffic, but crowded seating and a loud, bustling vibe.",
                     basedOnCount: 31
                 ),
                 sources: [
@@ -308,9 +308,9 @@ extension ExperienceService {
                     RealInconvenience(category: .weather, text: "Cold and damp before sunrise — bring a light layer."),
                 ],
                 soloScore: SoloScore(
-                    overall: 8.5,
-                    breakdown: .init(seatingFriendly: 9, soloPatronRatio: 7, staffPressure: 10, soloPortioning: 10, ambianceFit: 9, safety: 8),
-                    hint: "Sit at the back. Stay still. No one will speak to you.",
+                    overall: 7.5,
+                    breakdown: .init(seatingFriendly: 4, soloPatronRatio: 3, staffPressure: 10, soloPortioning: 10, ambianceFit: 9, safety: 5),
+                    hint: "Transcendent ambiance and zero pressure, but limited solo seating and a dark pre-dawn climb makes safety a concern for some.",
                     basedOnCount: 11
                 ),
                 sources: [

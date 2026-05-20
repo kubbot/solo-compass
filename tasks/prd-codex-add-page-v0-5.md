@@ -18,13 +18,13 @@
 
 ### 解决的问题
 
-| 类别 | 现状痛点 |
-|---|---|
-| 内容损失 | Save draft 后刷新即丢失，用户输入有损耗风险 |
-| 输入效率 | `⌘+Enter` 不工作，与 Web 通用心智模型不符 |
+| 类别       | 现状痛点                                                |
+| ---------- | ------------------------------------------------------- |
+| 内容损失   | Save draft 后刷新即丢失，用户输入有损耗风险             |
+| 输入效率   | `⌘+Enter` 不工作，与 Web 通用心智模型不符               |
 | 状态一致性 | 面包屑 / `QUEUED` 文案需刷新才正确，明显 SSR/CSR 不同步 |
-| 模式空缺 | Photo / File / Bookmarklet 按钮行为不明或异常 |
-| 导航缺失 | 队列卡片无法点入详情，闭环不完整 |
+| 模式空缺   | Photo / File / Bookmarklet 按钮行为不明或异常           |
+| 导航缺失   | 队列卡片无法点入详情，闭环不完整                        |
 
 ---
 
@@ -49,6 +49,7 @@
 **Description**：作为用户，我希望即使刷新或关闭浏览器，已经 Save draft 的内容也能在我回到 `/add` 时自动回填，从而避免内容丢失。
 
 **Acceptance Criteria**
+
 - [ ] 点击 `Save draft`：写入 `localStorage` 的 `codex:add:draft` 键（包含 `content`、`type`、`attachments_meta`、`savedAt`）
 - [ ] 页面挂载时：若 localStorage 中存在草稿且 `savedAt` 在 30 天内，回填到 textarea 并显示「Draft restored」提示（带「Discard」按钮）
 - [ ] 提交成功（`POST /api/memos` 201）后：清除该 localStorage 键
@@ -64,6 +65,7 @@
 **Description**：作为多设备用户，我希望草稿在登录的同一账号下跨浏览器/设备可见，避免换设备时丢失编辑进度。
 
 **Acceptance Criteria**
+
 - [ ] 新增 `GET /api/drafts/add` 返回当前用户最新草稿（最多 1 条），`200` 含 `{ content, type, updatedAt }`，无则返回 `204`
 - [ ] 新增 `PUT /api/drafts/add` 接收 `{ content, type }`，幂等更新，返回 `200`
 - [ ] 新增 `DELETE /api/drafts/add` 删除，返回 `204`
@@ -81,6 +83,7 @@
 **Description**：作为重度键盘用户，我希望在 textarea 内按 `⌘+Enter`（mac）或 `Ctrl+Enter`（Win/Linux）触发 Add 提交。
 
 **Acceptance Criteria**
+
 - [ ] textarea 监听 `keydown`：`(metaKey || ctrlKey) && key === 'Enter'` 触发与点击 Add 一致的提交流程
 - [ ] Add 按钮处于禁用态时（空内容）快捷键无效
 - [ ] 提交进行中再次按下不重复提交（受 Add 按钮 disabled 态保护）
@@ -96,6 +99,7 @@
 **Description**：作为从其他页面跳转到 `/add` 的用户，我希望顶部面包屑首帧即显示 `CODEX / Add`，而不是 `CODEX / Home`。
 
 **Acceptance Criteria**
+
 - [ ] 面包屑组件改为基于 `usePathname()` 的客户端派生，或在 server component 中按当前路由解析
 - [ ] 由 `/home`、`/wiki`、`/chat` 等任意页跳转到 `/add`，首帧（≤ 1 帧）面包屑即正确
 - [ ] 直接访问 `/add`、`/add?from=xxx` 等场景同样首帧正确
@@ -110,6 +114,7 @@
 **Description**：作为用户，我希望刚提交的新条目在 Compile Queue 中立即显示 `QUEUED`，而不是要等刷新才出现。
 
 **Acceptance Criteria**
+
 - [ ] `POST /api/memos` 201 响应里包含完整 memo 对象（含 `compile_status: 'queued'`、`created_at`）
 - [ ] 客户端用响应体乐观更新 Compile Queue 列表，**不再依赖** 二次 `GET /api/memos?compile_status=pending`
 - [ ] 列表项渲染：若 `compile_status === 'queued'` 显示 `QUEUED`；若为 `compiling` 显示 `COMPILING`；done 移入 Recently Compiled
@@ -125,6 +130,7 @@
 **Description**：作为用户，我希望点击 Compile Queue 或 Recently Compiled 中卡片主体区域，跳转到该 memo 的详情页查看完整内容与编译结果。
 
 **Acceptance Criteria**
+
 - [ ] 卡片主体（除右侧 LIGHT/FULL 切换标签及 ✕ 按钮以外的区域）为可点击区域
 - [ ] 点击导航至 `/memos/[id]`，使用 `next/link` 而非 `router.push`（保证可中键打开新标签）
 - [ ] 右侧 LIGHT/FULL 标签 `stopPropagation`，不触发跳转
@@ -140,6 +146,7 @@
 **Description**：作为用户，我希望进入详情页能看到这条 memo 的原文、类型、当前状态、编译结果（如已完成），并能从详情页返回 `/add`。
 
 **Acceptance Criteria**
+
 - [ ] 新增路由 `/memos/[id]`（Server Component + 客户端 SSE 订阅状态）
 - [ ] 服务端 `GET /api/memos/[id]` 返回 `{ id, type, content, compile_status, compiled_at, compiled_payload, created_at }`，不存在返回 `404`
 - [ ] 页面渲染：原文（保留换行、安全转义）、类型徽章、`QUEUED / COMPILING / DONE / FAILED` 状态、若 done 则展示 `compiled_payload`
@@ -157,6 +164,7 @@
 **Description**：作为用户，点击 URL 按钮时我希望切换为「URL 输入模式」（带链接预览/校验），而不是把当前页地址直接写入 textarea。
 
 **Acceptance Criteria**
+
 - [ ] 点击 URL 按钮：切换 `mode = 'url'`，按钮高亮，textarea placeholder 变为 `Paste a URL (https://...)`
 - [ ] textarea 内容**保持不变**，**不再**自动填入 `window.location.href`
 - [ ] 输入内容实时校验：非合法 URL 时 Add 按钮置灰并显示 `Enter a valid URL`
@@ -173,6 +181,7 @@
 **Description**：作为用户，点击 Photo 按钮时我希望弹出相册/相机选择器，选中后作为附件预览并随提交一起发送。
 
 **Acceptance Criteria**
+
 - [ ] 点击 Photo：触发隐藏 `<input type="file" accept="image/*" capture="environment">` 的 click
 - [ ] 选中文件后在 textarea 上方显示缩略图 + 文件名 + 大小 + ✕ 移除按钮
 - [ ] 单次最多 4 张图，超过提示 `Up to 4 photos per memo`
@@ -190,6 +199,7 @@
 **Description**：作为用户，点击 File 按钮时我希望弹出系统文件选择器，附件随提交发送。
 
 **Acceptance Criteria**
+
 - [ ] 点击 File：触发隐藏 `<input type="file" accept=".pdf,.md,.txt,.docx,.rtf">` 的 click
 - [ ] MIME 白名单：pdf / markdown / plain text / docx / rtf
 - [ ] 单次 1 个文件，单文件 ≤ 25MB,超出提示具体错误
@@ -206,6 +216,7 @@
 **Description**：作为用户，点击 Bookmarklet 按钮我希望看到「拖到书签栏」的脚本与说明，而不是被自动附加一个无关图片。
 
 **Acceptance Criteria**
+
 - [ ] 点击 Bookmarklet：弹出 Modal，内含
   - 一个可拖入书签栏的 `<a href="javascript:...">Save to Codex</a>` 链接
   - 一段说明：在任意页面点击该书签可一键收藏到 Codex
@@ -224,6 +235,7 @@
 **Description**：作为后端，我需要接收附件、安全存储、并把附件信息纳入 memo 的编译队列。
 
 **Acceptance Criteria**
+
 - [ ] `POST /api/memos` 支持 `multipart/form-data`，向后兼容 `application/json`
 - [ ] 服务端校验：MIME 白名单（image/jpeg|png|webp、application/pdf 等）、大小上限（图片 10MB，文件 25MB）
 - [ ] 文件存储到对象存储（已有方案），memo 表存 `attachments` 字段（数组：`{ url, mime, size, original_name }`）
@@ -239,6 +251,7 @@
 **Description**：作为用户，Voice 按钮当前为 `coming soon`，我希望它有清晰的视觉禁用态与 tooltip，而不是只能从 aria-label 中推断。
 
 **Acceptance Criteria**
+
 - [ ] Voice 按钮渲染为 `disabled` 态（降低不透明度 / 鼠标禁用光标）
 - [ ] hover / focus 显示 tooltip：`Voice input — coming soon`
 - [ ] 键盘 focus 时同样可读出 tooltip（用 `aria-describedby`）
@@ -253,6 +266,7 @@
 **Description**：作为用户，我希望模式按钮在快速点击、自动化点击下都能稳定在 200ms 内有视觉反馈，不出现 30s 渲染卡顿。
 
 **Acceptance Criteria**
+
 - [ ] 模式按钮 onClick 内不做同步阻塞操作（文件选择器/Modal 等异步打开）
 - [ ] 按钮高亮状态通过 React state 切换，避免大组件 re-render（局部 `useState` + memo）
 - [ ] 加 Playwright/E2E 压测脚本：100 次随机点击在 30s 内全部完成且无超时
@@ -266,6 +280,7 @@
 **Description**：作为键盘用户与无障碍用户，我希望 `/add` 页面所有交互均可达且有适当反馈。
 
 **Acceptance Criteria**
+
 - [ ] 输入区底部新增 hint：`⌘/Ctrl + Enter to submit · Drag & drop files supported`
 - [ ] 所有模式按钮均可 Tab 到达，焦点环明显
 - [ ] 附件 ✕ 移除按钮 `aria-label="Remove attachment"`
@@ -280,6 +295,7 @@
 > 编号便于代码 / 提交信息引用：`FR-X`。
 
 ### 草稿系统
+
 - **FR-1** 客户端在 `Save draft` 时写入 `localStorage` 键 `codex:add:draft`。
 - **FR-2** 服务端提供 `GET / PUT / DELETE /api/drafts/add`，支持单用户单草稿。
 - **FR-3** 客户端在 `Save draft` 后防抖 1.5s 调用 `PUT /api/drafts/add`，失败重试 ≤ 2 次。
@@ -287,16 +303,19 @@
 - **FR-5** 成功 `POST /api/memos` 后清除本地与服务端草稿。
 
 ### 提交链路
+
 - **FR-6** textarea 监听 `(meta|ctrl) + Enter` 触发 Add；IME 合成期忽略。
 - **FR-7** `POST /api/memos` 201 响应必须包含完整 memo 对象。
 - **FR-8** 客户端用 201 响应体乐观更新 Compile Queue，失败回滚 + toast。
 - **FR-9** SSE `/api/stream/compile` 推送的 `{ id, status, payload? }` 按 id 匹配并就地更新。
 
 ### 状态一致性
+
 - **FR-10** 面包屑基于 `usePathname()` 渲染，路由切换首帧正确。
 - **FR-11** 队列项渲染：`compile_status === 'queued' | 'compiling' | 'done' | 'failed'` 一一对应可见徽章。
 
 ### 模式系统
+
 - **FR-12** 模式枚举：`'text' | 'url' | 'photo' | 'file' | 'voice' | 'bookmarklet'`。
 - **FR-13** URL 模式：textarea 内容保持不变，校验为合法 URL 后才可提交。
 - **FR-14** Photo 模式：触发 `<input type="file" accept="image/*">`，最多 4 张，单张 ≤ 10MB。
@@ -306,14 +325,17 @@
 - **FR-18** 拖拽文件到 `/add` 整页区域：按 MIME 分流到 Photo / File 模式并附为附件。
 
 ### 详情页
+
 - **FR-19** 新增路由 `/memos/[id]`、API `GET /api/memos/[id]`、`POST /api/memos/[id]/recompile`。
 - **FR-20** 队列卡片主体使用 `next/link` 指向 `/memos/[id]`；右侧 LIGHT/FULL 切换 `stopPropagation`。
 
 ### 附件后端
+
 - **FR-21** `POST /api/memos` 支持 `multipart/form-data`，文件落对象存储，元数据写入 memo 表 `attachments` 字段。
 - **FR-22** 编译失败保留 `attachments`；详情页可重试编译。
 
 ### 性能与可达性
+
 - **FR-23** 模式切换单次 React commit ≤ 16ms。
 - **FR-24** axe-core 扫描 `/add` 与 `/memos/[id]` 路由：0 critical / serious violations。
 
@@ -358,16 +380,16 @@
 
 ## 8. Success Metrics
 
-| 指标 | 当前 | 目标 |
-|---|---|---|
-| 草稿恢复率（Save draft 后回访 24h 内回填） | 0% | ≥ 95% |
-| `⌘+Enter` 提交占总提交比 | 0% | ≥ 25%（推出后 14 天） |
-| 首帧面包屑正确率 | 部分 | 100% |
-| 新条目「QUEUED」首帧出现率 | 0% | 100% |
-| 队列卡片点击进详情转化率 | N/A | ≥ 20%（提交后 7 天内回看 memo） |
-| 模式按钮点击异常率（30s 超时 / 多余附件） | 偶发 | 0 |
-| `/add` 路由控制台 Error / Warning | 0 | 0（不退化） |
-| axe-core critical / serious violations | 未测 | 0 |
+| 指标                                       | 当前 | 目标                            |
+| ------------------------------------------ | ---- | ------------------------------- |
+| 草稿恢复率（Save draft 后回访 24h 内回填） | 0%   | ≥ 95%                           |
+| `⌘+Enter` 提交占总提交比                   | 0%   | ≥ 25%（推出后 14 天）           |
+| 首帧面包屑正确率                           | 部分 | 100%                            |
+| 新条目「QUEUED」首帧出现率                 | 0%   | 100%                            |
+| 队列卡片点击进详情转化率                   | N/A  | ≥ 20%（提交后 7 天内回看 memo） |
+| 模式按钮点击异常率（30s 超时 / 多余附件）  | 偶发 | 0                               |
+| `/add` 路由控制台 Error / Warning          | 0    | 0（不退化）                     |
+| axe-core critical / serious violations     | 未测 | 0                               |
 
 ---
 
@@ -384,17 +406,17 @@
 
 ## 附：缺陷映射表
 
-| 测试报告 BUG | 对应 User Story | 严重度 |
-|---|---|---|
-| BUG-01 草稿丢失 | US-001 + US-002 | 🔴 高 |
-| BUG-02 ⌘+Enter | US-003 | 🟡 中 |
-| BUG-03 卡片跳详情 | US-006 + US-007 | 🟡 中 |
-| BUG-04 面包屑首帧 | US-004 | 🟡 中 |
-| BUG-05 QUEUED 文案 | US-005 | 🟡 中 |
-| BUG-06 Bookmarklet 异常 | US-011 | 🟠 待确认 |
-| BUG-07 URL 按钮行为 | US-008 | 🟢 低 |
-| BUG-08 Photo/File 无 UI | US-009 + US-010 + US-012 | 🟢 低 |
-| BUG-09 渲染卡顿 | US-014 | 🟢 低 |
+| 测试报告 BUG            | 对应 User Story          | 严重度    |
+| ----------------------- | ------------------------ | --------- |
+| BUG-01 草稿丢失         | US-001 + US-002          | 🔴 高     |
+| BUG-02 ⌘+Enter          | US-003                   | 🟡 中     |
+| BUG-03 卡片跳详情       | US-006 + US-007          | 🟡 中     |
+| BUG-04 面包屑首帧       | US-004                   | 🟡 中     |
+| BUG-05 QUEUED 文案      | US-005                   | 🟡 中     |
+| BUG-06 Bookmarklet 异常 | US-011                   | 🟠 待确认 |
+| BUG-07 URL 按钮行为     | US-008                   | 🟢 低     |
+| BUG-08 Photo/File 无 UI | US-009 + US-010 + US-012 | 🟢 低     |
+| BUG-09 渲染卡顿         | US-014                   | 🟢 低     |
 
 ---
 

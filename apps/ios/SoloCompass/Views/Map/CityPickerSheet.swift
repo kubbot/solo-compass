@@ -1,10 +1,13 @@
 import SwiftUI
+import CoreLocation
 
 /// Bottom sheet for selecting a city (or "All Cities").
 /// Displayed when the user taps the city pill in the top-left of the map.
+/// US-019: Rows show experience count and distance from user location.
 public struct CityPickerSheet: View {
     @Bindable var viewModel: MapViewModel
     let onDismiss: () -> Void
+    @State private var userLocation: CLLocation?
 
     public var body: some View {
         NavigationStack {
@@ -15,11 +18,9 @@ public struct CityPickerSheet: View {
                     onDismiss()
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("city.all", comment: "All cities option"))
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                        }
+                        Text(NSLocalizedString("city.all", comment: "All cities option"))
+                            .font(.body)
+                            .foregroundStyle(.primary)
                         Spacer()
                         if viewModel.selectedCity == nil {
                             Image(systemName: "checkmark")
@@ -29,7 +30,8 @@ public struct CityPickerSheet: View {
                     }
                 }
 
-                ForEach(viewModel.availableCities, id: \.code) { city in
+                // US-019: Sort by distance ascending, then alphabetical
+                ForEach(sortedCities, id: \.code) { city in
                     Button {
                         viewModel.selectCity(city.code)
                         onDismiss()
@@ -37,20 +39,26 @@ public struct CityPickerSheet: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(city.name)
-                                    .font(.body)
+                                    .font(.headline)
                                     .foregroundStyle(.primary)
                                 Text(String(
                                     format: NSLocalizedString("city.experienceCount", comment: "Experience count in city"),
                                     viewModel.experienceCount(for: city.code)
                                 ))
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            if viewModel.selectedCity == city.code {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
-                                    .font(.body.weight(.semibold))
+                            VStack(alignment: .trailing, spacing: 2) {
+                                if viewModel.selectedCity == city.code {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.tint)
+                                        .font(.body.weight(.semibold))
+                                }
+                                Text(distanceLabel(for: city.center))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .monospacedDigit()
                             }
                         }
                     }
@@ -65,9 +73,40 @@ public struct CityPickerSheet: View {
                     }
                 }
             }
+            .onAppear {
+                // Capture user location once for sorting
+                userLocation = LocationService.shared.currentLocation
+            }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private var sortedCities: [(code: String, name: String, center: CLLocationCoordinate2D)] {
+        guard let userLoc = userLocation else {
+            return viewModel.availableCities.sorted { $0.name < $1.name }
+        }
+        return viewModel.availableCities.sorted { a, b in
+            let locA = CLLocation(latitude: a.center.latitude, longitude: a.center.longitude)
+            let locB = CLLocation(latitude: b.center.latitude, longitude: b.center.longitude)
+            let dA = userLoc.distance(from: locA)
+            let dB = userLoc.distance(from: locB)
+            if abs(dA - dB) < 1_000 { return a.name < b.name }
+            return dA < dB
+        }
+    }
+
+    private func distanceLabel(for coord: CLLocationCoordinate2D) -> String {
+        guard let userLoc = userLocation else {
+            return NSLocalizedString("city.distanceUnknown", comment: "Distance unknown")
+        }
+        let cityLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+        let km = userLoc.distance(from: cityLoc) / 1_000
+        if Locale.current.measurementSystem == .us {
+            let mi = km * 0.621371
+            return String(format: NSLocalizedString("city.distanceAway.mi", comment: ""), mi)
+        }
+        return String(format: NSLocalizedString("city.distanceAway", comment: ""), km)
     }
 }
 

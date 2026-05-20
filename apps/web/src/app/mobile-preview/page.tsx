@@ -77,7 +77,9 @@ function strings(lang: Lang): Strings {
       };
 }
 
-export default function MobilePreviewPage() {
+import { Suspense } from "react";
+
+function MobilePreviewInner() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -180,6 +182,14 @@ export default function MobilePreviewPage() {
       />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} lang={lang} />
     </div>
+  );
+}
+
+export default function MobilePreviewPage() {
+  return (
+    <Suspense>
+      <MobilePreviewInner />
+    </Suspense>
   );
 }
 

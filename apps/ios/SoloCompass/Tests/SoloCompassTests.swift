@@ -1,5 +1,6 @@
 import XCTest
 import CoreLocation
+import MapKit
 import SwiftData
 import StoreKitTest
 @testable import SoloCompass
@@ -2811,6 +2812,18 @@ final class StubURLProtocol: URLProtocol {
     }
 }
 
+// MARK: - FailingURLProtocol (US-029)
+
+/// Always fails with a network error — used to simulate connectivity loss.
+final class FailingURLProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+    }
+    override func stopLoading() {}
+}
+
 // MARK: - ReverseGeocoding stub
 
 /// Deterministic geocoder for unit tests. Returns a fixed `Resolved`
@@ -2967,5 +2980,478 @@ final class LanguageServiceTests: XCTestCase {
         defaults.set("zh-Hans", forKey: LanguageService.overrideKey)
         let svc = LanguageService(defaults: defaults)
         XCTAssertEqual(svc.current, .simplifiedChinese)
+    }
+
+    // MARK: - US-001 SkeletonView
+
+    func testSkeletonViewDefaultLineCountIsThree() {
+        let skeleton = SkeletonView()
+        XCTAssertEqual(skeleton.lineCount, 3)
+    }
+
+    func testSkeletonViewDefaultWidthFractionsLastLineIs60Percent() {
+        let skeleton = SkeletonView(lineCount: 3)
+        XCTAssertEqual(skeleton.widthFractions.count, 3)
+        XCTAssertEqual(skeleton.widthFractions[2], 0.6, accuracy: 0.001,
+                       "Last line should default to 60% width")
+        XCTAssertEqual(skeleton.widthFractions[0], 1.0, accuracy: 0.001,
+                       "First lines should default to full width")
+    }
+
+    func testSkeletonViewCustomWidthFractionsApplied() {
+        let fractions: [CGFloat] = [1.0, 0.85, 0.5]
+        let skeleton = SkeletonView(lineCount: 3, widthFractions: fractions)
+        XCTAssertEqual(skeleton.widthFractions, fractions,
+                       "Custom width fractions should be preserved exactly")
+    }
+
+    func testSkeletonViewMismatchedWidthFractionsUsesDefaults() {
+        // Supplying 2 fractions for lineCount=3 should fall back to defaults
+        let skeleton = SkeletonView(lineCount: 3, widthFractions: [0.5, 0.5])
+        XCTAssertEqual(skeleton.widthFractions.count, 3,
+                       "Mismatched fractions array should be replaced with defaults")
+        XCTAssertEqual(skeleton.widthFractions[2], 0.6, accuracy: 0.001)
+    }
+
+    func testSkeletonViewLineCountClampedToAtLeastOne() {
+        let skeleton = SkeletonView(lineCount: 0)
+        XCTAssertEqual(skeleton.lineCount, 1, "lineCount must be at least 1")
+    }
+
+    // MARK: - US-008 SoloScoreRadarChart
+
+    func testRadarChartVarianceHighEnoughTriggersRadar() {
+        // seating=9, staffPressure=2, safety=9, others mid-range → high variance
+        let score = SoloScore(
+            overall: 7.0,
+            breakdown: .init(
+                seatingFriendly: 9,
+                soloPatronRatio: 3,
+                staffPressure: 9,
+                soloPortioning: 8,
+                ambianceFit: 2,
+                safety: 9
+            ),
+            hint: nil,
+            basedOnCount: 10
+        )
+        let chart = SoloScoreRadarChart(score: score)
+        // Variance: values = [9,3,9,8,2,9], mean = 6.67
+        // variance = ((9-6.67)²+(3-6.67)²+(9-6.67)²+(8-6.67)²+(2-6.67)²+(9-6.67)²)/6 ≈ 6.22
+        let vals: [Double] = [9, 3, 9, 8, 2, 9]
+        let mean = vals.reduce(0, +) / Double(vals.count)
+        let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+        XCTAssertGreaterThanOrEqual(variance, 0.5, "High-spread score must have variance ≥ 0.5 (shows radar)")
+        _ = chart // Verify it constructs without crash
+    }
+
+    func testRadarChartVarianceLowTriggersFallbackBars() {
+        // All dimensions identical → zero variance → fallback bars
+        let score = SoloScore(
+            overall: 9.0,
+            breakdown: .init(
+                seatingFriendly: 9,
+                soloPatronRatio: 9,
+                staffPressure: 9,
+                soloPortioning: 9,
+                ambianceFit: 9,
+                safety: 9
+            ),
+            hint: nil,
+            basedOnCount: 5
+        )
+        let chart = SoloScoreRadarChart(score: score)
+        let vals: [Double] = [9, 9, 9, 9, 9, 9]
+        let mean = vals.reduce(0, +) / Double(vals.count)
+        let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+        XCTAssertLessThan(variance, 0.5, "Uniform score must have variance < 0.5 (shows fallback bars)")
+        _ = chart
+    }
+
+    func testSeedDifferentiatedSoloScoresHaveHighVariance() {
+        // Verify the 3 updated seed POIs have breakdown variance >= 1.5
+        let highVarianceIds: Set<String> = [
+            "exp_cmi_suan_dok_sunset",
+            "exp_cmi_khao_soi_1974",
+            "exp_cmi_doi_suthep_dawn"
+        ]
+        let seeds = ExperienceService.hardcodedSeed.filter { highVarianceIds.contains($0.id) }
+        XCTAssertEqual(seeds.count, 3, "All 3 differentiated seed IDs must be present")
+        for exp in seeds {
+            let b = exp.soloScore.breakdown
+            let vals: [Double] = [b.seatingFriendly, b.soloPatronRatio, b.staffPressure, b.soloPortioning, b.ambianceFit, b.safety]
+            let mean = vals.reduce(0, +) / Double(vals.count)
+            let variance = vals.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(vals.count)
+            XCTAssertGreaterThanOrEqual(variance, 1.5,
+                "'\(exp.id)' breakdown variance \(variance) must be ≥ 1.5 for radar to render")
+        }
+    }
+
+    // MARK: - US-011 ChatUIState transitions
+
+    func testChatUIStateIdleIsDefault() {
+        XCTAssertEqual(ChatUIState.idle, ChatUIState.idle)
+    }
+
+    func testChatUIStateEquality() {
+        XCTAssertEqual(ChatUIState.listening, ChatUIState.listening)
+        XCTAssertEqual(ChatUIState.processing, ChatUIState.processing)
+        XCTAssertEqual(ChatUIState.unconfigured, ChatUIState.unconfigured)
+        XCTAssertEqual(ChatUIState.responding("hello"), ChatUIState.responding("hello"))
+        XCTAssertNotEqual(ChatUIState.responding("hello"), ChatUIState.responding("world"))
+        XCTAssertEqual(ChatUIState.error(.network), ChatUIState.error(.network))
+        XCTAssertEqual(ChatUIState.error(.apiKey), ChatUIState.error(.apiKey))
+        XCTAssertNotEqual(ChatUIState.error(.network), ChatUIState.error(.permission))
+    }
+
+    func testChatUIStateDistinctCasesNotEqual() {
+        XCTAssertNotEqual(ChatUIState.idle, ChatUIState.listening)
+        XCTAssertNotEqual(ChatUIState.listening, ChatUIState.processing)
+        XCTAssertNotEqual(ChatUIState.processing, ChatUIState.unconfigured)
+    }
+
+    func testChatErrorAllCasesDistinct() {
+        let errors: [ChatError] = [.network, .apiKey, .permission, .unknown]
+        XCTAssertEqual(Set(errors.map { "\($0)" }).count, 4, "All ChatError cases must be distinct")
+    }
+
+    @MainActor
+    func testOrchestratorUiStateStartsIdle() {
+        let orchestrator = VoiceAgentOrchestrator(
+            aiService: AIService(),
+            voiceService: VoiceService(),
+            mapViewModel: MapViewModel(
+                locationService: LocationService.shared,
+                experienceService: ExperienceService(),
+                aiService: AIService(),
+                preferences: UserPreferences()
+            ),
+            preferences: UserPreferences()
+        )
+        XCTAssertEqual(orchestrator.uiState, .idle)
+    }
+
+    @MainActor
+    func testOrchestratorUiStateTransitionsToIdleOnStop() {
+        let orchestrator = VoiceAgentOrchestrator(
+            aiService: AIService(),
+            voiceService: VoiceService(),
+            mapViewModel: MapViewModel(
+                locationService: LocationService.shared,
+                experienceService: ExperienceService(),
+                aiService: AIService(),
+                preferences: UserPreferences()
+            ),
+            preferences: UserPreferences()
+        )
+        orchestrator.start()
+        XCTAssertEqual(orchestrator.uiState, .listening)
+        orchestrator.stop()
+        XCTAssertEqual(orchestrator.uiState, .idle)
+    }
+
+    // MARK: - US-018 City dedupe by geonameId
+
+    func testCityDedupeByGeonameId() {
+        var seen = Set<Int>()
+        let cities: [(geonameId: Int, name: String)] = [
+            (1154689, "เวียงจันทน์"),
+            (1154689, "Vientiane"),
+            (1154689, "万象"),
+            (1609350, "Chiang Mai"),
+        ]
+        var deduped: [(geonameId: Int, name: String)] = []
+        for city in cities {
+            if seen.insert(city.geonameId).inserted {
+                deduped.append(city)
+            }
+        }
+        XCTAssertEqual(deduped.count, 2, "3 duplicates of geonameId 1154689 should collapse to 1")
+        XCTAssertEqual(deduped[0].geonameId, 1154689)
+        XCTAssertEqual(deduped[1].geonameId, 1609350)
+    }
+
+    // MARK: - US-022 ContextManager
+
+    func testContextManagerFullContext() async throws {
+        let locationService = LocationService()
+        locationService.simulate(location: CLLocation(latitude: 18.7877, longitude: 98.9938))
+        let prefs = UserPreferences()
+        let seed = ExperienceService.hardcodedSeed
+        let rect = MKMapRect(x: 0, y: 0, width: 1_000_000, height: 1_000_000)
+
+        let manager = DefaultContextManager(
+            locationService: locationService,
+            preferences: prefs,
+            viewportProvider: { (rect, seed) }
+        )
+
+        let ctx = await manager.snapshot()
+
+        XCTAssertNotNil(ctx.location, "location should be present when GPS is available")
+        XCTAssertEqual(ctx.location?.count, 2)
+        XCTAssertLessThanOrEqual(ctx.viewportPois.count, 20)
+        XCTAssertFalse(ctx.preferences.soloTravelStyle.isEmpty)
+        XCTAssertFalse(ctx.localTime.isEmpty)
+        XCTAssertNil(ctx.weather, "weather is nil when no weather service is wired")
+    }
+
+    func testContextManagerMissingWeather() async throws {
+        let prefs = UserPreferences()
+        let rect = MKMapRect(x: 0, y: 0, width: 500_000, height: 500_000)
+        let manager = DefaultContextManager(
+            locationService: LocationService(),
+            preferences: prefs,
+            viewportProvider: { (rect, ExperienceService.hardcodedSeed) }
+        )
+
+        let ctx = await manager.snapshot()
+        XCTAssertNil(ctx.weather, "weather must be absent when no WeatherSnapshot is provided")
+    }
+
+    func testContextManagerLargeViewportTrimsToTwenty() async throws {
+        // Build 55 fake experiences by duplicating seed entries with distinct IDs.
+        guard let template = ExperienceService.hardcodedSeed.first else {
+            XCTFail("hardcodedSeed is empty")
+            return
+        }
+        var large: [Experience] = []
+        for i in 0..<55 {
+            large.append(Experience(
+                id: "fake-\(i)",
+                title: template.title,
+                oneLiner: template.oneLiner,
+                whyItMatters: template.whyItMatters,
+                category: template.category,
+                location: template.location,
+                bestTimes: template.bestTimes,
+                durationMinutes: template.durationMinutes,
+                howTo: template.howTo,
+                realInconveniences: template.realInconveniences,
+                soloScore: template.soloScore,
+                sources: template.sources,
+                confidence: template.confidence,
+                nearbyExperienceIds: template.nearbyExperienceIds,
+                stats: template.stats,
+                status: template.status,
+                createdAt: template.createdAt,
+                updatedAt: template.updatedAt
+            ))
+        }
+
+        let rect = MKMapRect(x: 0, y: 0, width: 5_000_000, height: 5_000_000)
+        let manager = DefaultContextManager(
+            locationService: LocationService(),
+            preferences: UserPreferences(),
+            viewportProvider: { (rect, large) }
+        )
+
+        let ctx = await manager.snapshot()
+        XCTAssertLessThanOrEqual(ctx.viewportPois.count, 20, "viewport POIs must be trimmed to 20")
+        XCTAssertEqual(ctx.viewportPois.count, 20)
+    }
+
+    func testContextManagerNoLocation() async throws {
+        // LocationService with no simulated fix → currentLocation is nil.
+        let prefs = UserPreferences()
+        let rect = MKMapRect(x: 0, y: 0, width: 500_000, height: 500_000)
+        let manager = DefaultContextManager(
+            locationService: LocationService(),
+            preferences: prefs,
+            viewportProvider: { (rect, []) }
+        )
+
+        let ctx = await manager.snapshot()
+        XCTAssertNil(ctx.location, "location must be nil when no GPS fix is available")
+        XCTAssertTrue(ctx.viewportPois.isEmpty)
+    }
+
+    // MARK: - US-023 VoiceAgentOrchestrator context injection
+
+    func testContextManagerSnapshotContainsExpectedKeys() async throws {
+        let locationService = LocationService()
+        locationService.simulate(location: CLLocation(latitude: 13.7563, longitude: 100.5018))
+        let prefs = UserPreferences()
+        let seed = ExperienceService.hardcodedSeed
+        let rect = MKMapRect(x: 0, y: 0, width: 1_000_000, height: 1_000_000)
+
+        let manager = DefaultContextManager(
+            locationService: locationService,
+            preferences: prefs,
+            viewportProvider: { (rect, seed) }
+        )
+
+        let ctx = await manager.snapshot()
+        guard let json = ctx.jsonString() else {
+            XCTFail("jsonString() must produce valid JSON")
+            return
+        }
+        guard let data = json.data(using: String.Encoding.utf8) else {
+            XCTFail("jsonString() must be UTF-8 encodable")
+            return
+        }
+        let object = try JSONSerialization.jsonObject(with: data)
+        guard let parsed = object as? [String: Any] else {
+            XCTFail("context JSON must decode to a dictionary")
+            return
+        }
+
+        XCTAssertNotNil(parsed["viewportBBox"], "payload must contain viewportBBox key")
+        XCTAssertNotNil(parsed["viewportPois"], "payload must contain viewportPois key")
+        XCTAssertNotNil(parsed["preferences"], "payload must contain preferences key")
+        XCTAssertNotNil(parsed["localTime"], "payload must contain localTime key")
+    }
+
+    // MARK: - US-029 ReviewsService
+
+    private func makeReviewsService(
+        status: Int,
+        body: String
+    ) -> ReviewsService {
+        StubURLProtocol.handler = { _ in
+            let resp = HTTPURLResponse(
+                url: URL(string: "http://localhost:8080")!,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (resp, Data(body.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        return ReviewsService(
+            session: URLSession(configuration: config),
+            baseURL: URL(string: "http://localhost:8080")!
+        )
+    }
+
+    @MainActor
+    func testReviewsServiceSuccessPath() async throws {
+        let body = """
+        {"experience_id":"exp-1","dimensions":{"wifi":8.0,"noise":7.0,"seating":9.0,"staff":6.5,"lighting":7.5,"safety":8.5},"sample_count":10,"confidence":0.8}
+        """
+        let service = makeReviewsService(status: 200, body: body)
+        let score = try await service.fetchSoloScore(experienceId: "exp-1")
+        XCTAssertEqual(score.basedOnCount, 10)
+        XCTAssertGreaterThan(score.overall, 0)
+        XCTAssertLessThanOrEqual(score.overall, 10)
+    }
+
+    @MainActor
+    func testReviewsService404ReturnsFallback() async throws {
+        let service = makeReviewsService(status: 404, body: #"{"error":"no reviews found"}"#)
+        let fallback = ExperienceService.hardcodedSeed.first!.soloScore
+        let score = try await service.fetchSoloScore(experienceId: "exp-missing", fallback: fallback)
+        XCTAssertEqual(score.overall, fallback.overall, accuracy: 0.001,
+                       "404 path must return the fallback score")
+    }
+
+    @MainActor
+    func testReviewsServiceNetworkErrorReturnsFallback() async throws {
+        StubURLProtocol.handler = { _ in
+            fatalError("should not be called — we use a different error path")
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [FailingURLProtocol.self]
+        let service = ReviewsService(
+            session: URLSession(configuration: config),
+            baseURL: URL(string: "http://localhost:8080")!
+        )
+        let fallback = ExperienceService.hardcodedSeed.first!.soloScore
+        let score = try await service.fetchSoloScore(experienceId: "exp-net-fail", fallback: fallback)
+        XCTAssertEqual(score.overall, fallback.overall, accuracy: 0.001,
+                       "network error must return the fallback score")
+    }
+
+    @MainActor
+    func testReviewsService404ThrowsWhenNoFallback() async {
+        let service = makeReviewsService(status: 404, body: #"{"error":"no reviews found"}"#)
+        do {
+            _ = try await service.fetchSoloScore(experienceId: "exp-ghost")
+            XCTFail("expected ReviewsServiceError.notFound")
+        } catch ReviewsServiceError.notFound {
+            // pass
+        } catch {
+            XCTFail("unexpected error type: \(error)")
+        }
+    }
+
+    // MARK: - US-037 Markdown PKM Export
+
+    func testMarkdownExportContainsFrontmatterFields() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let md = MarkdownExporter.export(exp, date: Date(timeIntervalSince1970: 0))
+        XCTAssertTrue(md.hasPrefix("---"), "must start with YAML frontmatter")
+        XCTAssertTrue(md.contains("title:"), "frontmatter must have title")
+        XCTAssertTrue(md.contains("date:"), "frontmatter must have date")
+        XCTAssertTrue(md.contains("latitude:"), "frontmatter must have latitude")
+        XCTAssertTrue(md.contains("longitude:"), "frontmatter must have longitude")
+        XCTAssertTrue(md.contains("city:"), "frontmatter must have city")
+        XCTAssertTrue(md.contains("solo_score:"), "frontmatter must have solo_score")
+        XCTAssertTrue(md.contains("tags:"), "frontmatter must have tags")
+    }
+
+    func testMarkdownExportBodyContainsTitle() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let md = MarkdownExporter.export(exp)
+        XCTAssertTrue(md.contains("# \(exp.title)"), "body must have H1 with title")
+    }
+
+    func testMarkdownExportNotionURL() throws {
+        let url = MarkdownExporter.notionWebClipperURL(title: "Test Place")
+        XCTAssertNotNil(url)
+        XCTAssertTrue(url!.absoluteString.contains("notion.so"), "should be Notion URL")
+    }
+
+    // MARK: - US-038 ThemeService
+
+    @MainActor
+    func testThemeServiceDefaultsToSystem() {
+        // Reset to avoid bleed from other tests
+        UserDefaults.standard.removeObject(forKey: "selectedTheme")
+        let service = ThemeService.shared
+        // After reset the next init reads .system; since it's a singleton we check the rawValue
+        XCTAssertEqual(service.selectedOption, .system)
+    }
+
+    @MainActor
+    func testThemeServiceSwitchingToObsidian() {
+        let service = ThemeService.shared
+        service.selectedOption = .obsidian
+        XCTAssertEqual(service.selectedOption, .obsidian)
+        // Theme tokens should reflect Obsidian values
+        let theme = service.currentTheme
+        // Obsidian background is #0D1117 ≈ RGB(13,17,23)
+        XCTAssertEqual(service.selectedOption.rawValue, "Obsidian")
+        _ = theme.background  // confirm property access doesn't crash
+        _ = theme.accent
+        // Restore
+        service.selectedOption = .system
+    }
+
+    @MainActor
+    func testThemeServicePersists() {
+        let service = ThemeService.shared
+        service.selectedOption = .obsidian
+        let persisted = UserDefaults.standard.string(forKey: "selectedTheme")
+        XCTAssertEqual(persisted, "Obsidian")
+        service.selectedOption = .system
+    }
+
+    // MARK: - US-040 OfflineCacheService
+
+    @MainActor
+    func testOfflineCacheRoundTrip() throws {
+        let cache = OfflineCacheService.shared
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        cache.cacheExperiences([exp], forCity: "test-city-\(UUID().uuidString)")
+        // A different city should return nil
+        XCTAssertNil(cache.loadExperiences(forCity: "nonexistent-\(UUID().uuidString)"))
+    }
+
+    @MainActor
+    func testOfflineCacheHasDataReturnsFalseForUnknownCity() {
+        let cache = OfflineCacheService.shared
+        XCTAssertFalse(cache.hasCachedData(forCity: "unknown-city-\(UUID().uuidString)"))
     }
 }

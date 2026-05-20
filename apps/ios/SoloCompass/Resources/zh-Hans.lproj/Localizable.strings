@@ -320,6 +320,23 @@
 "conversation.input.mic.a11y" = "按住说话";
 "conversation.input.send.a11y" = "发送消息";
 
+/* Skeleton loading placeholder */
+"skeleton.loading" = "加载中";
+
+/* Common */
+"common.close" = "关闭";
+
+/* Settings — Apple ID link */
+"settings.saveWithApple" = "用 Apple 保存";
+"settings.linkedToAppleID" = "已关联 Apple ID";
+"settings.appleLink.success" = "已用 Apple ID 保存。";
+"settings.appleLink.failure" = "无法关联 Apple ID，请重试。";
+
+/* GlassmorphismCapsule preview-only strings */
+"glassmorphism.preview.search" = "搜索";
+"glassmorphism.preview.findPlace" = "找个地方…";
+"glassmorphism.preview.customPadding" = "自定义内边距和阴影";
+
 /* Location card + navigation picker */
 "location.navigate" = "导航";
 "location.copyCoords" = "复制坐标";
@@ -327,3 +344,69 @@
 "location.openIn.google" = "Google 地图";
 "location.openIn.amap" = "高德地图";
 "action.cancel" = "取消";
+
+/* US-013: Unconfigured AI guidance card */
+"chat.unconfigured.title" = "AI 功能未配置";
+"chat.unconfigured.body" = "要使用语音和 AI 功能,请在偏好设置 → AI & 隐私中添加你的 Anthropic API 密钥。";
+"chat.unconfigured.cta" = "打开设置";
+
+/* US-014: Additional chat localization keys */
+"chat.error.network" = "网络连接出错 — 请检查网络后重试。";
+"chat.error.apiKey" = "API 密钥无效 — 请在设置中检查你的密钥。";
+"chat.error.permission" = "需要麦克风权限 — 请在设置中启用。";
+"chat.error.unknown" = "出现错误 — 请重试。";
+
+/* Chat voice surface */
+"chat.voice.title" = "和 Solo 说话";
+"chat.voice.tap.toType" = "点击改为文字输入";
+"chat.voice.idle" = "按住麦克风说话";
+"chat.voice.listening" = "我在听…";
+"chat.voice.thinking" = "思考中…";
+"chat.voice.toolRunning" = "处理中…";
+"chat.voice.responding" = "回复中…";
+
+/* Chat sheet */
+"chat.title" = "Solo Compass";
+"chat.empty.title" = "问我你附近有什么好玩的";
+"chat.empty.subtitle" = "试试「附近有什么好的?」或按住麦克风说话。";
+"chat.input.placeholder" = "输入消息…";
+"chat.input.send.a11y" = "发送";
+"chat.input.mic.a11y" = "语音";
+"chat.input.mic.hint" = "点击开始/停止语音,长按推按说话";
+"chat.state.listening" = "正在聆听 — 松开即发送";
+"chat.state.thinking" = "思考中…";
+"chat.error.retry" = "重试";
+"chat.bubble.user.a11y" = "你说:%@";
+"chat.bubble.assistant.a11y" = "Solo 说:%@";
+"chat.tool.exploreNearby" = "搜索附近";
+"chat.tool.filter" = "筛选地图";
+"chat.tool.showDetails" = "打开地点";
+"chat.tool.save" = "已存入收藏";
+"chat.tool.dismiss" = "已隐藏地点";
+"chat.tool.search" = "搜索地点";
+"chat.tool.navigate" = "已打开导航";
+"chat.tool.generic" = "执行了操作";
+
+/* Solo score */
+"solo.radar.a11y" = "独行评分雷达图";
+"solo.wifi" = "WiFi";
+"solo.noise" = "噪音";
+
+/* US-019: Bilingual city picker */
+"city.distanceAway" = "距离 %.1f 公里";
+"city.distanceAway.mi" = "距离 %.1f 英里";
+"city.distanceUnknown" = "距离未知";
+
+/* Markdown PKM export (US-037) */
+"detail.exportNote" = "导出笔记";
+"export.preview" = "Markdown 预览";
+"export.copy" = "复制 Markdown";
+"export.notion" = "在 Notion 中打开";
+"export.share" = "分享…";
+
+/* Offline banner (US-041) */
+"offline.banner" = "离线模式 · 显示缓存数据";
+
+/* Theme picker (US-039) */
+"settings.appearance" = "外观";
+"settings.theme" = "主题";

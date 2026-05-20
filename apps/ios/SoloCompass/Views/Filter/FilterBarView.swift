@@ -8,19 +8,23 @@ public struct FilterBarView: View {
     let onSelectNow: () -> Void
     let onSelectAll: () -> Void
     let onSelectCategory: (ExperienceCategory) -> Void
+    /// Driven by the parent when the map camera is moving; triggers fade+shrink.
+    @Binding var isMapPanning: Bool
 
     public init(
         selectedCategory: ExperienceCategory?,
         isNowSelected: Bool,
         onSelectNow: @escaping () -> Void,
         onSelectAll: @escaping () -> Void,
-        onSelectCategory: @escaping (ExperienceCategory) -> Void
+        onSelectCategory: @escaping (ExperienceCategory) -> Void,
+        isMapPanning: Binding<Bool> = .constant(false)
     ) {
         self.selectedCategory = selectedCategory
         self.isNowSelected = isNowSelected
         self.onSelectNow = onSelectNow
         self.onSelectAll = onSelectAll
         self.onSelectCategory = onSelectCategory
+        self._isMapPanning = isMapPanning
     }
 
     private static let visibleCategories: [ExperienceCategory] = [
@@ -28,33 +32,38 @@ public struct FilterBarView: View {
     ]
 
     public var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                pill(
-                    label: NSLocalizedString("filter.now", comment: "Now"),
-                    isSelected: isNowSelected,
-                    color: Color(red: 0xD4/255, green: 0xA8/255, blue: 0x43/255),
-                    action: onSelectNow
-                )
-                pill(
-                    label: NSLocalizedString("filter.all", comment: "All"),
-                    isSelected: !isNowSelected && selectedCategory == nil,
-                    color: Color.primary,
-                    action: onSelectAll
-                )
-                ForEach(Self.visibleCategories) { category in
-                    iconPill(
-                        category: category,
-                        isSelected: selectedCategory == category,
-                        action: { onSelectCategory(category) }
+        GlassmorphismCapsule(horizontalPadding: 0, verticalPadding: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    pill(
+                        label: NSLocalizedString("filter.now", comment: "Now"),
+                        isSelected: isNowSelected,
+                        color: Color(red: 0xD4/255, green: 0xA8/255, blue: 0x43/255),
+                        action: onSelectNow
                     )
+                    pill(
+                        label: NSLocalizedString("filter.all", comment: "All"),
+                        isSelected: !isNowSelected && selectedCategory == nil,
+                        color: Color.primary,
+                        action: onSelectAll
+                    )
+                    ForEach(Self.visibleCategories) { category in
+                        iconPill(
+                            category: category,
+                            isSelected: selectedCategory == category,
+                            action: { onSelectCategory(category) }
+                        )
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
         }
-        .background(.ultraThinMaterial, in: Capsule())
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
+        .opacity(isMapPanning ? 0.4 : 1.0)
+        .scaleEffect(isMapPanning ? 0.85 : 1.0)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isMapPanning)
+        .onTapGesture { isMapPanning = false }
         .animation(.easeInOut(duration: 0.2), value: selectedCategory)
         .animation(.easeInOut(duration: 0.2), value: isNowSelected)
     }

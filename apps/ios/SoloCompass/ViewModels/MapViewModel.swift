@@ -372,6 +372,43 @@ public final class MapViewModel {
     public func selectExperience(_ experience: Experience) {
         selectedExperience = experience
         // isShowingDetail stays false — card shows first, detail sheet on expand
+        focusOnExperience(experience)
+    }
+
+    /// Fraction of screen height occupied by the bottom sheet/card.
+    /// Updated by the view when the detent changes so camera offset stays accurate.
+    /// 0 = no sheet, ~0.35 = small card, ~0.50 = medium detent, ~0.85 = large detent.
+    public var activeSheetHeightFraction: Double = 0.35
+
+    /// Pan the camera so `experience` sits in the top 40% of the visible area
+    /// above the current bottom sheet. The visible area is `1 - sheetFraction`
+    /// of the full screen height. We shift the map center southward (decrease
+    /// latitude) by the delta needed to move the pin from screen-center to the
+    /// 40% position within the exposed area.
+    public func focusOnExperience(_ experience: Experience) {
+        guard let coord = experience.coordinate else { return }
+        let region: MKCoordinateRegion = cameraPosition.region ?? MKCoordinateRegion(
+            center: coord,
+            span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
+        )
+        let sheetFraction = max(0, min(0.95, activeSheetHeightFraction))
+        // Pin should appear at 40% from top of the visible area above the sheet.
+        // Visible fraction: (1 - sheetFraction). Target pin position from top of screen:
+        //   0.4 * (1 - sheetFraction)
+        // Current pin position if centered: 0.5
+        // Required northward shift of center (in screen fractions): 0.5 - 0.4*(1-sheetFraction)
+        //   = 0.5 - 0.4 + 0.4*sheetFraction = 0.1 + 0.4*sheetFraction
+        // Convert to degrees: shift * latitudeDelta
+        let centerShiftFraction = 0.1 + 0.4 * sheetFraction
+        let latOffset = centerShiftFraction * region.span.latitudeDelta
+        let newCenter = CLLocationCoordinate2D(
+            latitude: coord.latitude - latOffset,
+            longitude: coord.longitude
+        )
+        let newRegion = MKCoordinateRegion(center: newCenter, span: region.span)
+        withAnimation(.smooth(duration: 0.35)) {
+            cameraPosition = .region(newRegion)
+        }
     }
 
     public func dismissDetail() {

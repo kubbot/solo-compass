@@ -10,6 +10,7 @@ public struct SettingsView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(LanguageService.self) private var languageService
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.themeService) private var themeService
     var onClose: () -> Void
     var onShowFavorites: (() -> Void)?
 
@@ -38,16 +39,26 @@ public struct SettingsView: View {
     public var body: some View {
         NavigationStack {
             List {
+                // US-020: Apple Settings-style InsetGrouped layout
+                // Section: Account
+                accountSection
+                // Section: Preferences
                 travelStyleSection
                 preferredCategoriesSection
                 dislikedCategoriesSection
                 distanceSection
-                notificationsSection
+                // Section: Appearance (US-039)
+                appearanceSection
+                // Section: AI & Privacy
                 languageSection
+                notificationsSection
+                // Section: Subscription
                 subscriptionSection
+                // Section: About / Stats / Data
                 statsSection
                 dataSection
             }
+            .listStyle(.insetGrouped)
             .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -64,12 +75,28 @@ public struct SettingsView: View {
         }
     }
 
+    // MARK: - Account Section (US-020)
+
+    private var accountSection: some View {
+        Section {
+            appleIDRow
+        } header: {
+            settingsSectionHeader("person.circle.fill", label: "Account")
+        }
+    }
+
     // MARK: - Travel Style
 
     private var travelStyleSection: some View {
         Section {
             ForEach(UserPreferences.SoloTravelStyle.allCases) { style in
                 HStack {
+                    // US-020: Rounded filled icon on the left
+                    Image(systemName: travelStyleIcon(style))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(travelStyleColor(style), in: RoundedRectangle(cornerRadius: 7))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(style.localizedTitle).font(.body)
                         Text(style.localizedDescription).font(.caption).foregroundStyle(.secondary)
@@ -83,9 +110,27 @@ public struct SettingsView: View {
                 .onTapGesture { preferences.soloTravelStyle = style }
             }
         } header: {
-            Text(NSLocalizedString("settings.travelStyle", comment: "Travel Style"))
+            settingsSectionHeader("figure.walk", label: NSLocalizedString("settings.travelStyle", comment: "Travel Style"))
         } footer: {
             Text(NSLocalizedString("settings.travelStyle.footer", comment: "Your style shapes which experiences float to the top."))
+        }
+    }
+
+    private func travelStyleIcon(_ style: UserPreferences.SoloTravelStyle) -> String {
+        switch style {
+        case .explorer: return "map"
+        case .worker: return "laptopcomputer"
+        case .foodie: return "fork.knife"
+        case .cultureSeeker: return "building.columns"
+        }
+    }
+
+    private func travelStyleColor(_ style: UserPreferences.SoloTravelStyle) -> Color {
+        switch style {
+        case .explorer: return .blue
+        case .worker: return .purple
+        case .foodie: return .orange
+        case .cultureSeeker: return .brown
         }
     }
 
@@ -97,7 +142,12 @@ public struct SettingsView: View {
                 let isPreferred = preferences.preferredCategories.contains(category)
                 let isDisliked = preferences.dislikedCategories.contains(category)
                 HStack(spacing: 12) {
-                    Image(systemName: category.symbol).frame(width: 28).foregroundStyle(category.color)
+                    // US-020: Rounded filled icon
+                    Image(systemName: category.symbol)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(category.color, in: RoundedRectangle(cornerRadius: 7))
                     Text(category.localizedTitle)
                     Spacer()
                     if isPreferred {
@@ -115,7 +165,7 @@ public struct SettingsView: View {
                 }
             }
         } header: {
-            Text(NSLocalizedString("settings.preferences", comment: "Preferences"))
+            settingsSectionHeader("slider.horizontal.3", label: NSLocalizedString("settings.preferences", comment: "Preferences"))
         } footer: {
             Text(NSLocalizedString("settings.preferences.footer", comment: "Tap to love a category. Swipe left to hide it."))
         }
@@ -129,7 +179,11 @@ public struct SettingsView: View {
             Section {
                 ForEach(preferences.dislikedCategories) { category in
                     HStack(spacing: 12) {
-                        Image(systemName: category.symbol).frame(width: 28).foregroundStyle(.secondary)
+                        Image(systemName: category.symbol)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Color.secondary, in: RoundedRectangle(cornerRadius: 7))
                         Text(category.localizedTitle).foregroundStyle(.secondary)
                         Spacer()
                         Button {
@@ -141,7 +195,7 @@ public struct SettingsView: View {
                     }
                 }
             } header: {
-                Text(NSLocalizedString("settings.hidden", comment: "Hidden Categories"))
+                settingsSectionHeader("eye.slash", label: NSLocalizedString("settings.hidden", comment: "Hidden Categories"))
             }
         }
     }
@@ -153,6 +207,11 @@ public struct SettingsView: View {
             @Bindable var prefs = preferences
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
+                    Image(systemName: "location.magnifyingglass")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.green, in: RoundedRectangle(cornerRadius: 7))
                     Text(NSLocalizedString("settings.maxDistance", comment: "Max Distance"))
                     Spacer()
                     Text(distanceLabel(preferences.maxDistanceKm))
@@ -162,7 +221,7 @@ public struct SettingsView: View {
                 Slider(value: $prefs.maxDistanceKm, in: 1...25, step: 0.5).tint(.blue)
             }
         } header: {
-            Text(NSLocalizedString("settings.distance", comment: "Discovery Radius"))
+            settingsSectionHeader("location.circle", label: NSLocalizedString("settings.distance", comment: "Discovery Radius"))
         } footer: {
             Text(NSLocalizedString("settings.distance.footer", comment: "Only experiences within this radius appear on the map."))
         }
@@ -183,13 +242,15 @@ public struct SettingsView: View {
             )) {
                 HStack(spacing: 10) {
                     Image(systemName: "bell.badge")
-                        .foregroundStyle(.orange)
-                        .frame(width: 28)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 7))
                     Text(NSLocalizedString("settings.notifications", comment: "Notifications"))
                 }
             }
         } header: {
-            Text(NSLocalizedString("settings.notifications.header", comment: "Notifications section header"))
+            settingsSectionHeader("bell", label: NSLocalizedString("settings.notifications.header", comment: "Notifications section header"))
         } footer: {
             Text(NSLocalizedString("settings.notifications.footer", comment: "Notifications footer"))
         }
@@ -202,8 +263,10 @@ public struct SettingsView: View {
             ForEach(LanguageService.Option.allCases) { option in
                 HStack {
                     Image(systemName: "globe")
-                        .frame(width: 28)
-                        .foregroundStyle(.blue)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.blue, in: RoundedRectangle(cornerRadius: 7))
                     Text(languageOptionLabel(option))
                     Spacer()
                     if languageService.current == option {
@@ -220,7 +283,7 @@ public struct SettingsView: View {
                 }
             }
         } header: {
-            Text(NSLocalizedString("settings.language", comment: "Language section header"))
+            settingsSectionHeader("brain.head.profile", label: NSLocalizedString("settings.language", comment: "Language section header"))
         } footer: {
             Text(NSLocalizedString("settings.language.footer", comment: "Language footer"))
         }
@@ -253,17 +316,17 @@ public struct SettingsView: View {
                 onShowFavorites?()
                 onClose()
             } label: {
-                labelRow(icon: "heart.fill", color: .red,
-                         label: NSLocalizedString("settings.favorites", comment: "Favorites"),
-                         value: "\(preferences.favoritedExperiences.count)")
+                settingsIconRow(icon: "heart.fill", color: .red,
+                                label: NSLocalizedString("settings.favorites", comment: "Favorites"),
+                                value: "\(preferences.favoritedExperiences.count)")
             }
             .foregroundStyle(.primary)
 
-            labelRow(icon: "checkmark.circle", color: .green,
-                     label: NSLocalizedString("settings.completed", comment: "Completed"),
-                     value: "\(preferences.completedExperiences.count)")
+            settingsIconRow(icon: "checkmark.circle", color: .green,
+                            label: NSLocalizedString("settings.completed", comment: "Completed"),
+                            value: "\(preferences.completedExperiences.count)")
         } header: {
-            Text(NSLocalizedString("settings.stats", comment: "Your Journey"))
+            settingsSectionHeader("trophy", label: NSLocalizedString("settings.stats", comment: "Your Journey"))
         }
     }
 
@@ -279,7 +342,10 @@ public struct SettingsView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "trash")
-                        .frame(width: 28)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 7))
                     Text(NSLocalizedString("settings.clearData", comment: "Clear all data"))
                 }
             }
@@ -302,7 +368,7 @@ public struct SettingsView: View {
                 Text(NSLocalizedString("settings.clearData.confirm.message", comment: "Clear all data message"))
             }
         } header: {
-            Text(NSLocalizedString("settings.data.header", comment: "Data section header"))
+            settingsSectionHeader("externaldrive", label: NSLocalizedString("settings.data.header", comment: "Data section header"))
         }
         .alert(
             appleSignInToast ?? "",
@@ -372,13 +438,29 @@ public struct SettingsView: View {
 
     // MARK: - Helpers
 
-    private func labelRow(icon: String, color: Color, label: String, value: String) -> some View {
+    /// US-020: Apple Settings-style section header with subheadline medium weight.
+    private func settingsSectionHeader(_ symbol: String, label: String) -> some View {
+        Label(label, systemImage: symbol)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+    }
+
+    /// US-020: Row with a 30×30 rounded filled icon on the left.
+    private func settingsIconRow(icon: String, color: Color, label: String, value: String) -> some View {
         HStack {
-            Image(systemName: icon).foregroundStyle(color).frame(width: 28)
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(color, in: RoundedRectangle(cornerRadius: 7))
             Text(label)
             Spacer()
             Text(value).foregroundStyle(.secondary).monospacedDigit()
         }
+    }
+
+    private func labelRow(icon: String, color: Color, label: String, value: String) -> some View {
+        settingsIconRow(icon: icon, color: color, label: label, value: value)
     }
 
     private func distanceLabel(_ km: Double) -> String {
@@ -445,7 +527,7 @@ public struct SettingsView: View {
                 destination: URL(string: "https://apps.apple.com/account/subscriptions")!
             )
         } header: {
-            Text(NSLocalizedString("settings.subscription", comment: "Subscription"))
+            settingsSectionHeader("crown", label: NSLocalizedString("settings.subscription", comment: "Subscription"))
         }
         .alert(
             restoreToast ?? "",
@@ -500,6 +582,24 @@ public struct SettingsView: View {
             success ? "settings.adminUnlock.success" : "settings.adminUnlock.failure",
             comment: "Admin unlock result"
         )
+    }
+
+    // MARK: - Appearance (US-039)
+
+    private var appearanceSection: some View {
+        Section {
+            Picker(NSLocalizedString("settings.theme", comment: "Theme"), selection: Binding(
+                get: { themeService.selectedOption },
+                set: { themeService.selectedOption = $0 }
+            )) {
+                ForEach(ThemeService.ThemeOption.allCases) { option in
+                    Text(option.localizedName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            settingsSectionHeader("paintpalette", label: NSLocalizedString("settings.appearance", comment: "Appearance"))
+        }
     }
 }
 

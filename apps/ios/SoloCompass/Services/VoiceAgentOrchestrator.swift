@@ -19,6 +19,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
     private let voiceService: VoiceService
     private let toolRouter: VoiceAgentToolRouter
     private weak var mapViewModel: MapViewModel?
+    /// US-023: optional ContextManager — when set, snapshot JSON is injected
+    /// into the system prompt before each session starts.
+    private let contextManager: (any ContextManager)?
 
     // MARK: - State
 
@@ -36,18 +39,24 @@ public final class VoiceAgentOrchestrator: Identifiable {
     /// True while a tool is executing.
     public private(set) var isExecutingTool: Bool = false
 
+    /// US-011: Strict chat UI state machine — drives state-specific view modifiers.
+    public private(set) var uiState: ChatUIState = .idle
+
     private var turnTask: Task<Void, Never>?
+    private var isSeeded = false
     private let synthesizer = AVSpeechSynthesizer()
 
     public init(
         aiService: AIService,
         voiceService: VoiceService,
         mapViewModel: MapViewModel,
-        preferences: UserPreferences
+        preferences: UserPreferences,
+        contextManager: (any ContextManager)? = nil
     ) {
         self.aiService = aiService
         self.voiceService = voiceService
         self.mapViewModel = mapViewModel
+        self.contextManager = contextManager
         self.toolRouter = VoiceAgentToolRouter(
             mapViewModel: mapViewModel,
             preferences: preferences
@@ -60,15 +69,21 @@ public final class VoiceAgentOrchestrator: Identifiable {
     public func start() {
         guard !isRunning else { return }
         isRunning = true
+        isSeeded = false
         errorMessage = nil
-        session.seedSystem(systemPrompt)
-        session.beginListening()
+        uiState = .listening
         thinkingStep = NSLocalizedString("agent.step.listening", comment: "Listening…")
+        Task {
+            let prompt = await buildSystemPrompt()
+            session.seedSystem(prompt)
+            session.beginListening()
+            isSeeded = true
+        }
     }
 
     /// Called when the user submits a text message (not voice).
     public func handleTextInput(_ text: String) {
-        guard isRunning, !session.isEnded else { return }
+        guard isRunning, isSeeded, !session.isEnded else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         runTurn(transcript: trimmed)
@@ -76,7 +91,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
     /// Called when voice transcription completes.
     public func handleTranscript(_ transcript: String) {
-        guard isRunning else { return }
+        guard isRunning, isSeeded else { return }
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         session.beginTranscribing()
@@ -88,9 +103,11 @@ public final class VoiceAgentOrchestrator: Identifiable {
         turnTask?.cancel()
         turnTask = nil
         isRunning = false
+        isSeeded = false
         streamingContent = ""
         thinkingStep = ""
         isExecutingTool = false
+        uiState = .idle
         synthesizer.stopSpeaking(at: .immediate)
         if !session.isEnded {
             session.end(reason: .userClose)
@@ -113,6 +130,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         session.beginUserTurn(transcript: transcript)
         thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
         streamingContent = ""
+        uiState = .processing
 
         turnTask = Task {
             let turnStart = Date()
@@ -131,9 +149,11 @@ public final class VoiceAgentOrchestrator: Identifiable {
                     session.resumeThinkingAfterTools()
                     thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
                     streamingContent = ""
+                    uiState = .processing
                     shouldContinue = true
                 } else {
                     let finalText = streamingContent
+                    uiState = .responding(finalText)
                     session.finishSpeakingTurn()
                     thinkingStep = ""
                     shouldContinue = false
@@ -208,6 +228,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
             return true
         } catch {
             errorMessage = error.localizedDescription
+            uiState = .error(.network)
             session.end(reason: .error)
             thinkingStep = ""
             return false
@@ -266,7 +287,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
     // MARK: - System prompt
 
-    private var systemPrompt: String {
+    /// Builds the system prompt async, injecting the LLMContext JSON snapshot
+    /// when a ContextManager is wired in (US-023).
+    private func buildSystemPrompt() async -> String {
         let visible = mapViewModel?.visibleExperiences.prefix(VoiceAgentSession.visibleExperiencesInjected) ?? []
         let visibleSummary = visible.isEmpty
             ? "No experiences currently visible on the map."
@@ -276,9 +299,21 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
         let coord = mapViewModel?.exploreAnchorCoordinate ?? MapViewModel.defaultCenter
 
+        var contextBlock = ""
+        if let cm = contextManager {
+            let ctx = await cm.snapshot()
+            if let json = ctx.jsonString() {
+                contextBlock = """
+
+                CONTEXT SNAPSHOT (JSON — use to personalize recommendations):
+                \(json)
+                """
+            }
+        }
+
         return """
         You are Solo Compass, a warm and knowledgeable travel companion for solo travelers.
-        The user is at approximately (\(String(format: "%.4f", coord.latitude)), \(String(format: "%.4f", coord.longitude))).
+        The user is at approximately (\(String(format: "%.4f", coord.latitude)), \(String(format: "%.4f", coord.longitude))).\(contextBlock)
 
         CURRENT VISIBLE EXPERIENCES (use ONLY these IDs when calling tools):
         \(visibleSummary)

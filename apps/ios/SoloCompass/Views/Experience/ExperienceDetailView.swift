@@ -8,7 +8,10 @@ public struct ExperienceDetailView: View {
     var onClose: () -> Void
     var onMarkDone: ((_ experience: Experience) -> Void)?
 
+    @Environment(\.themeService) private var themeService
     @State private var isShowingReport: Bool = false
+    @State private var showingRadarTooltip: Bool = false
+    @State private var exportMarkdown: String? = nil
 
     public init(
         viewModel: ExperienceDetailViewModel,
@@ -57,6 +60,7 @@ public struct ExperienceDetailView: View {
             .padding(.top, 16)
             .padding(.bottom, 80) // room for floating action bar
         }
+        .background(themeService.currentTheme.background)
         .overlay(alignment: .bottom) { actionBar }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -69,6 +73,14 @@ public struct ExperienceDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button {
+                        exportMarkdown = MarkdownExporter.export(viewModel.experience)
+                    } label: {
+                        Label(
+                            NSLocalizedString("detail.exportNote", comment: "Export Markdown note"),
+                            systemImage: "square.and.arrow.up"
+                        )
+                    }
                     Button(role: .destructive) {
                         isShowingReport = true
                     } label: {
@@ -90,7 +102,20 @@ public struct ExperienceDetailView: View {
                 onCancel: { isShowingReport = false }
             )
         }
-        .task { await viewModel.loadAIExplanation() }
+        .sheet(item: Binding(
+            get: { exportMarkdown.map { ExportPayload(markdown: $0) } },
+            set: { if $0 == nil { exportMarkdown = nil } }
+        )) { payload in
+            MarkdownShareSheet(
+                markdown: payload.markdown,
+                title: viewModel.experience.title,
+                notionURL: MarkdownExporter.notionWebClipperURL(title: viewModel.experience.title)
+            )
+        }
+        .task {
+            await viewModel.loadAIExplanation()
+            await viewModel.loadRemoteSoloScore()
+        }
     }
 
     // MARK: - Hero
@@ -142,11 +167,19 @@ public struct ExperienceDetailView: View {
 
     // MARK: - Sections
 
+    @ViewBuilder
     private var whyItMattersSection: some View {
-        sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
-            Text(viewModel.experience.whyItMatters)
-                .font(.body)
-                .fixedSize(horizontal: false, vertical: true)
+        let content = viewModel.experience.whyItMatters.trimmingCharacters(in: .whitespacesAndNewlines)
+        if viewModel.isLoadingWhyItMatters {
+            sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
+                SkeletonView(lineCount: 3)
+            }
+        } else if !content.isEmpty {
+            sectionContainer(title: NSLocalizedString("section.whyItMatters", comment: "")) {
+                Text(content)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -237,8 +270,8 @@ public struct ExperienceDetailView: View {
     }
 
     private var soloScoreSection: some View {
-        // US-019/020: three-state cold-start UX. Use the aggregated score from
-        // local survey responses when available; otherwise the seed/AI value.
+        // Three-state cold-start UX. Use aggregated score from local survey
+        // responses when available; otherwise the seed/AI value.
         let score = viewModel.displaySoloScore
         let count = score.basedOnCount
         let titleKey: String
@@ -267,7 +300,7 @@ public struct ExperienceDetailView: View {
         }
 
         return sectionContainer(title: NSLocalizedString(titleKey, comment: "")) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     SoloScoreBadge(score: score, style: .full)
                         .opacity(isEstimate ? 0.6 : 1.0)
@@ -285,8 +318,50 @@ public struct ExperienceDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                // US-009: Radar chart replacing uniform progress bars
+                SoloScoreRadarChart(score: score)
+                    .padding(.horizontal, 16)
+                    .opacity(isEstimate ? 0.7 : 1.0)
+                    .onTapGesture {
+                        showingRadarTooltip.toggle()
+                    }
+                if showingRadarTooltip {
+                    radarDimensionBreakdown(score: score)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showingRadarTooltip)
+        }
+    }
+
+    private func radarDimensionBreakdown(score: SoloScore) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let b = score.breakdown
+            let dims: [(String, String, Double)] = [
+                (NSLocalizedString("solo.seating", comment: ""), "chair", b.seatingFriendly),
+                (NSLocalizedString("solo.staff", comment: ""), "person.crop.circle", b.staffPressure),
+                (NSLocalizedString("solo.wifi", comment: ""), "wifi", b.soloPatronRatio),
+                (NSLocalizedString("solo.noise", comment: ""), "speaker.slash", b.ambianceFit),
+                (NSLocalizedString("solo.safety", comment: ""), "shield", b.safety),
+                (NSLocalizedString("solo.portioning", comment: ""), "fork.knife", b.soloPortioning),
+            ]
+            ForEach(dims, id: \.0) { label, symbol, value in
+                HStack(spacing: 8) {
+                    Image(systemName: symbol)
+                        .font(.caption)
+                        .foregroundStyle(score.scoreColor)
+                        .frame(width: 18)
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: "%.0f", value))
+                        .font(.caption.monospacedDigit().bold())
+                }
             }
         }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground)))
     }
 
     private var sourcesSection: some View {

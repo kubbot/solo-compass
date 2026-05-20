@@ -35,30 +35,38 @@ struct LocationCard: View {
             }
 
             HStack(spacing: 10) {
+                // US-010: Primary navigate button with gradient; 44pt HIG minimum
                 Button {
                     isShowingPicker = true
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Label(
                         NSLocalizedString("location.navigate", comment: "Open external navigation app"),
-                        systemImage: "location.fill"
+                        systemImage: "arrow.triangle.turn.up.right.diamond.fill"
                     )
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor))
+                    .frame(minHeight: 44)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.accentColor, Color.accentColor.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
                     .foregroundStyle(.white)
                 }
                 .accessibilityLabel(Text(NSLocalizedString("location.navigate", comment: "")))
 
+                // US-010: Ghost copy button — icon only, no fill
                 Button {
                     UIPasteboard.general.string = "\(coordinate.latitude), \(coordinate.longitude)"
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .frame(width: 44, height: 44)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.tertiarySystemFill)))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.secondary)
                 }
                 .accessibilityLabel(Text(NSLocalizedString("location.copyCoords", comment: "Copy coordinates to clipboard")))
             }

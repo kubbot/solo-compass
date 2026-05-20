@@ -30,6 +30,10 @@ public final class VoiceService {
 
     public private(set) var isListening: Bool = false
 
+    /// Normalized amplitude 0–1 from the audio tap. Updated at ~60fps while
+    /// listening. Consumed by VoiceWaveformView.
+    public private(set) var amplitude: Double = 0
+
     private let audioEngine = AVAudioEngine()
     private let recognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -81,7 +85,17 @@ public final class VoiceService {
         let format = inputNode.outputFormat(forBus: 0)
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.recognitionRequest?.append(buffer)
+            guard let self else { return }
+            self.recognitionRequest?.append(buffer)
+            // Compute RMS amplitude for waveform rendering
+            if let channelData = buffer.floatChannelData?[0] {
+                let frames = Int(buffer.frameLength)
+                var rms: Float = 0
+                for i in 0..<frames { rms += channelData[i] * channelData[i] }
+                rms = sqrtf(rms / Float(max(frames, 1)))
+                let normalized = Double(min(rms * 8, 1.0))
+                Task { @MainActor [weak self] in self?.amplitude = normalized }
+            }
         }
 
         audioEngine.prepare()
@@ -132,5 +146,6 @@ public final class VoiceService {
         // another task is using the session).
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isListening = false
+        amplitude = 0
     }
 }

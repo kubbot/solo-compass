@@ -32,6 +32,13 @@ public enum FeatureFlags {
         readBool("FF_LOCAL_AI_FALLBACK", default: false)
     }
 
+    /// When true, AgentRouter (Intent→Query→Guide pipeline) is used in place of
+    /// the legacy VoiceAgentOrchestrator. Default on; set FF_AGENT_ROUTER_ENABLED=0
+    /// to fall back to the old path while the flag is still in place.
+    public static var agentRouterEnabled: Bool {
+        readBool("FF_AGENT_ROUTER_ENABLED", default: true)
+    }
+
     /// DEBUG-only. When true, SKStoreReviewController.requestReview() fires
     /// immediately on any markCompleted() call, bypassing the 3-completion
     /// threshold and the reviewPromptShown guard. Use this to verify the

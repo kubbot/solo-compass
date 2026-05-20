@@ -66,12 +66,51 @@ public struct ChatSheet: View {
 
     @ViewBuilder
     private var mainContent: some View {
-        if showVoiceSurface {
+        // US-013: Unconfigured state shows a guidance card instead of chat
+        if orchestrator.uiState == .unconfigured {
+            unconfiguredCard
+        } else if showVoiceSurface {
             voiceSurface
         } else {
             messageList
             textInputBar
         }
+    }
+
+    private var unconfiguredCard: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 16) {
+                Image(systemName: "key.slash")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.orange)
+                Text(NSLocalizedString("chat.unconfigured.title", comment: "AI not configured title"))
+                    .font(.title3.bold())
+                    .multilineTextAlignment(.center)
+                Text(NSLocalizedString("chat.unconfigured.body", comment: "AI not configured body"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Text(NSLocalizedString("chat.unconfigured.cta", comment: "Open Settings"))
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 44)
+                        .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                }
+            }
+            .padding(24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 24)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var textInputBar: some View {
@@ -210,7 +249,16 @@ public struct ChatSheet: View {
     /// Renders a large mic + live agent state so the user can see that mic,
     /// model, and tools are all really running.
     private var voiceSurface: some View {
-        VStack(spacing: 22) {
+        ZStack {
+            // US-017: Live waveform background visible while listening
+            if voiceService.isListening {
+                VoiceWaveformView(amplitude: voiceService.amplitude)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.2), value: voiceService.isListening)
+            }
+
+            VStack(spacing: 22) {
             Spacer(minLength: 12)
 
             voiceStatusLabel
@@ -259,7 +307,8 @@ public struct ChatSheet: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
             }
-        }
+            } // end inner VStack
+        }   // end ZStack
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

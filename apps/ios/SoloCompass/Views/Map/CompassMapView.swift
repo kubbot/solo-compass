@@ -11,6 +11,7 @@ public struct CompassMapView: View {
     @Environment(UserPreferences.self) private var preferences
     @Environment(NotificationService.self) private var notificationService
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.themeService) private var themeService
 
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
@@ -26,6 +27,10 @@ public struct CompassMapView: View {
     // Single chat sheet (replaces former plus-menu + voice-overlay split).
     @State private var isShowingChat: Bool = false
     @State private var chatStartMode: ChatStartMode = .text
+    @State private var isMapPanning: Bool = false
+    @State private var panResetTask: Task<Void, Never>? = nil
+
+    private let networkMonitor = NetworkMonitor.shared
 
     enum ChatStartMode { case text, voice }
 
@@ -38,7 +43,7 @@ public struct CompassMapView: View {
     @ViewBuilder
     private var mapContent: some View {
         mapZStack
-            .background(Color(.systemBackground))
+            .background(themeService.currentTheme.background)
             .onAppear {
                 locationService.requestPermission()
                 if viewModel == nil {
@@ -101,7 +106,8 @@ public struct CompassMapView: View {
                     isShowingCityPicker: $isShowingCityPicker,
                     dismissedAIError: $dismissedAIError,
                     dismissedExploreError: $dismissedExploreError,
-                    dismissedQuotaInfo: $dismissedQuotaInfo
+                    dismissedQuotaInfo: $dismissedQuotaInfo,
+                    isMapPanning: $isMapPanning
                 )
 
                 VStack {
@@ -139,6 +145,16 @@ public struct CompassMapView: View {
                         preferences: preferences,
                         locationService: locationService
                     )
+                }
+
+                // Offline banner (US-041): amber pill when network is unavailable
+                if !networkMonitor.isConnected {
+                    VStack {
+                        OfflineBanner()
+                            .padding(.top, 8)
+                        Spacer()
+                    }
+                    .animation(.easeInOut, value: networkMonitor.isConnected)
                 }
             } else {
                 ProgressView()
@@ -392,6 +408,15 @@ public struct CompassMapView: View {
                 MapCompass()
                 MapUserLocationButton()
             }
+            .onMapCameraChange(frequency: .continuous) { _ in
+                isMapPanning = true
+                panResetTask?.cancel()
+                panResetTask = Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    guard !Task.isCancelled else { return }
+                    isMapPanning = false
+                }
+            }
             .onMapCameraChange(frequency: .onEnd) { context in
                 viewModel.refreshForLocation(context.region.center)
             }
@@ -451,6 +476,7 @@ private struct MapOverlayView: View {
     @Binding var dismissedAIError: String?
     @Binding var dismissedExploreError: String?
     @Binding var dismissedQuotaInfo: String?
+    @Binding var isMapPanning: Bool
 
     var body: some View {
         VStack {
@@ -466,7 +492,8 @@ private struct MapOverlayView: View {
                 isNowSelected: viewModel.isNowFilter,
                 onSelectNow: { viewModel.selectNowFilter() },
                 onSelectAll: { viewModel.clearFilters() },
-                onSelectCategory: { viewModel.selectCategory($0) }
+                onSelectCategory: { viewModel.selectCategory($0) },
+                isMapPanning: $isMapPanning
             )
             .padding(.top, 4)
 
@@ -681,9 +708,9 @@ private struct MapControlBar: View {
                     .font(.title3)
                     .frame(width: 48, height: 48)
                     .background(Circle().fill(.regularMaterial))
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FABButtonStyle())
             .padding(.leading, 20)
             .padding(.bottom, 80)
             .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
@@ -707,9 +734,9 @@ private struct MapControlBar: View {
                 }
                 .frame(minWidth: 48, minHeight: 48)
                 .background(Capsule().fill(.regularMaterial))
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FABButtonStyle())
             .padding(.leading, 12)
             .padding(.bottom, 80)
             .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
@@ -726,6 +753,19 @@ private struct MapControlBar: View {
             .padding(.trailing, 20)
             .padding(.bottom, 80)
         }
+    }
+}
+
+/// `ButtonStyle` that applies the standard FAB press treatment:
+/// scale-down to 0.92 on touch-down (spring) + soft haptic.
+private struct FABButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.25), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
+            }
     }
 }
 
