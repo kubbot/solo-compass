@@ -1,29 +1,21 @@
 import SwiftUI
 
-/// Multi-turn voice agent conversation surface (US-VA-04).
+/// Multi-turn voice agent conversation surface.
 ///
-/// Bound to a `VoiceAgentSession` from the environment. Renders:
-/// - top status bar with turn count + close button
-/// - scrollable message list (user right, assistant left, tool muted)
-/// - bottom input row (mic + text field) — text input is wired here
-///   but the mic gesture lands in US-VA-05.
-///
-/// The orchestrator (US-VA-06) drives the session; this view is read-only
-/// for state and only emits two intents: `onClose` and `onSubmitText(_:)`.
+/// Renders the session message history with streaming text and tool-call
+/// chips. The orchestrator drives the session; this view only emits
+/// `onClose` and `onSubmitText(_:)` intents.
 public struct ConversationSheet: View {
     @Environment(VoiceAgentSession.self) private var session
 
-    /// Called when the user dismisses the sheet (× button or down-drag).
     public var onClose: () -> Void
-
-    /// Called when the user submits a typed message.
     public var onSubmitText: (String) -> Void
-
-    /// Optional voice service — when provided the mic button records live.
     public var voiceService: VoiceService?
-
-    /// Called with the final transcript when voice recording ends.
     public var onVoiceTranscript: (String) -> Void
+
+    /// Optional — when provided, streaming text and thinking step are
+    /// shown inline so the user sees word-by-word output.
+    public var orchestrator: VoiceAgentOrchestrator?
 
     @State private var textDraft: String = ""
     @State private var isRecording = false
@@ -34,12 +26,14 @@ public struct ConversationSheet: View {
         onClose: @escaping () -> Void = {},
         onSubmitText: @escaping (String) -> Void = { _ in },
         voiceService: VoiceService? = nil,
-        onVoiceTranscript: @escaping (String) -> Void = { _ in }
+        onVoiceTranscript: @escaping (String) -> Void = { _ in },
+        orchestrator: VoiceAgentOrchestrator? = nil
     ) {
         self.onClose = onClose
         self.onSubmitText = onSubmitText
         self.voiceService = voiceService
         self.onVoiceTranscript = onVoiceTranscript
+        self.orchestrator = orchestrator
     }
 
     public var body: some View {
@@ -91,8 +85,12 @@ public struct ConversationSheet: View {
         case .idle:          return NSLocalizedString("conversation.state.idle", comment: "")
         case .listening:     return NSLocalizedString("conversation.state.listening", comment: "")
         case .transcribing:  return NSLocalizedString("conversation.state.transcribing", comment: "")
-        case .thinking:      return NSLocalizedString("conversation.state.thinking", comment: "")
-        case .toolExecuting: return NSLocalizedString("conversation.state.toolExecuting", comment: "")
+        case .thinking:
+            let step = orchestrator?.thinkingStep ?? ""
+            return step.isEmpty ? NSLocalizedString("conversation.state.thinking", comment: "") : step
+        case .toolExecuting:
+            let step = orchestrator?.thinkingStep ?? ""
+            return step.isEmpty ? NSLocalizedString("conversation.state.toolExecuting", comment: "") : step
         case .speaking:      return NSLocalizedString("conversation.state.speaking", comment: "")
         }
     }
@@ -121,6 +119,15 @@ public struct ConversationSheet: View {
         }
     }
 
+    // MARK: - Helpers
+
+    private var isAgentActive: Bool {
+        switch session.state {
+        case .thinking, .toolExecuting: return true
+        default: return false
+        }
+    }
+
     // MARK: - Message list
 
     private var messageList: some View {
@@ -131,19 +138,36 @@ public struct ConversationSheet: View {
                         messageRow(message)
                             .id(message.id)
                     }
-                    if session.state == .thinking {
+
+                    // Thinking step chip shown while model is working
+                    if let step = orchestrator?.thinkingStep, !step.isEmpty, isAgentActive {
+                        thinkingChip(step).id("thinkingChip")
+                    } else if session.state == .thinking && orchestrator == nil {
                         thinkingBubble.id("thinking")
+                    }
+
+                    // Streaming assistant response word-by-word
+                    if let content = orchestrator?.streamingContent, !content.isEmpty {
+                        HStack {
+                            streamingBubble(content)
+                            Spacer(minLength: 40)
+                        }
+                        .id("streaming")
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
             .onChange(of: session.messages.count) {
-                // Pin the most recent bubble in view as new content lands.
                 if let last = session.messages.last {
                     withAnimation(.easeOut(duration: 0.18)) {
                         proxy.scrollTo(last.id, anchor: .bottom)
                     }
+                }
+            }
+            .onChange(of: orchestrator?.streamingContent) { _, _ in
+                withAnimation(.easeOut(duration: 0.1)) {
+                    proxy.scrollTo("streaming", anchor: .bottom)
                 }
             }
         }
@@ -203,6 +227,24 @@ public struct ConversationSheet: View {
             .accessibilityIdentifier("assistantBubble")
     }
 
+    private func streamingBubble(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground).opacity(0.85),
+                        in: RoundedRectangle(cornerRadius: 14))
+            .overlay(alignment: .bottomTrailing) {
+                // Blinking cursor indicator
+                Rectangle()
+                    .fill(Color.primary.opacity(0.5))
+                    .frame(width: 2, height: 12)
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 10)
+            }
+            .accessibilityIdentifier("streamingBubble")
+    }
+
     private func toolCallChip(_ call: VoiceAgentSession.ToolCall) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "gearshape.fill")
@@ -217,6 +259,19 @@ public struct ConversationSheet: View {
         .accessibilityIdentifier("toolCallChip")
     }
 
+    private func thinkingChip(_ label: String) -> some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(.tertiarySystemBackground), in: Capsule())
+        .transition(.opacity)
+    }
+
     private var thinkingBubble: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
@@ -226,9 +281,6 @@ public struct ConversationSheet: View {
         }
     }
 
-    /// Short label for a tool-result row — we don't want to dump full
-    /// JSON in the conversation view, so we strip to the most useful
-    /// hint: either the tool's `name` field if present, or a count.
     private func toolResultSummary(_ msg: VoiceAgentSession.Message) -> String {
         let name = msg.name ?? "tool"
         if let content = msg.content,
@@ -246,7 +298,6 @@ public struct ConversationSheet: View {
 
     private var inputBar: some View {
         HStack(spacing: 10) {
-            // Mic button — long-press to record, release to send transcript.
             Image(systemName: isRecording ? "waveform" : "mic.circle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(isRecording ? Color.red : Color.accentColor)
@@ -342,9 +393,7 @@ public struct ConversationSheet: View {
     }
 }
 
-// MARK: - Preview helpers
-//
-// PRD US-VA-04 DoD: three #Preview states (thinking, tool_executing, idle).
+// MARK: - Previews
 
 #Preview("idle (empty)") {
     let session = VoiceAgentSession()

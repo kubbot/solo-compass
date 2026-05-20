@@ -23,6 +23,12 @@ public struct CompassMapView: View {
     @State private var isShowingFavorites: Bool = false
     @State private var voiceOrchestrator: VoiceAgentOrchestrator? = nil
 
+    // "+" quick-action menu state
+    @State private var isShowingPlusMenu: Bool = false
+
+    // Voice agent inline overlay (long-press path)
+    @State private var isShowingVoiceOverlay: Bool = false
+
 
     public init() {}
 
@@ -100,24 +106,23 @@ public struct CompassMapView: View {
 
                         Spacer()
 
-                        // Tap (short press) → quick single-shot voice ask.
-                        // Long-press (≥1 s) → opens the multi-turn ConversationSheet.
-                        VoiceButton(voiceService: voiceService) { transcript in
-                            Task { await viewModel.handleVoiceTranscript(transcript) }
-                        }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 1.0)
-                                .onEnded { _ in
-                                    let orch = VoiceAgentOrchestrator(
-                                        aiService: aiService,
-                                        voiceService: voiceService,
-                                        mapViewModel: viewModel,
-                                        preferences: preferences
-                                    )
-                                    orch.start()
-                                    voiceOrchestrator = orch
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                }
+                        // "+" button: short tap → quick-action menu,
+                        // long press (≥0.8s) → inline voice agent mode.
+                        PlusActionButton(
+                            isShowingMenu: $isShowingPlusMenu,
+                            onShortTap: { isShowingPlusMenu = true },
+                            onLongPress: {
+                                let orch = VoiceAgentOrchestrator(
+                                    aiService: aiService,
+                                    voiceService: voiceService,
+                                    mapViewModel: viewModel,
+                                    preferences: preferences
+                                )
+                                orch.start()
+                                voiceOrchestrator = orch
+                                isShowingVoiceOverlay = true
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
                         )
                         .padding(.trailing, 20)
                         .padding(.bottom, 80)
@@ -137,7 +142,39 @@ public struct CompassMapView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                if viewModel.visibleExperiences.isEmpty {
+                // Inline voice agent overlay (long-press path — no sheet)
+                if isShowingVoiceOverlay, let orch = voiceOrchestrator {
+                    ZStack(alignment: .bottom) {
+                        Color.black.opacity(0.25)
+                            .ignoresSafeArea()
+                            .onTapGesture { } // absorb taps to map
+
+                        VStack(spacing: 0) {
+                            // Thinking overlay at top of safe area
+                            ThinkingOverlay(
+                                stepLabel: orch.thinkingStep,
+                                streamingText: orch.streamingContent,
+                                isExecutingTool: orch.isExecutingTool
+                            )
+                            .padding(.top, 100)
+
+                            Spacer()
+
+                            VoiceAgentOverlay(
+                                orchestrator: orch,
+                                voiceService: voiceService,
+                                onDismiss: {
+                                    orch.stop()
+                                    voiceOrchestrator = nil
+                                    isShowingVoiceOverlay = false
+                                }
+                            )
+                        }
+                    }
+                    .transition(.opacity)
+                }
+
+                if viewModel.visibleExperiences.isEmpty && !isShowingVoiceOverlay {
                     EmptyStateOverlay(
                         viewModel: viewModel,
                         preferences: preferences,
@@ -276,20 +313,80 @@ public struct CompassMapView: View {
             .environment(experienceService)
             .environment(preferences)
         }
-        // Voice agent conversation sheet — opened by long-pressing the mic button.
-        .sheet(item: $voiceOrchestrator) { orch in
-            ConversationSheet(
-                onClose: {
-                    orch.stop()
+        // "+" quick-action menu sheet
+        .sheet(isPresented: $isShowingPlusMenu) {
+            if let vm = viewModel {
+                PlusMenuSheet(
+                    isPresented: $isShowingPlusMenu,
+                    onQuickAsk: { text in
+                        isShowingPlusMenu = false
+                        // Create orchestrator for text-based quick ask
+                        let orch = VoiceAgentOrchestrator(
+                            aiService: aiService,
+                            voiceService: voiceService,
+                            mapViewModel: vm,
+                            preferences: preferences
+                        )
+                        orch.start()
+                        voiceOrchestrator = orch
+                        orch.handleTextInput(text)
+                        isShowingVoiceOverlay = true
+                    },
+                    onFilter: {
+                        isShowingPlusMenu = false
+                        // FilterBarView is already visible; scroll/highlight it
+                    },
+                    onNavigate: { destination in
+                        isShowingPlusMenu = false
+                        Task { await vm.handleVoiceTranscript("Navigate to \(destination)") }
+                    },
+                    onVoiceAgent: {
+                        isShowingPlusMenu = false
+                        let orch = VoiceAgentOrchestrator(
+                            aiService: aiService,
+                            voiceService: voiceService,
+                            mapViewModel: vm,
+                            preferences: preferences
+                        )
+                        orch.start()
+                        voiceOrchestrator = orch
+                        isShowingVoiceOverlay = true
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    }
+                )
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+        }
+        // ConversationSheet kept for text-mode multi-turn (fallback / text input path via overlay)
+        // Voice agent conversation sheet — opened by tapping "Ask Solo" in + menu when already running.
+        .sheet(isPresented: Binding(
+            get: {
+                // Only show sheet when orchestrator is running but NOT showing inline overlay
+                voiceOrchestrator != nil && !isShowingVoiceOverlay
+            },
+            set: { showing in
+                if !showing {
+                    voiceOrchestrator?.stop()
                     voiceOrchestrator = nil
-                },
-                onSubmitText: { orch.handleTextInput($0) },
-                voiceService: voiceService,
-                onVoiceTranscript: { orch.handleTranscript($0) }
-            )
-            .environment(orch.session)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+                }
+            }
+        )) {
+            if let orch = voiceOrchestrator {
+                ConversationSheet(
+                    onClose: {
+                        orch.stop()
+                        voiceOrchestrator = nil
+                    },
+                    onSubmitText: { orch.handleTextInput($0) },
+                    voiceService: voiceService,
+                    onVoiceTranscript: { orch.handleTranscript($0) },
+                    orchestrator: orch
+                )
+                .environment(orch.session)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
         }
         // US-024 paywall sheet — shown when a free user taps an AI-gated
         // action. The view's onUnlocked closure resumes the original
@@ -644,6 +741,172 @@ private struct DismissibleBanner: View {
         .transition(.move(edge: .top).combined(with: .opacity))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(text))
+    }
+}
+
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// fires `onLongPress` and provides haptic feedback.
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// fires `onLongPress` and provides haptic feedback.
+///
+/// Uses a sequenced ExclusiveGesture: long press takes priority over tap so
+/// a held gesture doesn't also fire the menu.
+private struct PlusActionButton: View {
+    @Binding var isShowingMenu: Bool
+    let onShortTap: () -> Void
+    let onLongPress: () -> Void
+
+    @State private var longPressFired = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.85))
+                .frame(width: 56, height: 56)
+                .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
+                .scaleEffect(longPressFired ? 1.12 : 1.0)
+                .animation(.spring(response: 0.25), value: longPressFired)
+
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+        }
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    defer { longPressFired = false }
+                    guard !longPressFired else { return }
+                    onShortTap()
+                }
+        )
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.8)
+                .onEnded { _ in
+                    longPressFired = true
+                    onLongPress()
+                }
+        )
+        .accessibilityLabel(Text(NSLocalizedString("plus.button.a11y", comment: "Quick actions")))
+        .accessibilityHint(Text(NSLocalizedString("plus.button.hint", comment: "Tap for quick actions, hold for voice")))
+    }
+}
+
+/// Quick-action sheet opened by tapping the "+" button.
+private struct PlusMenuSheet: View {
+    @Binding var isPresented: Bool
+    let onQuickAsk: (String) -> Void
+    let onFilter: () -> Void
+    let onNavigate: (String) -> Void
+    let onVoiceAgent: () -> Void
+
+    @State private var askText: String = ""
+    @State private var navigateText: String = ""
+    @FocusState private var askFieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    // Quick Ask
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(
+                            NSLocalizedString("plus.menu.ask", comment: "Ask Solo"),
+                            systemImage: "bubble.left.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+
+                        HStack(spacing: 8) {
+                            TextField(
+                                NSLocalizedString("plus.menu.ask.placeholder", comment: "What are you looking for?"),
+                                text: $askText
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.send)
+                            .focused($askFieldFocused)
+                            .onSubmit { submitAsk() }
+
+                            Button(action: submitAsk) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(askText.isEmpty ? Color.secondary : Color.accentColor)
+                            }
+                            .disabled(askText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding(.vertical, 4)
+
+                    // Voice agent
+                    Button(action: onVoiceAgent) {
+                        Label(
+                            NSLocalizedString("plus.menu.voice", comment: "Voice Agent"),
+                            systemImage: "mic.fill"
+                        )
+                    }
+                    .foregroundStyle(.primary)
+                }
+
+                Section {
+                    // Filter Map
+                    Button(action: onFilter) {
+                        Label(
+                            NSLocalizedString("plus.menu.filter", comment: "Filter Map"),
+                            systemImage: "line.3.horizontal.decrease.circle"
+                        )
+                    }
+                    .foregroundStyle(.primary)
+
+                    // Navigate To
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(
+                            NSLocalizedString("plus.menu.navigate", comment: "Navigate To…"),
+                            systemImage: "arrow.triangle.turn.up.right.circle.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+
+                        HStack(spacing: 8) {
+                            TextField(
+                                NSLocalizedString("plus.menu.navigate.placeholder", comment: "Destination…"),
+                                text: $navigateText
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.go)
+                            .onSubmit { submitNavigate() }
+
+                            Button(action: submitNavigate) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(navigateText.isEmpty ? Color.secondary : Color.accentColor)
+                            }
+                            .disabled(navigateText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle(NSLocalizedString("plus.menu.title", comment: "Quick Actions"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(NSLocalizedString("common.close", comment: "Close")) {
+                        isPresented = false
+                    }
+                }
+            }
+        }
+        .onAppear { askFieldFocused = true }
+    }
+
+    private func submitAsk() {
+        let trimmed = askText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onQuickAsk(trimmed)
+    }
+
+    private func submitNavigate() {
+        let trimmed = navigateText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onNavigate(trimmed)
     }
 }
 

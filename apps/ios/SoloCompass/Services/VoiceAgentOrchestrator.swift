@@ -25,6 +25,16 @@ public final class VoiceAgentOrchestrator: Identifiable {
     public private(set) var isRunning = false
     public private(set) var errorMessage: String?
 
+    /// Streaming text being assembled word-by-word; cleared when the final
+    /// assistant message is committed to the session.
+    public private(set) var streamingContent: String = ""
+
+    /// Human-readable label for the current thinking/tool step shown in the overlay.
+    public private(set) var thinkingStep: String = ""
+
+    /// True while a tool is executing.
+    public private(set) var isExecutingTool: Bool = false
+
     private var turnTask: Task<Void, Never>?
 
     public init(
@@ -51,6 +61,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         errorMessage = nil
         session.seedSystem(systemPrompt)
         session.beginListening()
+        thinkingStep = NSLocalizedString("agent.step.listening", comment: "Listening…")
     }
 
     /// Called when the user submits a text message (not voice).
@@ -75,6 +86,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
         turnTask?.cancel()
         turnTask = nil
         isRunning = false
+        streamingContent = ""
+        thinkingStep = ""
+        isExecutingTool = false
         if !session.isEnded {
             session.end(reason: .userClose)
         }
@@ -84,6 +98,8 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
     private func runTurn(transcript: String) {
         session.beginUserTurn(transcript: transcript)
+        thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
+        streamingContent = ""
 
         turnTask = Task {
             let turnStart = Date()
@@ -95,27 +111,73 @@ public final class VoiceAgentOrchestrator: Identifiable {
                     return
                 }
 
-                guard await sendToAI() else { return }
+                guard await sendToAIStreaming() else { return }
 
                 if case .toolExecuting = session.state {
                     await executePendingTools()
                     session.resumeThinkingAfterTools()
+                    thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
+                    streamingContent = ""
                     shouldContinue = true
                 } else {
                     session.finishSpeakingTurn()
+                    thinkingStep = ""
                     shouldContinue = false
                 }
 
                 if Date().timeIntervalSince(turnStart) > VoiceAgentSession.turnTimeoutSeconds {
                     session.end(reason: .timeout)
+                    thinkingStep = ""
                     return
                 }
             }
         }
     }
 
-    /// Call AI and feed the response into the session. Returns false on error.
-    private func sendToAI() async -> Bool {
+    /// Stream one AI turn, updating streamingContent and thinkingStep progressively.
+    /// Returns false on unrecoverable error.
+    private func sendToAIStreaming() async -> Bool {
+        streamingContent = ""
+        var accumulatedContent = ""
+        var pendingToolCalls: [(id: String, name: String, args: String)] = []
+
+        do {
+            let stream = aiService.sendAgentMessageStreaming(
+                messages: session.messages,
+                tools: VoiceAgentToolRouter.allTools
+            )
+            for try await event in stream {
+                guard !Task.isCancelled else { return false }
+                switch event {
+                case .contentDelta(let delta):
+                    accumulatedContent += delta
+                    streamingContent = accumulatedContent
+                case .toolCall(let id, let name, let args):
+                    pendingToolCalls.append((id: id, name: name, args: args))
+                    thinkingStep = thinkingStepLabel(for: name)
+                case .done:
+                    break
+                }
+            }
+
+            let sessionCalls = pendingToolCalls.map {
+                VoiceAgentSession.ToolCall(id: $0.id, name: $0.name, argumentsJSON: $0.args)
+            }
+            let content = accumulatedContent.isEmpty ? nil : accumulatedContent
+            session.appendAssistantTurn(content: content, toolCalls: sessionCalls)
+            if sessionCalls.isEmpty {
+                streamingContent = ""
+            }
+            return true
+
+        } catch {
+            // Streaming failed — fall back to non-streaming path.
+            return await sendToAIFallback()
+        }
+    }
+
+    /// Non-streaming fallback for servers that don't support SSE.
+    private func sendToAIFallback() async -> Bool {
         do {
             let response = try await aiService.sendAgentMessage(
                 messages: session.messages,
@@ -125,19 +187,25 @@ public final class VoiceAgentOrchestrator: Identifiable {
                 content: response.content,
                 toolCalls: response.toolCalls
             )
+            if let content = response.content {
+                streamingContent = content
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription
             session.end(reason: .error)
+            thinkingStep = ""
             return false
         }
     }
 
-    /// Execute all tool calls from the last assistant turn, feeding results
+    /// Execute all tool calls from the last assistant turn and feed results
     /// back into the session so the next AI call sees them.
     private func executePendingTools() async {
         guard let lastMsg = session.messages.last, lastMsg.role == .assistant else { return }
+        isExecutingTool = true
         for call in lastMsg.toolCalls {
+            thinkingStep = thinkingStepLabel(for: call.name)
             let resultJSON = await toolRouter.execute(call)
             session.appendToolResult(
                 toolCallId: call.id,
@@ -145,13 +213,38 @@ public final class VoiceAgentOrchestrator: Identifiable {
                 resultJSON: resultJSON
             )
         }
+        isExecutingTool = false
     }
 
     /// Force one more non-tool response from the model (budget overflow path).
     private func sendForceText(prompt: String) async {
         session.appendSystemContinuation(prompt)
-        _ = await sendToAI()
+        _ = await sendToAIFallback()
         session.finishSpeakingTurn()
+        thinkingStep = ""
+    }
+
+    // MARK: - UI helpers
+
+    private func thinkingStepLabel(for toolName: String) -> String {
+        switch toolName {
+        case "explore_nearby":
+            return NSLocalizedString("agent.step.exploreNearby", comment: "🔍 Searching nearby…")
+        case "filter_by_category":
+            return NSLocalizedString("agent.step.filter", comment: "🗂 Filtering map…")
+        case "show_details":
+            return NSLocalizedString("agent.step.showDetails", comment: "📍 Opening details…")
+        case "save_to_favorites":
+            return NSLocalizedString("agent.step.save", comment: "❤️ Saving to favorites…")
+        case "dismiss_recommendation":
+            return NSLocalizedString("agent.step.dismiss", comment: "✕ Dismissing…")
+        case "search_places":
+            return NSLocalizedString("agent.step.search", comment: "🔍 Searching places…")
+        case "navigate_to":
+            return NSLocalizedString("agent.step.navigate", comment: "🗺 Opening navigation…")
+        default:
+            return NSLocalizedString("agent.step.executing", comment: "⚙️ Executing…")
+        }
     }
 
     // MARK: - System prompt
