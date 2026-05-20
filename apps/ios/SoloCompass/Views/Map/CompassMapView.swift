@@ -26,6 +26,8 @@ public struct CompassMapView: View {
     // Single chat sheet (replaces former plus-menu + voice-overlay split).
     @State private var isShowingChat: Bool = false
     @State private var chatStartMode: ChatStartMode = .text
+    @State private var isMapPanning: Bool = false
+    @State private var panResetTask: Task<Void, Never>? = nil
 
     enum ChatStartMode { case text, voice }
 
@@ -101,7 +103,8 @@ public struct CompassMapView: View {
                     isShowingCityPicker: $isShowingCityPicker,
                     dismissedAIError: $dismissedAIError,
                     dismissedExploreError: $dismissedExploreError,
-                    dismissedQuotaInfo: $dismissedQuotaInfo
+                    dismissedQuotaInfo: $dismissedQuotaInfo,
+                    isMapPanning: $isMapPanning
                 )
 
                 VStack {
@@ -392,6 +395,15 @@ public struct CompassMapView: View {
                 MapCompass()
                 MapUserLocationButton()
             }
+            .onMapCameraChange(frequency: .continuous) { _ in
+                isMapPanning = true
+                panResetTask?.cancel()
+                panResetTask = Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    guard !Task.isCancelled else { return }
+                    isMapPanning = false
+                }
+            }
             .onMapCameraChange(frequency: .onEnd) { context in
                 viewModel.refreshForLocation(context.region.center)
             }
@@ -451,6 +463,7 @@ private struct MapOverlayView: View {
     @Binding var dismissedAIError: String?
     @Binding var dismissedExploreError: String?
     @Binding var dismissedQuotaInfo: String?
+    @Binding var isMapPanning: Bool
 
     var body: some View {
         VStack {
@@ -466,7 +479,8 @@ private struct MapOverlayView: View {
                 isNowSelected: viewModel.isNowFilter,
                 onSelectNow: { viewModel.selectNowFilter() },
                 onSelectAll: { viewModel.clearFilters() },
-                onSelectCategory: { viewModel.selectCategory($0) }
+                onSelectCategory: { viewModel.selectCategory($0) },
+                isMapPanning: $isMapPanning
             )
             .padding(.top, 4)
 
