@@ -19,6 +19,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
     private let voiceService: VoiceService
     private let toolRouter: VoiceAgentToolRouter
     private weak var mapViewModel: MapViewModel?
+    /// US-023: optional ContextManager — when set, snapshot JSON is injected
+    /// into the system prompt before each session starts.
+    private let contextManager: (any ContextManager)?
 
     // MARK: - State
 
@@ -46,11 +49,13 @@ public final class VoiceAgentOrchestrator: Identifiable {
         aiService: AIService,
         voiceService: VoiceService,
         mapViewModel: MapViewModel,
-        preferences: UserPreferences
+        preferences: UserPreferences,
+        contextManager: (any ContextManager)? = nil
     ) {
         self.aiService = aiService
         self.voiceService = voiceService
         self.mapViewModel = mapViewModel
+        self.contextManager = contextManager
         self.toolRouter = VoiceAgentToolRouter(
             mapViewModel: mapViewModel,
             preferences: preferences
@@ -65,9 +70,12 @@ public final class VoiceAgentOrchestrator: Identifiable {
         isRunning = true
         errorMessage = nil
         uiState = .listening
-        session.seedSystem(systemPrompt)
-        session.beginListening()
         thinkingStep = NSLocalizedString("agent.step.listening", comment: "Listening…")
+        Task {
+            let prompt = await buildSystemPrompt()
+            session.seedSystem(prompt)
+            session.beginListening()
+        }
     }
 
     /// Called when the user submits a text message (not voice).
@@ -275,7 +283,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
     // MARK: - System prompt
 
-    private var systemPrompt: String {
+    /// Builds the system prompt async, injecting the LLMContext JSON snapshot
+    /// when a ContextManager is wired in (US-023).
+    private func buildSystemPrompt() async -> String {
         let visible = mapViewModel?.visibleExperiences.prefix(VoiceAgentSession.visibleExperiencesInjected) ?? []
         let visibleSummary = visible.isEmpty
             ? "No experiences currently visible on the map."
@@ -285,9 +295,21 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
         let coord = mapViewModel?.exploreAnchorCoordinate ?? MapViewModel.defaultCenter
 
+        var contextBlock = ""
+        if let cm = contextManager {
+            let ctx = await cm.snapshot()
+            if let json = ctx.jsonString() {
+                contextBlock = """
+
+                CONTEXT SNAPSHOT (JSON — use to personalize recommendations):
+                \(json)
+                """
+            }
+        }
+
         return """
         You are Solo Compass, a warm and knowledgeable travel companion for solo travelers.
-        The user is at approximately (\(String(format: "%.4f", coord.latitude)), \(String(format: "%.4f", coord.longitude))).
+        The user is at approximately (\(String(format: "%.4f", coord.latitude)), \(String(format: "%.4f", coord.longitude))).\(contextBlock)
 
         CURRENT VISIBLE EXPERIENCES (use ONLY these IDs when calling tools):
         \(visibleSummary)
