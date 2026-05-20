@@ -1,409 +1,390 @@
 {
-  "project": "Solo Compass Data Engine v2",
-  "branchName": "ralph/data-engine-v2",
-  "description": "Three-leg data engine: AI compilation pipeline (Wikivoyage/OSM/Google Places) + editorial admin app + user signal aggregation. Replaces single-city seed with global geo-aware backend. See tasks/prd-data-engine-v2.md.",
+  "project": "Codex /add Page v0.5",
+  "branchName": "ralph/codex-add-page-v0-5",
+  "description": "Codex Web /add page production-readiness pass: draft persistence (local + server), Cmd+Enter submit, first-frame state consistency, full mode buttons (URL/Photo/File/Voice/Bookmarklet), queue-card navigation, and minimal /memos/[id] detail page. See tasks/prd-codex-add-page-v0-5.md.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Bootstrap packages/db with Drizzle + Postgres",
-      "description": "As a developer, I need a new packages/db workspace with Drizzle ORM and a local Postgres dev setup.",
+      "title": "Add drafts schema and migration",
+      "description": "As a developer, I need a drafts table so user drafts can be persisted server-side.",
       "acceptanceCriteria": [
-        "New package packages/db with package.json, tsconfig.json extending root",
-        "Drizzle ORM, drizzle-kit, postgres dependencies added",
-        "docker-compose.yml at repo root brings up postgres:16 + postgis/postgis:16-3.4",
-        "README.md in packages/db documents 'pnpm db:up' and 'pnpm db:migrate'",
-        "Typecheck passes"
+        "Create drafts table with columns: id (uuid pk), user_id (fk), content (text), type (varchar), updated_at (timestamptz default now())",
+        "Unique constraint on (user_id) — one draft per user for /add",
+        "Generate and run migration successfully",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Define experiences table schema with PostGIS",
-      "description": "As a developer, I need the core experiences table with a PostGIS geography column.",
+      "title": "Implement GET /api/drafts/add endpoint",
+      "description": "As a client, I want to fetch the current user's latest draft on page load.",
       "acceptanceCriteria": [
-        "Drizzle schema in packages/db/src/schema/experiences.ts",
-        "Columns: id (uuid pk), title, oneLiner, whyItMatters, category, location (geography POINT 4326), confidenceLevel int, status enum, createdAt, updatedAt, lastCompiledAt",
-        "Migration enables postgis extension and creates GIST index on location",
-        "pnpm db:migrate runs successfully against local docker postgres",
-        "Typecheck passes"
+        "GET /api/drafts/add returns 200 with { content, type, updatedAt } when draft exists",
+        "Returns 204 when no draft exists",
+        "Returns 401 when unauthenticated",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Define experience_revisions table for audit history",
-      "description": "As a developer, I need a revisions table so every Experience mutation creates an immutable history entry.",
+      "title": "Implement PUT /api/drafts/add endpoint",
+      "description": "As a client, I want to upsert the current user's draft idempotently.",
       "acceptanceCriteria": [
-        "Drizzle schema in packages/db/src/schema/revisions.ts",
-        "Columns: id, experienceId (fk), revisionNumber int, fullPayload jsonb, createdBy text, createdAt",
-        "Index on (experienceId, revisionNumber)",
-        "Migration runs cleanly",
-        "Typecheck passes"
+        "PUT /api/drafts/add accepts { content, type } and upserts by user_id",
+        "Returns 200 with updated draft",
+        "Validates content length <= 100KB and type in enum",
+        "Returns 401 when unauthenticated, 400 on validation failure",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Define sources and dropped_candidates tables",
-      "description": "As a developer, I need tables to store source attribution and rejected candidates.",
+      "title": "Implement DELETE /api/drafts/add endpoint",
+      "description": "As a client, I want to clear the saved draft after successful submission.",
       "acceptanceCriteria": [
-        "sources table: id, experienceId fk, sourceType enum (wikivoyage|osm|google_places), sourceUrl, weight int, evidence jsonb, verifiedAt",
-        "dropped_candidates table: id, evidence jsonb, reason text, droppedAt",
-        "Migration runs cleanly",
-        "Typecheck passes"
+        "DELETE /api/drafts/add removes draft for current user, returns 204",
+        "Idempotent — returns 204 even when no draft existed",
+        "Returns 401 when unauthenticated",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-005",
-      "title": "Define compilation_jobs and editor_queue tables",
-      "description": "As a developer, I need tables to coordinate async compilation jobs and editor review.",
+      "title": "Add localStorage draft persistence on /add",
+      "description": "As a user, I want my draft to survive a page refresh via localStorage.",
       "acceptanceCriteria": [
-        "compilation_jobs table: id, query jsonb, status enum (queued|running|completed|failed), startedAt, completedAt, error",
-        "editor_queue table: id, experienceId fk, priority int, claimedBy text nullable, claimedAt timestamp nullable",
-        "Migration runs cleanly",
-        "Typecheck passes"
+        "Clicking Save draft writes { content, type, attachments_meta, savedAt } to localStorage key 'codex:add:draft' (versioned prefix 'v1:')",
+        "On page mount, if local draft exists and savedAt is within 30 days, restore content/type and show 'Draft restored' banner with Discard button",
+        "Banner auto-hides after 5s or when user starts editing",
+        "Successful POST /api/memos clears the localStorage key",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-006",
-      "title": "Define user_signals and audit_log tables",
-      "description": "As a developer, I need tables for anonymous user signals and global audit log.",
+      "title": "Sync drafts to server with debounce + conflict resolution",
+      "description": "As a multi-device user, I want my draft to sync across devices via the drafts API.",
       "acceptanceCriteria": [
-        "user_signals table: id, experienceId fk, anonymousDeviceId text, signalType enum (gps_dwell|micro_survey|user_report), payload jsonb, createdAt",
-        "audit_log table: id, actor text, action text, targetType text, targetId text, payload jsonb, at timestamp",
-        "Index on user_signals(experienceId, signalType)",
-        "Migration runs cleanly",
-        "Typecheck passes"
+        "After Save draft, debounce 1.5s then PUT /api/drafts/add",
+        "Retry up to 2 times on network error, silent on failure",
+        "On mount, prefer local draft; if local is empty, GET /api/drafts/add and restore",
+        "When both exist, use the one with newer updatedAt",
+        "On 401, degrade to local-only without error toast",
+        "Successful POST /api/memos calls DELETE /api/drafts/add",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-007",
-      "title": "Extend pnpm parity:check to validate DB schema vs core types",
-      "description": "As CI, I need to fail when Drizzle schema drifts from packages/core/src/experience.ts.",
+      "title": "Add Cmd+Enter / Ctrl+Enter submit shortcut",
+      "description": "As a keyboard user, I want to submit with Cmd/Ctrl+Enter inside the textarea.",
       "acceptanceCriteria": [
-        "scripts/check-swift-parity.ts extended with checkDbParity() function",
-        "Compares Drizzle inferred types against Experience type from packages/core",
-        "Exits non-zero on mismatch with diff output",
-        "pnpm parity:check still works for existing TS<->Swift check",
-        "Typecheck passes"
+        "Textarea keydown handler triggers Add when (metaKey || ctrlKey) && key === 'Enter'",
+        "No-op when Add button is disabled (empty content or submitting)",
+        "Ignored when event.isComposing === true (IME safety)",
+        "Hint text shows below input: '⌘/Ctrl + Enter to submit'",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-008",
-      "title": "Define SourceAdapter contract in packages/sources/core",
-      "description": "As the data engine, I need a uniform interface for all source adapters.",
+      "title": "Fix breadcrumb first-frame inconsistency",
+      "description": "As a user, I want the breadcrumb to show 'CODEX / Add' immediately on navigation, not after refresh.",
       "acceptanceCriteria": [
-        "New package packages/sources/core",
-        "Exports SourceAdapter interface: name string, weight number, fetch(query: SourceQuery): Promise<Candidate[]>, healthCheck(): Promise<boolean>",
-        "Exports Candidate, SourceQuery, BBox types",
-        "Registry function getActiveAdapters(config): SourceAdapter[]",
-        "Unit test for registry with mock adapters",
-        "Typecheck passes"
+        "Breadcrumb component reads current route from usePathname() (or server-resolved per route)",
+        "Navigating from /home, /wiki, /chat to /add shows 'Add' in first frame",
+        "Direct visits to /add and /add?from=... show 'Add' in first frame",
+        "No layout shift on hydration",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-009",
-      "title": "Implement Wikivoyage source adapter",
-      "description": "As the data engine, I need to extract POIs from Wikivoyage articles.",
+      "title": "Return full memo object from POST /api/memos and optimistic queue update",
+      "description": "As a user, I want a newly submitted item to show QUEUED immediately, no refresh needed.",
       "acceptanceCriteria": [
-        "New package packages/sources/wikivoyage",
-        "fetchCity(cityName: string): Promise<Candidate[]> parses See/Do/Eat/Drink sections",
-        "Stores attribution: source_url, license: 'CC-BY-SA-3.0'",
-        "Rate limit: max 10 req/min via internal queue",
-        "Cache responses 7 days using node-cache or similar",
-        "Unit test with fixture HTML for Lisbon",
+        "POST /api/memos 201 response body includes complete memo: { id, type, content, compile_status: 'queued', created_at }",
+        "Client optimistically prepends the response memo to Compile Queue without refetching",
+        "On 4xx/5xx, revert the optimistic insert and show toast",
+        "Queue item renders QUEUED label immediately based on compile_status",
         "Typecheck passes",
-        "Tests pass"
+        "Tests pass",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-010",
-      "title": "Implement OpenStreetMap + Overpass source adapter",
-      "description": "As the data engine, I need POI metadata from OSM via Overpass API.",
+      "title": "Wire SSE compile-status updates to in-place queue item rerender",
+      "description": "As a user, I want queue items to update from QUEUED → COMPILING → DONE in real time.",
       "acceptanceCriteria": [
-        "New package packages/sources/osm",
-        "fetchPOIs(bbox, types): Promise<Candidate[]> queries Overpass with QL",
-        "Default types: amenity={cafe,restaurant,bar,place_of_worship,library,bookshop}, tourism={attraction,viewpoint,museum}",
-        "Rate limit: max 1 req/sec",
-        "Cache responses 24h",
-        "Unit test with recorded Overpass JSON fixture",
+        "Client subscribes to /api/stream/compile and matches events by memo id",
+        "compile_status transitions update the matching queue item in place",
+        "When status becomes 'done', item moves to Recently Compiled section",
+        "When status becomes 'failed', item shows FAILED badge",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-011",
-      "title": "Implement Google Places API source adapter",
-      "description": "As the data engine, I need authoritative hours and ratings from Google Places.",
+      "title": "Implement GET /api/memos/[id] endpoint",
+      "description": "As a client, I want to fetch a single memo's full data for the detail page.",
       "acceptanceCriteria": [
-        "New package packages/sources/google-places",
-        "fetchNearby(lat, lon, radiusM): Promise<Candidate[]>",
-        "API key from GOOGLE_PLACES_API_KEY env var, redacted in logs",
-        "Per-request cost logged to console (Nearby $0.017, Details $0.017+)",
-        "Daily budget cap from env var GOOGLE_PLACES_DAILY_CAP_USD (default 50); refuse calls when exceeded",
-        "Cache nearby 6h, details 24h",
-        "Stores only place_id + derived signals, NOT raw Google fields (ToS compliance)",
-        "Unit test with mocked fetch",
+        "GET /api/memos/[id] returns 200 with { id, type, content, compile_status, compiled_at, compiled_payload, created_at, attachments }",
+        "Returns 404 when memo does not exist or belongs to another user",
+        "Returns 401 when unauthenticated",
         "Typecheck passes",
         "Tests pass"
       ],
       "priority": 11,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-012",
-      "title": "Implement candidate deduplication",
-      "description": "As the data engine, I need to merge candidates from different sources that reference the same physical location.",
+      "title": "Implement POST /api/memos/[id]/recompile endpoint",
+      "description": "As a user, I want to retry a failed compilation.",
       "acceptanceCriteria": [
-        "New module packages/ai/compilation/dedup.ts",
-        "dedup(candidates: Candidate[]): MergedCandidate[]",
-        "Match on (name fuzzy similarity >= 0.85 via fast-levenshtein) AND (coords within 50m)",
-        "Merged candidate combines evidence array, preserves all source URLs",
-        "Returns merge stats { input, output, mergedCount }",
-        "Unit test: same place from 3 sources merges to 1",
+        "POST /api/memos/[id]/recompile re-enqueues the memo, returns 200 with updated memo",
+        "Allowed only when compile_status === 'failed'; returns 409 otherwise",
+        "Rate-limited to once per 5 minutes per memo, returns 429 when limited",
+        "Returns 404 / 401 appropriately",
         "Typecheck passes",
         "Tests pass"
       ],
       "priority": 12,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-013",
-      "title": "Implement evidence weight scoring",
-      "description": "As the data engine, I need to compute total evidence weight per merged candidate.",
+      "title": "Build minimal /memos/[id] detail page",
+      "description": "As a user, I want a detail page that shows a memo's content, type, status, and compiled payload.",
       "acceptanceCriteria": [
-        "New module packages/ai/compilation/scoring.ts",
-        "Configurable per-source weights (wikivoyage:3, osm:2, google_places:1) loaded from packages/db/sources_config",
-        "scoreCandidate(c: MergedCandidate): { totalWeight, sourcesCount, qualifies: boolean }",
-        "Threshold: totalWeight >= 5 AND sourcesCount >= 2",
-        "Below-threshold candidates passed to dropCandidate(c, reason) which inserts into dropped_candidates table",
-        "Unit test for scoring logic",
+        "New route /memos/[id] as Server Component, fetches via GET /api/memos/[id]",
+        "Renders content with preserved newlines and safe HTML escaping",
+        "Shows type badge, status badge (QUEUED/COMPILING/DONE/FAILED), created_at",
+        "When compile_status === 'done', renders compiled_payload",
+        "Breadcrumb shows 'CODEX / Add / Memo' with back button to /add",
+        "404 page for missing memos, error.tsx for server errors",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-014",
-      "title": "Author AI compilation prompt v1",
-      "description": "As the data engine, I need a versioned prompt template for compiling evidence into Experience JSON.",
+      "title": "Subscribe to SSE on detail page for non-terminal statuses",
+      "description": "As a user, I want the detail page to update live while a memo is compiling.",
       "acceptanceCriteria": [
-        "New file packages/ai/prompts/compile-experience.v1.md",
-        "Defines: Solo Compass voice, output JSON schema, constraints (oneLiner <=100 chars, whyItMatters 80-150 words, realInconveniences >=2)",
-        "Prompt is exported as a constant from packages/ai/prompts/index.ts",
-        "Includes sample input + sample output",
-        "Typecheck passes"
+        "When compile_status is 'queued' or 'compiling', subscribe to /api/stream/compile?id=<id>",
+        "Update status badge and compiled_payload in place when event arrives",
+        "Close SSE connection when status becomes 'done' or 'failed' or component unmounts",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-015",
-      "title": "Implement AI compilation service with Anthropic SDK",
-      "description": "As the data engine, I need to call Claude Opus 4.7 to compile evidence into a structured Experience.",
+      "title": "Add Retry button on failed memos in detail page",
+      "description": "As a user, I want to retry a failed compilation from the detail page.",
       "acceptanceCriteria": [
-        "New module packages/ai/compilation/compile.ts",
-        "compile(candidate: MergedCandidate): Promise<Experience | RejectReason>",
-        "Uses @anthropic-ai/sdk with model claude-opus-4-7",
-        "API key from ANTHROPIC_API_KEY env",
-        "Prompt loaded from US-014 template",
-        "Output validated against Experience Zod schema from packages/core",
-        "Per-call cost logged",
-        "1 retry on JSON parse fail",
-        "Unit test with mocked Anthropic client",
+        "When compile_status === 'failed', show error message and Retry button",
+        "Retry button calls POST /api/memos/[id]/recompile and refreshes status to QUEUED",
+        "On 429, show toast with cooldown message; on 5xx, show toast",
+        "Button disabled while request is in flight",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-016",
-      "title": "Add voice and depth quality gates",
-      "description": "As the data engine, I need to reject AI outputs that violate Solo Compass voice or depth standards.",
+      "title": "Make queue cards navigate to /memos/[id]",
+      "description": "As a user, I want to click a queue card body to open the memo detail page.",
       "acceptanceCriteria": [
-        "New module packages/ai/compilation/gates.ts",
-        "voiceGate(experience): rejects if oneLiner matches /(amazing|best|must-see|incredible|breathtaking)/i",
-        "depthGate(experience): rejects if whyItMatters word count < 80",
-        "fieldsGate(experience): rejects if realInconveniences.length < 2 or required schema fields missing",
-        "Each gate returns { passed: boolean, reason?: string }",
-        "Unit tests for each gate with passing and failing inputs",
+        "Card body uses next/link to /memos/[id] (middle-click opens new tab)",
+        "Right-side LIGHT/FULL toggle and ✕ buttons stopPropagation, do not navigate",
+        "Card has role='link' and is keyboard-focusable; Enter/Space triggers navigation",
+        "Hover/focus visual feedback preserved",
+        "Applies to both Compile Queue and Recently Compiled lists",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 16,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-017",
-      "title": "Implement compilation orchestrator (end-to-end pipeline)",
-      "description": "As the data engine, I need an orchestrator that chains: sources -> dedup -> scoring -> compile -> gates -> persist.",
+      "title": "Fix URL mode behavior on /add",
+      "description": "As a user, clicking URL should switch to URL input mode, not autofill the current page URL.",
       "acceptanceCriteria": [
-        "New module packages/ai/compilation/orchestrator.ts",
-        "runCompilationJob(query: { lat, lon, radiusKm }): Promise<{ published: number, dropped: number, jobId: string }>",
-        "Inserts compilation_jobs row with status 'running' at start, 'completed' or 'failed' at end",
-        "On success: inserts experiences (status='awaiting_review', confidenceLevel=2), sources, editor_queue rows",
-        "On gate failure: inserts dropped_candidates row",
-        "Unit test with all sources mocked end-to-end",
+        "Click URL button sets mode = 'url', highlights button, changes placeholder to 'Paste a URL (https://...)'",
+        "Textarea content is NOT modified; window.location.href is no longer auto-filled",
+        "Live validation: invalid URL disables Add button and shows 'Enter a valid URL'",
+        "Valid URL shows host preview below input (e.g., 'example.com')",
+        "Toggling off URL mode preserves textarea content",
+        "POST /api/memos body uses { type: 'url', content: <url> }",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 17,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-018",
-      "title": "Bootstrap apps/api with Hono",
-      "description": "As the backend, I need an API server scaffold connected to the database.",
+      "title": "Make Voice button visibly disabled with tooltip",
+      "description": "As a user, I want the Voice button to show clear disabled state with explanation.",
       "acceptanceCriteria": [
-        "New app apps/api using Hono framework",
-        "Health endpoint GET /health returns 200 with version + uptime",
-        "Connected to packages/db via Drizzle",
-        "OpenAPI spec scaffold at packages/api/openapi.yaml (just /health for now)",
-        "README with local dev instructions",
+        "Voice button renders with disabled visual style (reduced opacity, not-allowed cursor)",
+        "Hover and keyboard focus show tooltip 'Voice input — coming soon' via aria-describedby",
+        "Click has no side effect (no toast, no state change)",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 18,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-019",
-      "title": "Implement GET /v1/experiences geo query endpoint",
-      "description": "As iOS, I need a geo-aware endpoint that returns nearby experiences and triggers backfill when coverage is thin.",
+      "title": "Fix Bookmarklet button — show Modal with script and instructions",
+      "description": "As a user, I want the Bookmarklet button to show a Modal with the drag-to-bookmark link and copy script, not attach an image.",
       "acceptanceCriteria": [
-        "GET /v1/experiences?lat=&lon=&radiusKm=&minTier=2 returns experiences sorted by (confidenceLevel desc, distance asc)",
-        "Uses PostGIS ST_DWithin for geo filter",
-        "When result count < 5 OR oldest > 90d, async-call orchestrator.runCompilationJob (don't await)",
-        "Response shape: { data: Experience[], meta: { compilationStatus: 'idle'|'queued'|'running' } }",
-        "Cache header: public, max-age=60 when idle, 5 when queued/running",
-        "Updated openapi.yaml with this endpoint",
-        "Integration test with seeded DB",
+        "Click Bookmarklet opens a Modal with: drag-to-bookmark anchor <a href='javascript:...'>Save to Codex</a>, instructions, Copy script button, Close button",
+        "Modal does NOT attach IMG_3836.PNG or any placeholder file",
+        "Closing Modal preserves textarea content, mode, and attachments",
+        "Copy script button copies the bookmarklet source via navigator.clipboard",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-020",
-      "title": "Implement GET /v1/experiences bbox query and GET /v1/experiences/{id}",
-      "description": "As iOS, I need bbox queries for map pan and a single-experience endpoint with full evidence.",
+      "title": "Add attachments column to memos schema and migration",
+      "description": "As a developer, I need to store attachment metadata on memos.",
       "acceptanceCriteria": [
-        "GET /v1/experiences?bbox=minLon,minLat,maxLon,maxLat&minTier=2&limit=50 uses PostGIS ST_Intersects",
-        "GET /v1/experiences/{id} returns Experience with sources array embedded",
-        "Returns 404 with error body on unknown id",
-        "OpenAPI spec updated",
-        "Integration tests cover both endpoints",
+        "Add attachments jsonb column to memos table, default '[]'::jsonb",
+        "Shape: Array<{ url, mime, size, original_name }>",
+        "Generate and run migration successfully",
         "Typecheck passes",
         "Tests pass"
       ],
       "priority": 20,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-021",
-      "title": "Implement POST /v1/experiences/{id}/signals endpoint",
-      "description": "As the system, I need to accept user signals (gps_dwell, micro_survey, user_report) keyed by anonymous device id.",
+      "title": "Extend POST /api/memos to accept multipart/form-data with attachments",
+      "description": "As a client, I want to upload files alongside a memo in a single request.",
       "acceptanceCriteria": [
-        "POST /v1/experiences/{id}/signals accepts body { signalType, payload }",
-        "Requires X-Device-ID header (UUID format)",
-        "Inserts row into user_signals table",
-        "Sets experiences.pendingSignalAggregation = true",
-        "Per-device rate limit: 10 micro_survey/day, 5 user_report/day",
-        "Returns 201 on success, 429 when rate limited",
-        "OpenAPI spec updated",
-        "Integration test",
+        "POST /api/memos accepts multipart/form-data while remaining backward-compatible with application/json",
+        "Multipart fields: type, content, files[]",
+        "MIME whitelist: image/jpeg, image/png, image/webp, application/pdf, text/markdown, text/plain, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/rtf",
+        "Size limits: images <=10MB each (max 4), files <=25MB (max 1)",
+        "Upload to existing object storage, write attachments metadata into memo row",
+        "Returns 413 on oversize, 415 on bad MIME, 400 on missing fields",
         "Typecheck passes",
         "Tests pass"
       ],
       "priority": 21,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-022",
-      "title": "Bootstrap apps/admin Next.js scaffold with Supabase Auth",
-      "description": "As an editor, I need a web admin app with magic-link auth restricted to an allowlist.",
+      "title": "Implement Photo mode on /add",
+      "description": "As a user, clicking Photo opens an image picker and previews selected images.",
       "acceptanceCriteria": [
-        "New app apps/admin using Next.js App Router",
-        "Supabase Auth with magic-link email login",
-        "Allowlist read from EDITOR_EMAILS env var (comma-separated)",
-        "Middleware redirects non-allowlisted users to /unauthorized",
-        "Empty pages: /queue, /queue/[id], /published, /dropped, /sources, /metrics",
-        "Tailwind dark mode default",
+        "Click Photo triggers hidden <input type='file' accept='image/*' capture='environment'>",
+        "Up to 4 photos per memo; over limit shows 'Up to 4 photos per memo'",
+        "Each image <=10MB; oversize shows 'Image too large (max 10MB)'",
+        "Preview chip above textarea: 64x64 thumbnail + filename + size + ✕ remove",
+        "Submit sends multipart POST /api/memos with type='photo' and files[]",
+        "Removing all photos clears Photo mode highlight",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 22,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-023",
-      "title": "Implement /queue list view in admin app",
-      "description": "As an editor, I need to see all candidates awaiting review, prioritized.",
+      "title": "Implement File mode on /add",
+      "description": "As a user, clicking File opens a system file picker for documents.",
       "acceptanceCriteria": [
-        "/queue shows experiences where status='awaiting_review'",
-        "Sorted by priority: population proximity DESC, evidence weight DESC, age DESC",
-        "Each row: title, city, source count, weight, age",
-        "Filter controls: city dropdown, source-type checkboxes, weight range",
-        "Each row links to /queue/[id]",
-        "Pagination 50 per page",
+        "Click File triggers hidden <input type='file' accept='.pdf,.md,.txt,.docx,.rtf'>",
+        "Single file per memo, <=25MB; oversize shows clear error",
+        "Preview chip: file icon + filename + size + ✕ remove",
+        "Submit sends multipart POST /api/memos with type='file'",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 23,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
       "id": "US-024",
-      "title": "Implement claim mechanism on queue items",
-      "description": "As an editor, I want to claim a candidate so two editors don't review the same one.",
+      "title": "Add drag-and-drop file handling to /add",
+      "description": "As a user, I want to drag files onto the /add page to attach them.",
       "acceptanceCriteria": [
-        "POST action on /queue/[id] sets editor_queue.claimedBy = currentUser.email and claimedAt = now",
-        "Claim auto-expires after 30 min",
-        "Queue list shows 'Claimed by X' indicator for items claimed by others; their rows are dimmed",
-        "Server action 'releaseClaim' clears the claim",
+        "Dragging files over the /add page shows a drop overlay",
+        "Dropped images route to Photo mode; dropped documents route to File mode",
+        "Files exceeding limits trigger same error messages as click-to-upload",
+        "Preventing browser default open-file behavior",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
@@ -413,13 +394,12 @@
     },
     {
       "id": "US-025",
-      "title": "Implement /queue/[id] three-pane review UI",
-      "description": "As an editor, I want to compare raw evidence vs AI output and edit before approving.",
+      "title": "Show attachments on memo detail page and preserve on compile failure",
+      "description": "As a user, I want to see attachments on the detail page and have them survive a failed compilation.",
       "acceptanceCriteria": [
-        "Three columns: left = raw evidence (collapsible per source), center = AI-generated Experience read-only, right = editable form",
-        "Form covers all Experience fields with same Zod validation as backend",
-        "Voice violations highlighted: regex /(amazing|best|must-see|incredible|breathtaking)/i shown in red inline",
-        "Auto-save edit draft to localStorage every 5s",
+        "/memos/[id] renders attachments list with thumbnails (images) or icons (files) and original_name",
+        "Compile-failure state still shows attachments and 'Compilation failed' message",
+        "Click on attachment opens the file (target='_blank' for files, lightbox for images)",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
@@ -429,15 +409,15 @@
     },
     {
       "id": "US-026",
-      "title": "Add map preview to /queue/[id] review",
-      "description": "As an editor, I want to see the candidate location on a map alongside nearby published experiences.",
+      "title": "Stabilize mode-button rendering performance",
+      "description": "As a user, I want mode buttons to respond within 200ms, with no 30s render hangs.",
       "acceptanceCriteria": [
-        "Map embedded in /queue/[id] using maplibre-gl",
-        "Marker for candidate location (red)",
-        "Markers for published experiences within 1km (green)",
-        "Click marker shows mini info popup",
+        "Mode button onClick performs no synchronous blocking work (file pickers and Modals open async)",
+        "Mode highlight state is local useState to avoid full /add re-render",
+        "Add Playwright stress test: 100 random mode-button clicks complete within 30s with no timeout",
+        "React DevTools Profiler: each mode switch commit <=16ms",
         "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Tests pass"
       ],
       "priority": 26,
       "passes": false,
@@ -445,14 +425,14 @@
     },
     {
       "id": "US-027",
-      "title": "Implement approve / approve-with-edits / reject actions",
-      "description": "As an editor, I want to act on a candidate and advance to the next one.",
+      "title": "Add accessibility polish to /add",
+      "description": "As a keyboard/AT user, I want full keyboard access and accessible labels.",
       "acceptanceCriteria": [
-        "Approve as-is: sets status='published', confidenceLevel=3, deletes editor_queue row, inserts experience_revisions row",
-        "Approve with edits: same as above but stores diff in revision payload",
-        "Reject: requires reason text, sets status='rejected', inserts audit_log entry",
-        "After action, redirect to next claimed candidate or back to /queue",
-        "Keyboard shortcuts: A approve, E focus edit form, R focus reject reason",
+        "Input area hint: '⌘/Ctrl + Enter to submit · Drag & drop files supported'",
+        "All mode buttons are Tab-reachable with visible focus ring",
+        "Attachment ✕ button has aria-label='Remove attachment'",
+        "Queue card supports keyboard navigation (focus + Enter triggers /memos/[id])",
+        "axe-core scan of /add returns 0 critical/serious violations",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
@@ -462,321 +442,17 @@
     },
     {
       "id": "US-028",
-      "title": "Implement /metrics admin dashboard",
-      "description": "As an operator, I want to see editor throughput and pipeline health.",
+      "title": "Add analytics events for /add interactions",
+      "description": "As a PM, I want event tracking on key interactions to validate Success Metrics.",
       "acceptanceCriteria": [
-        "/metrics shows: queue depth, throughput per editor (today/week), approval rate, edit rate, top reject reasons",
-        "Per-source health: success rate, latency p50/p95, error counts (last 24h)",
-        "Compilation success rate (passed all gates)",
-        "Auto-refresh every 30s",
+        "Fire events via existing analytics: add.draft.save, add.draft.restore, add.submit, add.submit.shortcut, add.mode.switch, memo.detail.view, memo.recompile",
+        "add.mode.switch payload includes target mode",
+        "add.submit payload includes type and hasAttachments boolean",
+        "No event fires when action is disabled or no-op",
         "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Tests pass"
       ],
       "priority": 28,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-029",
-      "title": "Implement /published and /dropped audit views",
-      "description": "As an operator, I want to review past decisions and re-queue false rejects.",
-      "acceptanceCriteria": [
-        "/published lists recently approved with editor attribution, sortable by date/editor",
-        "/dropped lists rejected with reason, bulk-select + 'Re-queue' action",
-        "Audit log searchable: filter by editor, action type, date range",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 29,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-030",
-      "title": "Implement passive GPS dwell signal in iOS",
-      "description": "As iOS LocationService, I need to send a gps_dwell signal when a user spends >=15min in a region.",
-      "acceptanceCriteria": [
-        "Modify apps/ios/SoloCompass/Services/LocationService.swift: track entry timestamp per region",
-        "On didExitRegion, compute duration; if >= 900s, POST /v1/experiences/{id}/signals",
-        "Includes X-Device-ID header (UUID from Keychain)",
-        "Privacy: never sends coordinates, only experienceId + duration",
-        "Unit test for dwell duration logic",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 30,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-031",
-      "title": "Implement micro-survey UI on Mark-as-done in iOS",
-      "description": "As a user, after marking an experience done I'm asked 3 questions and the answers are sent to the backend.",
-      "acceptanceCriteria": [
-        "New view: apps/ios/SoloCompass/Views/Experience/MicroSurveySheet.swift",
-        "3 questions: comfort 1-5, staff_pressure 1-5 inverted, recommend yes/no/depends",
-        "Skip button allowed; if user skips 3 in a row, don't show for 30 days",
-        "Submit POSTs to /v1/experiences/{id}/signals with payload",
-        "Localized via NSLocalizedString",
-        "Hooked into existing ExperienceDetailViewModel.markAsDone flow",
-        "Snapshot test for each question state",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 31,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-032",
-      "title": "Implement aggregation worker for soloScore recompute",
-      "description": "As the system, I need a periodic worker that recomputes soloScore from user signals.",
-      "acceptanceCriteria": [
-        "New module packages/ai/aggregation/worker.ts with runAggregation(): Promise<{ updated: number }>",
-        "Selects experiences where pendingSignalAggregation = true",
-        "Pulls all user_signals where signal_type='micro_survey'",
-        "Computes new soloScore.breakdown from question medians",
-        "Computes new confidence.level: tier 4 if >=1 user signal, tier 5 if >=5 user signals",
-        "Inserts new experience_revisions row created_by='system'",
-        "Old AI-derived score preserved in revision history",
-        "Schedule via pg_cron hourly",
-        "Unit test with mocked DB",
-        "Typecheck passes",
-        "Tests pass"
-      ],
-      "priority": 32,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-033",
-      "title": "Implement staleness detection cron job",
-      "description": "As the system, I need a nightly job that re-compiles experiences older than 90 days.",
-      "acceptanceCriteria": [
-        "New script packages/ai/aggregation/staleness.ts with detectStale(): Promise<{ recompiled: number }>",
-        "Selects experiences where lastCompiledAt < now() - interval '90 days'",
-        "For each: re-runs orchestrator with original lat/lon",
-        "Compares old vs new payload; if material changes (hours, status, name), pushes to editor_queue with REFRESH label (priority high)",
-        "Updates lastCompiledAt regardless",
-        "Scheduled via pg_cron nightly at 03:00 UTC",
-        "Unit test with mocked orchestrator",
-        "Typecheck passes",
-        "Tests pass"
-      ],
-      "priority": 33,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-034",
-      "title": "Implement user-report flow in iOS detail view",
-      "description": "As a user, I want a 'Report issue' button on ExperienceDetailView with reason picker.",
-      "acceptanceCriteria": [
-        "Report button in ExperienceDetailView.swift overflow menu",
-        "Sheet with reasons (single-select): closed_permanently, moved, hours_wrong, vibe_different, factually_wrong, other",
-        "Optional free-text field max 200 chars",
-        "POSTs to /v1/experiences/{id}/signals with signal_type=user_report",
-        "Backend: when user_report count >= 3 within 30d, push experience to editor_queue with REPORT label",
-        "Localized",
-        "Snapshot test for sheet",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 34,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-035",
-      "title": "Implement abuse detection for user signals",
-      "description": "As the system, I need to quarantine suspicious signals.",
-      "acceptanceCriteria": [
-        "Module apps/api/middleware/abuse.ts",
-        "Checks per-device rate limits: 10 micro_survey/day, 5 user_report/day",
-        "Detects coordinated patterns: N devices submitting identical payloads within 5 min",
-        "Suspicious signals inserted with payload.quarantined = true; aggregation worker filters them out",
-        "Trust officer can review/reverse via /metrics admin page",
-        "Unit test with simulated abuse patterns",
-        "Typecheck passes",
-        "Tests pass"
-      ],
-      "priority": 35,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-036",
-      "title": "Implement per-source cost tracking and caps",
-      "description": "As an operator, I need real-time spend visibility and hard caps per source.",
-      "acceptanceCriteria": [
-        "New table source_costs: id, sourceType, dateBucket date, totalCostUsd, requestCount",
-        "Each adapter increments source_costs after every paid call",
-        "Daily cap enforced before each call: refuse if today's totalCostUsd >= cap",
-        "/metrics page shows daily/monthly spend per source with chart",
-        "Slack webhook env SLACK_ALERT_WEBHOOK_URL alerted at 80% of cap",
-        "Unit test for cap enforcement logic",
-        "Typecheck passes",
-        "Tests pass",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 36,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-037",
-      "title": "Implement pipeline health dashboard data layer",
-      "description": "As an operator, I need /metrics to show pipeline status at a glance.",
-      "acceptanceCriteria": [
-        "Server actions in apps/admin/app/metrics/queries.ts return: jobs queued/running/completed/failed (24h), per-adapter latency p50/p95, compilation gate pass rate, queue depth, oldest queue item age",
-        "/metrics page renders these via charts (recharts)",
-        "Auto-refresh every 30s",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 37,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-038",
-      "title": "Add anonymous device ID generation and storage in iOS",
-      "description": "As iOS, I need a stable UUID stored in Keychain for signal attribution.",
-      "acceptanceCriteria": [
-        "New service apps/ios/SoloCompass/Services/DeviceIdentityService.swift",
-        "On first call: generate UUIDv4, store in Keychain under com.solocompass.deviceId",
-        "Subsequent calls return cached value",
-        "Survives app reinstall (Keychain default behavior)",
-        "Settings has 'Reset device ID' button that wipes Keychain entry",
-        "All API requests automatically attach X-Device-ID header via URLSessionConfiguration extension",
-        "Unit test with mock Keychain",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 38,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-039",
-      "title": "Implement RemoteExperienceService in iOS with offline fallback",
-      "description": "As iOS, I want to fetch from the new backend with bundled-seed fallback on network failure.",
-      "acceptanceCriteria": [
-        "New file apps/ios/SoloCompass/Services/RemoteExperienceService.swift",
-        "Async methods: fetchNearby(lat, lon, radiusKm), fetchByBbox(bbox), fetchById(id), submitSignal(experienceId, type, payload)",
-        "URLSession with 10s timeout",
-        "API base URL from Secrets.plist key API_BASE_URL or env override",
-        "Caches GET responses in URLCache",
-        "On network failure (no connectivity, timeout, 5xx): return bundled seed_experiences.json",
-        "Surfaces error to UI via lastError @Observable property",
-        "Unit test with mocked URLSession (success, 404, timeout, fallback)",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 39,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-040",
-      "title": "Wire MapViewModel to RemoteExperienceService instead of local seed",
-      "description": "As iOS, I want the map to load experiences from the backend by default.",
-      "acceptanceCriteria": [
-        "MapViewModel.loadNearbyExperiences() now calls RemoteExperienceService.fetchNearby(...)",
-        "Existing ExperienceService kept as fallback only (offline mode)",
-        "When meta.compilationStatus = 'queued' or 'running', show 'Finding more nearby...' indicator above BottomInfoBar",
-        "Polls every 30s while compilationStatus != 'idle' (max 5 polls)",
-        "Unit test for MapViewModel with mocked RemoteExperienceService",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 40,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-041",
-      "title": "Implement confidence-tier visual indicators on iOS markers",
-      "description": "As a user, I want to see at a glance which experiences are AI-compiled vs editor-verified vs user-verified.",
-      "acceptanceCriteria": [
-        "MarkerIconView.swift extended: ring color per confidence tier (5=green solid, 4=green, 3=green, 2=yellow, 1=red, 0=gray dashed)",
-        "Existing marker state (bestNow, favorited, etc) composes WITH confidence ring (e.g. yellow ring + bestNow inner)",
-        "Default filter: only tier >= 2 returned by RemoteExperienceService (minTier query param)",
-        "Snapshot tests for each (tier, state) combination",
-        "xcodebuild builds clean",
-        "XCTest passes",
-        "Verify in iPhone 16 Pro simulator"
-      ],
-      "priority": 41,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-042",
-      "title": "Implement confidence-tier explanation in ExperienceDetailView",
-      "description": "As a user, I want to understand what each tier means.",
-      "acceptanceCriteria": [
-        "ExperienceDetailView header includes tier indicator with one-line explanation per tier",
-        "Tap indicator opens help sheet explaining the 6-tier system in <100 words",
-        "Source attribution panel: 'Compiled from Wikivoyage + OSM' or 'Verified by 3 solo travelers'",
-        "Localized strings",
-        "Snapshot tests for each tier",
-        "xcodebuild builds clean",
-        "XCTest passes",
-        "Verify in iPhone 16 Pro simulator"
-      ],
-      "priority": 42,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-043",
-      "title": "Implement 'Show speculative experiences' toggle in iOS Settings",
-      "description": "As a user opting in, I want to see tier-1 (AI single-source) experiences too.",
-      "acceptanceCriteria": [
-        "UserPreferences.Snapshot adds showSpeculativeExperiences: Bool (default false)",
-        "Settings page has toggle in Discovery section with explanatory subtext",
-        "When enabled, RemoteExperienceService passes minTier=1",
-        "When toggled, MapViewModel reloads",
-        "Migration safe (decodeIfPresent default false)",
-        "Snapshot test",
-        "xcodebuild builds clean",
-        "XCTest passes"
-      ],
-      "priority": 43,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-044",
-      "title": "Bootstrap pipeline run for 5 launch cities",
-      "description": "As the team, we need an initial dataset before going live.",
-      "acceptanceCriteria": [
-        "New script packages/ai/scripts/bootstrap.ts that runs orchestrator against 5 cities (Chiang Mai, Lisbon, Tokyo, Mexico City, Bali)",
-        "Runs against staging Supabase project (env var SUPABASE_URL_STAGING)",
-        "Logs per-city: candidates fetched, compiled, dropped, awaiting review",
-        "Total runtime <30 min for 5 cities (parallelized)",
-        "Output written to docs/BOOTSTRAP_REPORT.md",
-        "Typecheck passes",
-        "Tests pass"
-      ],
-      "priority": 44,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-045",
-      "title": "Update CLAUDE.md and docs/PHASES.md with v2 architecture",
-      "description": "As a future contributor, I need the architecture docs to reflect the new data engine.",
-      "acceptanceCriteria": [
-        "CLAUDE.md adds 'Data Engine' section pointing to tasks/prd-data-engine-v2.md",
-        "Adds new packages: packages/db, packages/sources/{core,wikivoyage,osm,google-places}, packages/ai/compilation, apps/api",
-        "Adds new app: apps/admin",
-        "docs/PHASES.md updated to reflect 'Phase 2.5: Data Engine' (between current Phase 2 web and Phase 3 iOS)",
-        "Schema parity table updated to show 3 sources of truth (TS / Swift / DB)",
-        "Typecheck passes"
-      ],
-      "priority": 45,
       "passes": false,
       "notes": ""
     }
