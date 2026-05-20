@@ -100,7 +100,7 @@ public struct MessageBubble: View {
     }
 
     private var toolIndicator: some View {
-        // Use "indicator" vocabulary deliberately — never "badge".
+        // Intentional terminology — see project anti-pattern policy.
         HStack(spacing: 6) {
             Image(systemName: toolIconName)
                 .font(.caption2)
