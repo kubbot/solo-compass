@@ -1,5 +1,6 @@
 import XCTest
 import CoreLocation
+import MapKit
 import SwiftData
 import StoreKitTest
 @testable import SoloCompass
@@ -3262,7 +3263,7 @@ final class LanguageServiceTests: XCTestCase {
 
         let ctx = await manager.snapshot()
         XCTAssertNil(ctx.location, "location must be nil when no GPS fix is available")
-        XCTAssertEqual(ctx.viewportPois, [])
+        XCTAssertTrue(ctx.viewportPois.isEmpty)
     }
 
     // MARK: - US-023 VoiceAgentOrchestrator context injection
@@ -3281,9 +3282,19 @@ final class LanguageServiceTests: XCTestCase {
         )
 
         let ctx = await manager.snapshot()
-        let json = try XCTUnwrap(ctx.jsonString(), "jsonString() must produce valid JSON")
-        let data = try XCTUnwrap(json.data(using: .utf8))
-        let parsed = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        guard let json = ctx.jsonString() else {
+            XCTFail("jsonString() must produce valid JSON")
+            return
+        }
+        guard let data = json.data(using: String.Encoding.utf8) else {
+            XCTFail("jsonString() must be UTF-8 encodable")
+            return
+        }
+        let object = try JSONSerialization.jsonObject(with: data)
+        guard let parsed = object as? [String: Any] else {
+            XCTFail("context JSON must decode to a dictionary")
+            return
+        }
 
         XCTAssertNotNil(parsed["viewportBBox"], "payload must contain viewportBBox key")
         XCTAssertNotNil(parsed["viewportPois"], "payload must contain viewportPois key")
