@@ -10,6 +10,7 @@ public struct SettingsView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(LanguageService.self) private var languageService
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.themeService) private var themeService
     var onClose: () -> Void
     var onShowFavorites: (() -> Void)?
 
@@ -46,6 +47,8 @@ public struct SettingsView: View {
                 preferredCategoriesSection
                 dislikedCategoriesSection
                 distanceSection
+                // Section: Appearance (US-039)
+                appearanceSection
                 // Section: AI & Privacy
                 languageSection
                 notificationsSection
@@ -579,6 +582,24 @@ public struct SettingsView: View {
             success ? "settings.adminUnlock.success" : "settings.adminUnlock.failure",
             comment: "Admin unlock result"
         )
+    }
+
+    // MARK: - Appearance (US-039)
+
+    private var appearanceSection: some View {
+        Section {
+            Picker(NSLocalizedString("settings.theme", comment: "Theme"), selection: Binding(
+                get: { themeService.selectedOption },
+                set: { themeService.selectedOption = $0 }
+            )) {
+                ForEach(ThemeService.ThemeOption.allCases) { option in
+                    Text(option.localizedName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            settingsSectionHeader("paintpalette", label: NSLocalizedString("settings.appearance", comment: "Appearance"))
+        }
     }
 }
 

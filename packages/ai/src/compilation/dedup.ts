@@ -58,11 +58,18 @@ function coordsMatch(
   return distanceMeters(a, b) <= COORD_DISTANCE_THRESHOLD_METERS;
 }
 
+/** True when one normalised name is a substring of the other (catches parenthetical aliases). */
+function isSubstringAlias(a: string, b: string): boolean {
+  const na = normaliseName(a);
+  const nb = normaliseName(b);
+  return na.includes(nb) || nb.includes(na);
+}
+
 function isSamePlace(a: Candidate, b: Candidate): boolean {
-  return (
-    nameSimilarity(a.title, b.title) >= NAME_SIMILARITY_THRESHOLD &&
-    coordsMatch(a.coordinates, b.coordinates)
-  );
+  const nameMatch =
+    nameSimilarity(a.title, b.title) >= NAME_SIMILARITY_THRESHOLD ||
+    isSubstringAlias(a.title, b.title);
+  return nameMatch && coordsMatch(a.coordinates, b.coordinates);
 }
 
 function mergeCandidates(group: Candidate[]): MergedCandidate {

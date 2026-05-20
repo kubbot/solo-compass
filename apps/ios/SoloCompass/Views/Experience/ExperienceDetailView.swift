@@ -8,8 +8,10 @@ public struct ExperienceDetailView: View {
     var onClose: () -> Void
     var onMarkDone: ((_ experience: Experience) -> Void)?
 
+    @Environment(\.themeService) private var themeService
     @State private var isShowingReport: Bool = false
     @State private var showingRadarTooltip: Bool = false
+    @State private var exportMarkdown: String? = nil
 
     public init(
         viewModel: ExperienceDetailViewModel,
@@ -58,6 +60,7 @@ public struct ExperienceDetailView: View {
             .padding(.top, 16)
             .padding(.bottom, 80) // room for floating action bar
         }
+        .background(themeService.currentTheme.background)
         .overlay(alignment: .bottom) { actionBar }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -70,6 +73,14 @@ public struct ExperienceDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button {
+                        exportMarkdown = MarkdownExporter.export(viewModel.experience)
+                    } label: {
+                        Label(
+                            NSLocalizedString("detail.exportNote", comment: "Export Markdown note"),
+                            systemImage: "square.and.arrow.up"
+                        )
+                    }
                     Button(role: .destructive) {
                         isShowingReport = true
                     } label: {
@@ -89,6 +100,16 @@ public struct ExperienceDetailView: View {
                 experience: viewModel.experience,
                 onSubmit: { _, _ in isShowingReport = false },
                 onCancel: { isShowingReport = false }
+            )
+        }
+        .sheet(item: Binding(
+            get: { exportMarkdown.map { ExportPayload(markdown: $0) } },
+            set: { if $0 == nil { exportMarkdown = nil } }
+        )) { payload in
+            MarkdownShareSheet(
+                markdown: payload.markdown,
+                title: viewModel.experience.title,
+                notionURL: MarkdownExporter.notionWebClipperURL(title: viewModel.experience.title)
             )
         }
         .task {

@@ -433,3 +433,17 @@
 "router.fallback.recommend" = "Based on your preferences, here are some great options nearby.";
 "router.fallback.settings" = "You can adjust your preferences in the Settings tab.";
 "router.fallback.smallTalk" = "I'm here to help you discover solo-friendly places. What are you looking for?";
+
+/* Markdown PKM export (US-037) */
+"detail.exportNote" = "Export Note";
+"export.preview" = "Markdown preview";
+"export.copy" = "Copy Markdown";
+"export.notion" = "Open in Notion";
+"export.share" = "Share…";
+
+/* Offline banner (US-041) */
+"offline.banner" = "Offline mode · showing cached data";
+
+/* Theme picker (US-039) */
+"settings.appearance" = "Appearance";
+"settings.theme" = "Theme";

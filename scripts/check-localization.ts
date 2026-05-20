@@ -10,10 +10,7 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { join, extname } from "path";
 
 const SWIFT_DIR = join(__dirname, "../apps/ios/SoloCompass");
-const STRINGS_FILE = join(
-  SWIFT_DIR,
-  "Resources/en.lproj/Localizable.strings"
-);
+const STRINGS_FILE = join(SWIFT_DIR, "Resources/en.lproj/Localizable.strings");
 
 function walkSwiftFiles(dir: string): string[] {
   const results: string[] = [];
@@ -85,13 +82,11 @@ for (const [key, files] of allKeys) {
 
 if (missing.length === 0) {
   console.log(
-    `✅ All ${allKeys.size} NSLocalizedString keys found in en.lproj/Localizable.strings`
+    `✅ All ${allKeys.size} NSLocalizedString keys found in en.lproj/Localizable.strings`,
   );
   process.exit(0);
 } else {
-  console.error(
-    `❌ ${missing.length} missing key(s) in en.lproj/Localizable.strings:\n`
-  );
+  console.error(`❌ ${missing.length} missing key(s) in en.lproj/Localizable.strings:\n`);
   for (const { key, files } of missing) {
     console.error(`  "${key}"`);
     for (const f of files) {

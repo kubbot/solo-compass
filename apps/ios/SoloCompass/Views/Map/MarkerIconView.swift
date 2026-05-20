@@ -13,6 +13,7 @@ public struct MarkerIconView: View {
     let state: ExperienceMarkerState
     let confidenceLevel: Int
 
+    @Environment(\.themeService) private var themeService
     @State private var pulse = false
 
     public init(
@@ -31,6 +32,18 @@ public struct MarkerIconView: View {
     var isLowConfidence: Bool { confidenceLevel <= 1 }
 
     public var body: some View {
+        if themeService.selectedOption == .obsidian {
+            ObsidianDotGridMarker(accent: themeService.currentTheme.accent, state: state)
+                .frame(width: 44, height: 44)
+                .accessibilityLabel(Text(accessibilityLabel))
+                .accessibilityIdentifier(accessibilityIdentifier)
+        } else {
+            defaultMarkerBody
+        }
+    }
+
+    @ViewBuilder
+    private var defaultMarkerBody: some View {
         ZStack {
             // Pulse ring for "best now" (suppress on low-confidence — we
             // don't want AI-guessed entries imitating verified excitement)
@@ -174,6 +187,35 @@ public struct MarkerIconView: View {
     /// that low-confidence and normal markers produce distinguishable views.
     var accessibilityIdentifier: String {
         "marker.\(category.rawValue).\(state.identifierFragment).\(isLowConfidence ? "low" : "normal")"
+    }
+}
+
+// MARK: - Obsidian 5×5 dot-grid marker (US-039)
+
+/// Glowing neon-green 5×5 dot grid rendered for the Obsidian theme.
+private struct ObsidianDotGridMarker: View {
+    let accent: Color
+    let state: ExperienceMarkerState
+
+    var body: some View {
+        ZStack {
+            let cols = 5
+            let spacing: CGFloat = 5
+            let dotR: CGFloat = state == .bestNow ? 2.5 : 1.8
+
+            VStack(spacing: spacing) {
+                ForEach(0..<cols, id: \.self) { _ in
+                    HStack(spacing: spacing) {
+                        ForEach(0..<cols, id: \.self) { _ in
+                            Circle()
+                                .fill(accent)
+                                .frame(width: dotR * 2, height: dotR * 2)
+                        }
+                    }
+                }
+            }
+            .shadow(color: accent.opacity(0.8), radius: state == .bestNow ? 6 : 3)
+        }
     }
 }
 

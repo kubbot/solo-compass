@@ -10,17 +10,17 @@ Go service that provides the RAG (retrieval-augmented generation) pipeline for S
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/healthz` | Health check — always returns `{"status":"ok"}`, no DB dependency. |
-| GET | `/v1/experiences/:id/solo-score` | Returns the aggregate solo score and review count for an experience. Returns 503 when the database is unavailable. |
+| Method | Path                             | Description                                                                                                        |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/healthz`                       | Health check — always returns `{"status":"ok"}`, no DB dependency.                                                 |
+| GET    | `/v1/experiences/:id/solo-score` | Returns the aggregate solo score and review count for an experience. Returns 503 when the database is unavailable. |
 
 ## Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable       | Default  | Description                                                                               |
+| -------------- | -------- | ----------------------------------------------------------------------------------------- |
 | `DATABASE_URL` | _(none)_ | PostgreSQL DSN (`postgres://user:pass@host/db`). When absent, `/v1` endpoints return 503. |
-| `PORT` | `8080` | TCP port the server listens on. |
+| `PORT`         | `8080`   | TCP port the server listens on.                                                           |
 
 ## Running locally
 

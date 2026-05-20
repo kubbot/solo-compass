@@ -11,6 +11,7 @@ public struct CompassMapView: View {
     @Environment(UserPreferences.self) private var preferences
     @Environment(NotificationService.self) private var notificationService
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.themeService) private var themeService
 
     @State private var viewModel: MapViewModel?
     @State private var voiceService = VoiceService()
@@ -29,6 +30,8 @@ public struct CompassMapView: View {
     @State private var isMapPanning: Bool = false
     @State private var panResetTask: Task<Void, Never>? = nil
 
+    private let networkMonitor = NetworkMonitor.shared
+
     enum ChatStartMode { case text, voice }
 
     public init() {}
@@ -40,7 +43,7 @@ public struct CompassMapView: View {
     @ViewBuilder
     private var mapContent: some View {
         mapZStack
-            .background(Color(.systemBackground))
+            .background(themeService.currentTheme.background)
             .onAppear {
                 locationService.requestPermission()
                 if viewModel == nil {
@@ -142,6 +145,16 @@ public struct CompassMapView: View {
                         preferences: preferences,
                         locationService: locationService
                     )
+                }
+
+                // Offline banner (US-041): amber pill when network is unavailable
+                if !networkMonitor.isConnected {
+                    VStack {
+                        OfflineBanner()
+                            .padding(.top, 8)
+                        Spacer()
+                    }
+                    .animation(.easeInOut, value: networkMonitor.isConnected)
                 }
             } else {
                 ProgressView()

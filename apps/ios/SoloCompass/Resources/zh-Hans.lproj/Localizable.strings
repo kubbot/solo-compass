@@ -396,3 +396,17 @@
 "city.distanceAway" = "距离 %.1f 公里";
 "city.distanceAway.mi" = "距离 %.1f 英里";
 "city.distanceUnknown" = "距离未知";
+
+/* Markdown PKM export (US-037) */
+"detail.exportNote" = "导出笔记";
+"export.preview" = "Markdown 预览";
+"export.copy" = "复制 Markdown";
+"export.notion" = "在 Notion 中打开";
+"export.share" = "分享…";
+
+/* Offline banner (US-041) */
+"offline.banner" = "离线模式 · 显示缓存数据";
+
+/* Theme picker (US-039) */
+"settings.appearance" = "外观";
+"settings.theme" = "主题";

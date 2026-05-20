@@ -57,9 +57,7 @@ export interface LLMContext {
 // Validation
 // ---------------------------------------------------------------------------
 
-export type ValidationResult =
-  | { ok: true; value: LLMContext }
-  | { ok: false; errors: string[] };
+export type ValidationResult = { ok: true; value: LLMContext } | { ok: false; errors: string[] };
 
 /** Runtime validation for LLMContext. Use at system boundaries. */
 export function validateLLMContext(raw: unknown): ValidationResult {
@@ -79,7 +77,7 @@ export function validateLLMContext(raw: unknown): ValidationResult {
       typeof obj["location"][0] !== "number" ||
       typeof obj["location"][1] !== "number"
     ) {
-      errors.push('location must be [number, number] or null');
+      errors.push("location must be [number, number] or null");
     }
   }
 
@@ -110,9 +108,12 @@ export function validateLLMContext(raw: unknown): ValidationResult {
     errors.push("preferences must be an object");
   } else {
     const p = prefs as Record<string, unknown>;
-    if (typeof p["soloTravelStyle"] !== "string") errors.push("preferences.soloTravelStyle must be a string");
-    if (!Array.isArray(p["preferredCategories"])) errors.push("preferences.preferredCategories must be an array");
-    if (typeof p["maxDistanceKm"] !== "number") errors.push("preferences.maxDistanceKm must be a number");
+    if (typeof p["soloTravelStyle"] !== "string")
+      errors.push("preferences.soloTravelStyle must be a string");
+    if (!Array.isArray(p["preferredCategories"]))
+      errors.push("preferences.preferredCategories must be an array");
+    if (typeof p["maxDistanceKm"] !== "number")
+      errors.push("preferences.maxDistanceKm must be a number");
   }
 
   // localTime
@@ -127,8 +128,10 @@ export function validateLLMContext(raw: unknown): ValidationResult {
       errors.push("weather must be an object when present");
     } else {
       const weather = w as Record<string, unknown>;
-      if (typeof weather["condition"] !== "string") errors.push("weather.condition must be a string");
-      if (typeof weather["tempCelsius"] !== "number") errors.push("weather.tempCelsius must be a number");
+      if (typeof weather["condition"] !== "string")
+        errors.push("weather.condition must be a string");
+      if (typeof weather["tempCelsius"] !== "number")
+        errors.push("weather.tempCelsius must be a number");
       if (typeof weather["humidity"] !== "number") errors.push("weather.humidity must be a number");
       else if ((weather["humidity"] as number) < 0 || (weather["humidity"] as number) > 1) {
         errors.push("weather.humidity must be between 0 and 1");

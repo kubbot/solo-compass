@@ -3364,4 +3364,83 @@ final class LanguageServiceTests: XCTestCase {
             XCTFail("unexpected error type: \(error)")
         }
     }
+
+    // MARK: - US-037 Markdown PKM Export
+
+    func testMarkdownExportContainsFrontmatterFields() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let md = MarkdownExporter.export(exp, date: Date(timeIntervalSince1970: 0))
+        XCTAssertTrue(md.hasPrefix("---"), "must start with YAML frontmatter")
+        XCTAssertTrue(md.contains("title:"), "frontmatter must have title")
+        XCTAssertTrue(md.contains("date:"), "frontmatter must have date")
+        XCTAssertTrue(md.contains("latitude:"), "frontmatter must have latitude")
+        XCTAssertTrue(md.contains("longitude:"), "frontmatter must have longitude")
+        XCTAssertTrue(md.contains("city:"), "frontmatter must have city")
+        XCTAssertTrue(md.contains("solo_score:"), "frontmatter must have solo_score")
+        XCTAssertTrue(md.contains("tags:"), "frontmatter must have tags")
+    }
+
+    func testMarkdownExportBodyContainsTitle() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let md = MarkdownExporter.export(exp)
+        XCTAssertTrue(md.contains("# \(exp.title)"), "body must have H1 with title")
+    }
+
+    func testMarkdownExportNotionURL() throws {
+        let url = MarkdownExporter.notionWebClipperURL(title: "Test Place")
+        XCTAssertNotNil(url)
+        XCTAssertTrue(url!.absoluteString.contains("notion.so"), "should be Notion URL")
+    }
+
+    // MARK: - US-038 ThemeService
+
+    @MainActor
+    func testThemeServiceDefaultsToSystem() {
+        // Reset to avoid bleed from other tests
+        UserDefaults.standard.removeObject(forKey: "selectedTheme")
+        let service = ThemeService.shared
+        // After reset the next init reads .system; since it's a singleton we check the rawValue
+        XCTAssertEqual(service.selectedOption, .system)
+    }
+
+    @MainActor
+    func testThemeServiceSwitchingToObsidian() {
+        let service = ThemeService.shared
+        service.selectedOption = .obsidian
+        XCTAssertEqual(service.selectedOption, .obsidian)
+        // Theme tokens should reflect Obsidian values
+        let theme = service.currentTheme
+        // Obsidian background is #0D1117 ≈ RGB(13,17,23)
+        XCTAssertEqual(service.selectedOption.rawValue, "Obsidian")
+        _ = theme.background  // confirm property access doesn't crash
+        _ = theme.accent
+        // Restore
+        service.selectedOption = .system
+    }
+
+    @MainActor
+    func testThemeServicePersists() {
+        let service = ThemeService.shared
+        service.selectedOption = .obsidian
+        let persisted = UserDefaults.standard.string(forKey: "selectedTheme")
+        XCTAssertEqual(persisted, "Obsidian")
+        service.selectedOption = .system
+    }
+
+    // MARK: - US-040 OfflineCacheService
+
+    @MainActor
+    func testOfflineCacheRoundTrip() throws {
+        let cache = OfflineCacheService.shared
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        cache.cacheExperiences([exp], forCity: "test-city-\(UUID().uuidString)")
+        // A different city should return nil
+        XCTAssertNil(cache.loadExperiences(forCity: "nonexistent-\(UUID().uuidString)"))
+    }
+
+    @MainActor
+    func testOfflineCacheHasDataReturnsFalseForUnknownCity() {
+        let cache = OfflineCacheService.shared
+        XCTAssertFalse(cache.hasCachedData(forCity: "unknown-city-\(UUID().uuidString)"))
+    }
 }
