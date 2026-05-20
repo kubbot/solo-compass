@@ -33,11 +33,65 @@ public struct CompassMapView: View {
     public init() {}
 
     public var body: some View {
-        AnyView(zStackWithSheets)
+        AnyView(mapContent)
     }
 
     @ViewBuilder
-    private var zStackWithSheets: some View {
+    private var mapContent: some View {
+        mapZStack
+            .background(Color(.systemBackground))
+            .onAppear {
+                locationService.requestPermission()
+                if viewModel == nil {
+                    let vm = MapViewModel(
+                        locationService: locationService,
+                        experienceService: experienceService,
+                        aiService: aiService,
+                        preferences: preferences
+                    )
+                    vm.attachSubscriptionService(subscriptionService)
+                    viewModel = vm
+                    // On first launch with no saved city and no GPS, prompt city picker.
+                    if preferences.lastSelectedCity == nil && locationService.currentLocation == nil {
+                        isShowingCityPicker = true
+                    }
+                }
+                viewModel?.checkForPendingCheckIns()
+            }
+            .onChange(of: locationService.currentLocation) { _, _ in
+                viewModel?.bindToLocation()
+            }
+            .onChange(of: preferences.pendingCheckIns) { _, _ in
+                viewModel?.checkForPendingCheckIns()
+            }
+            .sheet(isPresented: settingsSheetBinding) { settingsSheetContent }
+            .sheet(item: $surveyExperience) { exp in surveySheetContent(exp: exp) }
+            .alert(
+                NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
+                isPresented: addExperienceAlertBinding
+            ) {
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
+                    viewModel?.cancelAddExperience()
+                }
+                Button(NSLocalizedString("addExperience.confirm.add", comment: "Add")) {
+                    viewModel?.confirmAddExperience()
+                }
+            } message: {
+                Text(NSLocalizedString("addExperience.confirm.message", comment: "Describe it with your voice"))
+            }
+            .sheet(isPresented: recordExperienceSheetBinding) { recordExperienceSheetContent }
+            .sheet(isPresented: detailSheetBinding) { detailSheetContent }
+            .sheet(isPresented: $isShowingCityPicker) { cityPickerSheetContent }
+            .sheet(isPresented: $isShowingFavorites) { favoritesSheetContent }
+            .sheet(isPresented: $isShowingPlusMenu) { plusMenuSheetContent }
+            .sheet(isPresented: conversationSheetBinding) { conversationSheetContent }
+            .sheet(isPresented: paywallSheetBinding) { paywallSheetContent }
+            .modifier(ExploreConsentSheetModifier(viewModel: viewModel, preferences: preferences))
+            .fullScreenCover(isPresented: onboardingCoverBinding) { onboardingCoverContent }
+    }
+
+    @ViewBuilder
+    private var mapZStack: some View {
         ZStack {
             if let viewModel {
                 mapLayer(viewModel: viewModel)
@@ -102,167 +156,159 @@ public struct CompassMapView: View {
                     .accessibilityLabel(Text(NSLocalizedString("map.loading", comment: "Loading map")))
             }
         }
-        .background(Color(.systemBackground))
-        .onAppear {
-            locationService.requestPermission()
-            if viewModel == nil {
-                let vm = MapViewModel(
-                    locationService: locationService,
-                    experienceService: experienceService,
-                    aiService: aiService,
-                    preferences: preferences
-                )
-                vm.attachSubscriptionService(subscriptionService)
-                viewModel = vm
-                // On first launch with no saved city and no GPS, prompt city picker.
-                if preferences.lastSelectedCity == nil && locationService.currentLocation == nil {
-                    isShowingCityPicker = true
-                }
-            }
-            viewModel?.checkForPendingCheckIns()
-        }
-        .onChange(of: locationService.currentLocation) { _, _ in
-            viewModel?.bindToLocation()
-        }
-        .onChange(of: preferences.pendingCheckIns) { _, _ in
-            viewModel?.checkForPendingCheckIns()
-        }
-        // Settings sheet
-        .sheet(isPresented: Binding(
+    }
+
+    // MARK: - Sheet Bindings
+
+    private var settingsSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isShowingSettings ?? false },
             set: { if !$0 { viewModel?.isShowingSettings = false } }
-        )) {
-            SettingsView(
-                onClose: { viewModel?.isShowingSettings = false },
-                onShowFavorites: { isShowingFavorites = true }
-            )
-            .environment(preferences)
-            .environment(notificationService)
-        }
-        // MicroSurvey sheet (shown after marking an experience done)
-        .sheet(item: $surveyExperience) { exp in
-            MicroSurveySheet(
-                experience: exp,
-                onSubmit: { comfort, pressure, recommend in
-                    // US-020: persist via the repo so the aggregated
-                    // SoloScore reflects this immediately.
-                    experienceService.repo.recordSurvey(
-                        experienceId: exp.id,
-                        comfort: comfort,
-                        pressure: pressure,
-                        recommend: recommend.rawValue,
-                        anonDeviceId: DeviceIdentityService.shared.deviceID
-                    )
-                    surveyExperience = nil
-                },
-                onSkip: { surveyExperience = nil }
-            )
-        }
-        .alert(
-            NSLocalizedString("addExperience.confirm.title", comment: "Add an experience here?"),
-            isPresented: Binding(
-                get: { (viewModel?.pendingAddCoordinate != nil) && (viewModel?.isRecordingNewExperience == false) },
-                set: { if !$0 { viewModel?.cancelAddExperience() } }
-            )
-        ) {
-            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
-                viewModel?.cancelAddExperience()
-            }
-            Button(NSLocalizedString("addExperience.confirm.add", comment: "Add")) {
-                viewModel?.confirmAddExperience()
-            }
-        } message: {
-            Text(NSLocalizedString("addExperience.confirm.message", comment: "Describe it with your voice"))
-        }
-        .sheet(isPresented: Binding(
+        )
+    }
+
+    private var addExperienceAlertBinding: Binding<Bool> {
+        Binding(
+            get: { (viewModel?.pendingAddCoordinate != nil) && (viewModel?.isRecordingNewExperience == false) },
+            set: { if !$0 { viewModel?.cancelAddExperience() } }
+        )
+    }
+
+    private var recordExperienceSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isRecordingNewExperience ?? false },
             set: { if !$0 { viewModel?.cancelAddExperience() } }
-        )) {
-            VStack(spacing: 24) {
-                Text(NSLocalizedString("addExperience.record.title", comment: "Tell us about this place"))
-                    .font(.headline)
-                Text(NSLocalizedString("addExperience.record.hint", comment: "Hold the mic and describe what makes it worth a solo visit"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                VoiceButton(voiceService: voiceService) { transcript in
-                    Task { await viewModel?.handleNewExperienceTranscript(transcript) }
-                }
-            }
-            .padding(32)
-            .presentationDetents([.medium])
-        }
-        .sheet(isPresented: Binding(
+        )
+    }
+
+    private var detailSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isShowingDetail ?? false },
             set: { if !$0 { viewModel?.isShowingDetail = false } }
-        )) {
-            if let exp = viewModel?.selectedExperience {
-                NavigationStack {
-                    ExperienceDetailView(
-                        viewModel: ExperienceDetailViewModel(
-                            experience: exp,
-                            experienceService: experienceService,
-                            aiService: aiService,
-                            preferences: preferences,
-                            subscriptionService: subscriptionService
-                        ),
-                        onClose: { viewModel?.dismissDetail() },
-                        onMarkDone: { experience in surveyExperience = experience }
-                    )
-                }
-            }
-        }
-        .sheet(isPresented: $isShowingCityPicker) {
-            if let vm = viewModel {
-                CityPickerSheet(viewModel: vm) {
-                    isShowingCityPicker = false
-                }
-            }
-        }
-        // Favorites list sheet
-        .sheet(isPresented: $isShowingFavorites) {
-            FavoritesListView { exp in
-                isShowingFavorites = false
-                viewModel?.selectExperience(exp)
-                viewModel?.isShowingDetail = true
-            }
-            .environment(experienceService)
-            .environment(preferences)
-        }
-        // "+" quick-action menu sheet — extracted for type-checker performance
-        .sheet(isPresented: $isShowingPlusMenu) { plusMenuSheetContent }
-        // Voice agent conversation sheet — extracted for type-checker performance
-        .sheet(isPresented: conversationSheetBinding) { conversationSheetContent }
-        // US-024 paywall sheet — shown when a free user taps an AI-gated
-        // action. The view's onUnlocked closure resumes the original
-        // action (saved by MapViewModel as `onPaywallUnlocked`).
-        .sheet(isPresented: Binding(
+        )
+    }
+
+    private var paywallSheetBinding: Binding<Bool> {
+        Binding(
             get: { viewModel?.isShowingPaywall ?? false },
             set: { if !$0 { viewModel?.isShowingPaywall = false } }
-        )) {
-            PaywallView(onUnlocked: {
-                let resume = viewModel?.onPaywallUnlocked
-                viewModel?.onPaywallUnlocked = nil
-                resume?()
-            })
-            .environment(subscriptionService)
-        }
-        .modifier(ExploreConsentSheetModifier(
-            viewModel: viewModel,
-            preferences: preferences
-        ))
-        // First-run onboarding
-        .fullScreenCover(isPresented: Binding(
+        )
+    }
+
+    private var onboardingCoverBinding: Binding<Bool> {
+        Binding(
             get: { !preferences.hasCompletedOnboarding },
             set: { if $0 { } else { preferences.completeOnboarding() } }
-        )) {
-            OnboardingView {
-                // onComplete — preferences.hasCompletedOnboarding already set inside
+        )
+    }
+
+    // MARK: - Sheet Contents
+
+    @ViewBuilder
+    private var settingsSheetContent: some View {
+        SettingsView(
+            onClose: { viewModel?.isShowingSettings = false },
+            onShowFavorites: { isShowingFavorites = true }
+        )
+        .environment(preferences)
+        .environment(notificationService)
+    }
+
+    @ViewBuilder
+    private func surveySheetContent(exp: Experience) -> some View {
+        MicroSurveySheet(
+            experience: exp,
+            onSubmit: { comfort, pressure, recommend in
+                // US-020: persist via the repo so the aggregated
+                // SoloScore reflects this immediately.
+                experienceService.repo.recordSurvey(
+                    experienceId: exp.id,
+                    comfort: comfort,
+                    pressure: pressure,
+                    recommend: recommend.rawValue,
+                    anonDeviceId: DeviceIdentityService.shared.deviceID
+                )
+                surveyExperience = nil
+            },
+            onSkip: { surveyExperience = nil }
+        )
+    }
+
+    @ViewBuilder
+    private var recordExperienceSheetContent: some View {
+        VStack(spacing: 24) {
+            Text(NSLocalizedString("addExperience.record.title", comment: "Tell us about this place"))
+                .font(.headline)
+            Text(NSLocalizedString("addExperience.record.hint", comment: "Hold the mic and describe what makes it worth a solo visit"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            VoiceButton(voiceService: voiceService) { transcript in
+                Task { await viewModel?.handleNewExperienceTranscript(transcript) }
             }
-            .environment(locationService)
-            .environment(preferences)
+        }
+        .padding(32)
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder
+    private var detailSheetContent: some View {
+        if let exp = viewModel?.selectedExperience {
+            NavigationStack {
+                ExperienceDetailView(
+                    viewModel: ExperienceDetailViewModel(
+                        experience: exp,
+                        experienceService: experienceService,
+                        aiService: aiService,
+                        preferences: preferences,
+                        subscriptionService: subscriptionService
+                    ),
+                    onClose: { viewModel?.dismissDetail() },
+                    onMarkDone: { experience in surveyExperience = experience }
+                )
+            }
         }
     }
+
+    @ViewBuilder
+    private var cityPickerSheetContent: some View {
+        if let vm = viewModel {
+            CityPickerSheet(viewModel: vm) {
+                isShowingCityPicker = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var favoritesSheetContent: some View {
+        FavoritesListView { exp in
+            isShowingFavorites = false
+            viewModel?.selectExperience(exp)
+            viewModel?.isShowingDetail = true
+        }
+        .environment(experienceService)
+        .environment(preferences)
+    }
+
+    @ViewBuilder
+    private var paywallSheetContent: some View {
+        PaywallView(onUnlocked: {
+            let resume = viewModel?.onPaywallUnlocked
+            viewModel?.onPaywallUnlocked = nil
+            resume?()
+        })
+        .environment(subscriptionService)
+    }
+
+    @ViewBuilder
+    private var onboardingCoverContent: some View {
+        OnboardingView {
+            // onComplete — preferences.hasCompletedOnboarding already set inside
+        }
+        .environment(locationService)
+        .environment(preferences)
+    }
+
 
     @ViewBuilder
     private var plusMenuSheetContent: some View {
