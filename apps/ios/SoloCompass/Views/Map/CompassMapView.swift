@@ -49,89 +49,15 @@ public struct CompassMapView: View {
 
                 VStack {
                     Spacer()
-                    HStack(alignment: .bottom) {
-                        Button {
-                            viewModel.isShowingSettings = true
-                        } label: {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.title3)
-                                .frame(width: 48, height: 48)
-                                .background(Circle().fill(.regularMaterial))
-                                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 20)
-                        .padding(.bottom, 80)
-                        .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
-
-                        // Explore-here button — pulls real OSM POIs near the
-                        // current location and asks AIService to enrich them.
-                        // US-026: free users see "Explore (Pro)" with a lock icon;
-                        // tapping triggers the paywall instead of an actual Pro call.
-                        Button {
-                            let anchor = viewModel.exploreAnchorCoordinate
-                            Task { await viewModel.exploreNearby(at: anchor) }
-                        } label: {
-                            Group {
-                                if viewModel.isExploring || viewModel.isExploringFreeMode {
-                                    ProgressView()
-                                        .progressViewStyle(.circular)
-                                } else if viewModel.isProUser {
-                                    Image(systemName: "sparkle.magnifyingglass")
-                                        .font(.title3)
-                                } else {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "lock.fill")
-                                            .font(.caption.weight(.semibold))
-                                        Text(NSLocalizedString("explore.button.pro", comment: "Explore (Pro)"))
-                                            .font(.caption.weight(.semibold))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 8)
-                                }
-                            }
-                            .frame(minWidth: 48, minHeight: 48)
-                            .background(Capsule().fill(.regularMaterial))
-                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 12)
-                        .padding(.bottom, 80)
-                        .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
-                        .accessibilityLabel(Text(
-                            viewModel.isProUser
-                                ? NSLocalizedString("explore.button", comment: "Explore here")
-                                : NSLocalizedString("explore.button.pro", comment: "Explore (Pro)")
-                        ))
-
-                        Spacer()
-
-                        // "+" button: short tap → quick-action menu,
-                        // long press (≥0.8s) → inline voice agent mode.
-                        PlusActionButton(
-                            isShowingMenu: $isShowingPlusMenu,
-                            onShortTap: {
-                                guard !isShowingVoiceOverlay else { return }
-                                isShowingPlusMenu = true
-                            },
-                            onLongPress: {
-                                guard !isShowingVoiceOverlay, voiceOrchestrator == nil else { return }
-                                isShowingPlusMenu = false
-                                let orch = VoiceAgentOrchestrator(
-                                    aiService: aiService,
-                                    voiceService: voiceService,
-                                    mapViewModel: viewModel,
-                                    preferences: preferences
-                                )
-                                orch.start()
-                                voiceOrchestrator = orch
-                                isShowingVoiceOverlay = true
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            }
-                        )
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 80)
-                    }
+                    MapControlBar(
+                        viewModel: viewModel,
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        preferences: preferences,
+                        isShowingPlusMenu: $isShowingPlusMenu,
+                        isShowingVoiceOverlay: $isShowingVoiceOverlay,
+                        voiceOrchestrator: $voiceOrchestrator
+                    )
                 }
 
                 if let selected = viewModel.selectedExperience, !viewModel.isShowingDetail {
@@ -732,6 +658,88 @@ private struct DismissibleBanner: View {
 /// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
 /// fires `onLongPress` and provides haptic feedback.
 /// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// Bottom control bar: settings, explore, spacer, \"+\" button.
+/// Extracted to prevent type-check timeouts in the CompassMapView body.
+private struct MapControlBar: View {
+    let viewModel: MapViewModel
+    let aiService: AIService
+    let voiceService: VoiceService
+    let preferences: UserPreferences
+    @Binding var isShowingPlusMenu: Bool
+    @Binding var isShowingVoiceOverlay: Bool
+    @Binding var voiceOrchestrator: VoiceAgentOrchestrator?
+
+    var body: some View {
+        HStack(alignment: .bottom) {
+            Button {
+                viewModel.isShowingSettings = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.title3)
+                    .frame(width: 48, height: 48)
+                    .background(Circle().fill(.regularMaterial))
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 20)
+            .padding(.bottom, 80)
+            .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
+
+            Button {
+                let anchor = viewModel.exploreAnchorCoordinate
+                Task { await viewModel.exploreNearby(at: anchor) }
+            } label: {
+                Group {
+                    if viewModel.isExploring || viewModel.isExploringFreeMode {
+                        ProgressView().progressViewStyle(.circular)
+                    } else if viewModel.isProUser {
+                        Image(systemName: "sparkle.magnifyingglass").font(.title3)
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.fill").font(.caption.weight(.semibold))
+                            Text(NSLocalizedString("explore.button.pro", comment: "Explore (Pro)"))
+                                .font(.caption.weight(.semibold)).lineLimit(1)
+                        }.padding(.horizontal, 8)
+                    }
+                }
+                .frame(minWidth: 48, minHeight: 48)
+                .background(Capsule().fill(.regularMaterial))
+                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 12)
+            .padding(.bottom, 80)
+            .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
+
+            Spacer()
+
+            PlusActionButton(
+                isShowingMenu: $isShowingPlusMenu,
+                onShortTap: {
+                    guard !isShowingVoiceOverlay else { return }
+                    isShowingPlusMenu = true
+                },
+                onLongPress: {
+                    guard !isShowingVoiceOverlay, voiceOrchestrator == nil else { return }
+                    isShowingPlusMenu = false
+                    let orch = VoiceAgentOrchestrator(
+                        aiService: aiService,
+                        voiceService: voiceService,
+                        mapViewModel: viewModel,
+                        preferences: preferences
+                    )
+                    orch.start()
+                    voiceOrchestrator = orch
+                    isShowingVoiceOverlay = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            )
+            .padding(.trailing, 20)
+            .padding(.bottom, 80)
+        }
+    }
+}
+
 /// Inline voice agent overlay that dims the map and shows the thinking
 /// overlay + hold-to-speak orb. Extracted to prevent type-check timeouts
 /// in the CompassMapView body.
