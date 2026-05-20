@@ -147,37 +147,16 @@ public struct CompassMapView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                // Inline voice agent overlay (long-press path — no sheet)
                 if isShowingVoiceOverlay, let orch = voiceOrchestrator {
-                    ZStack(alignment: .bottom) {
-                        Color.black.opacity(0.25)
-                            .ignoresSafeArea()
-                            .onTapGesture { } // absorb taps to map
-
-                        VStack(spacing: 0) {
-                            // Thinking overlay at top of safe area
-                            ThinkingOverlay(
-                                stepLabel: orch.thinkingStep,
-                                streamingText: orch.streamingContent,
-                                isExecutingTool: orch.isExecutingTool,
-                                errorMessage: orch.errorMessage
-                            )
-                            .padding(.top, 100)
-
-                            Spacer()
-
-                            VoiceAgentOverlay(
-                                orchestrator: orch,
-                                voiceService: voiceService,
-                                onDismiss: {
-                                    orch.stop()
-                                    voiceOrchestrator = nil
-                                    isShowingVoiceOverlay = false
-                                }
-                            )
+                    VoiceAgentInlineOverlay(
+                        orchestrator: orch,
+                        voiceService: voiceService,
+                        onDismiss: {
+                            orch.stop()
+                            voiceOrchestrator = nil
+                            isShowingVoiceOverlay = false
                         }
-                    }
-                    .transition(.opacity)
+                    )
                 }
 
                 if viewModel.visibleExperiences.isEmpty && !isShowingVoiceOverlay {
@@ -752,6 +731,43 @@ private struct DismissibleBanner: View {
 
 /// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
 /// fires `onLongPress` and provides haptic feedback.
+/// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
+/// Inline voice agent overlay that dims the map and shows the thinking
+/// overlay + hold-to-speak orb. Extracted to prevent type-check timeouts
+/// in the CompassMapView body.
+private struct VoiceAgentInlineOverlay: View {
+    let orchestrator: VoiceAgentOrchestrator
+    let voiceService: VoiceService
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(0.25)
+                .ignoresSafeArea()
+                .onTapGesture { } // absorb taps to map
+
+            VStack(spacing: 0) {
+                ThinkingOverlay(
+                    stepLabel: orchestrator.thinkingStep,
+                    streamingText: orchestrator.streamingContent,
+                    isExecutingTool: orchestrator.isExecutingTool,
+                    errorMessage: orchestrator.errorMessage
+                )
+                .padding(.top, 100)
+
+                Spacer()
+
+                VoiceAgentOverlay(
+                    orchestrator: orchestrator,
+                    voiceService: voiceService,
+                    onDismiss: onDismiss
+                )
+            }
+        }
+        .transition(.opacity)
+    }
+}
+
 /// Bottom-right "+" button. Short tap fires `onShortTap`; long press (≥0.8s)
 /// fires `onLongPress` and provides haptic feedback.
 ///
