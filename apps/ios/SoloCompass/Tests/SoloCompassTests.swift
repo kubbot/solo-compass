@@ -2628,8 +2628,8 @@ final class SoloCompassTests: XCTestCase {
             XCTAssertEqual(obj?["type"] as? String, "object",
                            "tool \(tool.name) schema must declare type:object")
         }
-        XCTAssertEqual(VoiceAgentToolRouter.allTools.count, 5,
-                       "PRD spec is exactly 5 tools (US-VA-03)")
+        XCTAssertEqual(VoiceAgentToolRouter.allTools.count, 7,
+                       "PRD spec is now 7 tools (US-VA-03)")
     }
 
     func testToolRouterFilterByCategoryHappyPath() async throws {

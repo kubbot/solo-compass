@@ -16,18 +16,30 @@ public struct ConversationSheet: View {
     /// Called when the user dismisses the sheet (× button or down-drag).
     public var onClose: () -> Void
 
-    /// Called when the user submits a typed message (the fallback path
-    /// when voice isn't available or for accessibility).
+    /// Called when the user submits a typed message.
     public var onSubmitText: (String) -> Void
 
+    /// Optional voice service — when provided the mic button records live.
+    public var voiceService: VoiceService?
+
+    /// Called with the final transcript when voice recording ends.
+    public var onVoiceTranscript: (String) -> Void
+
     @State private var textDraft: String = ""
+    @State private var isRecording = false
+    @State private var liveTranscript: String = ""
+    @State private var voiceStreamTask: Task<Void, Never>?
 
     public init(
         onClose: @escaping () -> Void = {},
-        onSubmitText: @escaping (String) -> Void = { _ in }
+        onSubmitText: @escaping (String) -> Void = { _ in },
+        voiceService: VoiceService? = nil,
+        onVoiceTranscript: @escaping (String) -> Void = { _ in }
     ) {
         self.onClose = onClose
         self.onSubmitText = onSubmitText
+        self.voiceService = voiceService
+        self.onVoiceTranscript = onVoiceTranscript
     }
 
     public var body: some View {
@@ -234,22 +246,40 @@ public struct ConversationSheet: View {
 
     private var inputBar: some View {
         HStack(spacing: 10) {
-            // Mic button — long-press gesture wiring lands in US-VA-05.
-            Image(systemName: "mic.circle.fill")
+            // Mic button — long-press to record, release to send transcript.
+            Image(systemName: isRecording ? "waveform" : "mic.circle.fill")
                 .font(.system(size: 36))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(isRecording ? Color.red : Color.accentColor)
+                .symbolEffect(.variableColor.iterative, isActive: isRecording)
                 .accessibilityIdentifier("conversationMicButton")
                 .accessibilityLabel(NSLocalizedString("conversation.input.mic.a11y", comment: ""))
+                .gesture(
+                    LongPressGesture(minimumDuration: 0.2)
+                        .onEnded { _ in startVoiceRecording() }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onEnded { _ in if isRecording { stopVoiceRecording() } }
+                )
 
-            TextField(
-                NSLocalizedString("conversation.input.placeholder", comment: ""),
-                text: $textDraft,
-                axis: .vertical
-            )
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(1...3)
-            .submitLabel(.send)
-            .onSubmit { submitText() }
+            VStack(alignment: .leading, spacing: 2) {
+                if isRecording, !liveTranscript.isEmpty {
+                    Text(liveTranscript)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .transition(.opacity)
+                }
+                TextField(
+                    NSLocalizedString("conversation.input.placeholder", comment: ""),
+                    text: $textDraft,
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
+                .submitLabel(.send)
+                .onSubmit { submitText() }
+            }
 
             Button {
                 submitText()
@@ -263,6 +293,45 @@ public struct ConversationSheet: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Voice recording
+
+    private func startVoiceRecording() {
+        guard let svc = voiceService, !isRecording else { return }
+        Task {
+            let granted = await svc.requestPermission()
+            guard granted else { return }
+            do {
+                isRecording = true
+                liveTranscript = ""
+                let stream = try svc.startListening()
+                voiceStreamTask = Task {
+                    do {
+                        for try await text in stream {
+                            await MainActor.run { liveTranscript = text }
+                        }
+                    } catch {
+                        await MainActor.run { isRecording = false }
+                    }
+                }
+            } catch {
+                isRecording = false
+            }
+        }
+    }
+
+    private func stopVoiceRecording() {
+        guard let svc = voiceService, isRecording else { return }
+        svc.stopListening()
+        isRecording = false
+        voiceStreamTask?.cancel()
+        voiceStreamTask = nil
+        let final = liveTranscript
+        liveTranscript = ""
+        if !final.isEmpty {
+            onVoiceTranscript(final)
+        }
     }
 
     private func submitText() {
