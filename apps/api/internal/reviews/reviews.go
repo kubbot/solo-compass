@@ -2,17 +2,20 @@ package reviews
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
+var ErrMissingDSN = errors.New("reviews: database DSN not configured")
+
 // OpenDB opens a PostgreSQL connection. Returns a non-nil error when the DSN
 // is empty or the connection cannot be established.
 func OpenDB(dsn string) (*sql.DB, error) {
 	if dsn == "" {
-		return nil, sql.ErrNoRows // sentinel: no DSN configured
+		return nil, ErrMissingDSN
 	}
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

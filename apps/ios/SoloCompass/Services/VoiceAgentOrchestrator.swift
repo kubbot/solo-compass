@@ -43,6 +43,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
     public private(set) var uiState: ChatUIState = .idle
 
     private var turnTask: Task<Void, Never>?
+    private var isSeeded = false
     private let synthesizer = AVSpeechSynthesizer()
 
     public init(
@@ -68,6 +69,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
     public func start() {
         guard !isRunning else { return }
         isRunning = true
+        isSeeded = false
         errorMessage = nil
         uiState = .listening
         thinkingStep = NSLocalizedString("agent.step.listening", comment: "Listening…")
@@ -75,12 +77,13 @@ public final class VoiceAgentOrchestrator: Identifiable {
             let prompt = await buildSystemPrompt()
             session.seedSystem(prompt)
             session.beginListening()
+            isSeeded = true
         }
     }
 
     /// Called when the user submits a text message (not voice).
     public func handleTextInput(_ text: String) {
-        guard isRunning, !session.isEnded else { return }
+        guard isRunning, isSeeded, !session.isEnded else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         runTurn(transcript: trimmed)
@@ -88,7 +91,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
 
     /// Called when voice transcription completes.
     public func handleTranscript(_ transcript: String) {
-        guard isRunning else { return }
+        guard isRunning, isSeeded else { return }
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         session.beginTranscribing()
@@ -100,6 +103,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         turnTask?.cancel()
         turnTask = nil
         isRunning = false
+        isSeeded = false
         streamingContent = ""
         thinkingStep = ""
         isExecutingTool = false

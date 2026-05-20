@@ -76,12 +76,12 @@ public final class ReviewsService {
 
     private func soloScore(from resp: SoloScoreResponse, fallback: SoloScore?) -> SoloScore {
         let d = resp.dimensions
-        let breakdown = SoloScore.Breakdown(
+        let breakdown = fallback?.breakdown ?? SoloScore.Breakdown(
             seatingFriendly: d.seating,
-            soloPatronRatio: d.wifi,  // wifi maps to soloPatronRatio (closest dimension)
+            soloPatronRatio: d.seating,
             staffPressure: d.staff,
-            soloPortioning: d.lighting, // lighting maps to soloPortioning
-            ambianceFit: d.noise,
+            soloPortioning: d.seating,
+            ambianceFit: (d.noise + d.lighting) / 2.0,
             safety: d.safety
         )
         let overall = [d.wifi, d.noise, d.seating, d.staff, d.lighting, d.safety]
