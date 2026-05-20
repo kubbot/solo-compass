@@ -33,6 +33,11 @@ public struct CompassMapView: View {
     public init() {}
 
     public var body: some View {
+        AnyView(zStackWithSheets)
+    }
+
+    @ViewBuilder
+    private var zStackWithSheets: some View {
         ZStack {
             if let viewModel {
                 mapLayer(viewModel: viewModel)
