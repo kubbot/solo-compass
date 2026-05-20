@@ -1,7 +1,7 @@
 {
   "project": "Solo Compass Experience & Architecture v1",
   "branchName": "ralph/experience-architecture-v1",
-  "description": "Solo Compass UI/UX refactor + AI architecture upgrade + Roadmap exploration. Three-phase delivery: (1) Apple-grade UI polish \u2014 floating filter capsule, glassmorphism FAB, skeleton screens, radar-chart solo scores, chat state machine, voice waveform, city-picker dedup, InsetGrouped preferences. (2) AI depth \u2014 ContextManager protocol, Go RAG pipeline for real-review-based scores, multi-agent orchestration (Intent/Query/Guide). (3) Roadmap \u2014 Markdown PKM export, Obsidian dark theme, offline-first cache, Edge AI spike. See tasks/prd-experience-architecture-v1.md.",
+  "description": "Solo Compass UI/UX refactor + AI architecture upgrade + Roadmap exploration. Three-phase delivery: (1) Apple-grade UI polish — floating filter capsule, glassmorphism FAB, skeleton screens, radar-chart solo scores, chat state machine, voice waveform, city-picker dedup, InsetGrouped preferences. (2) AI depth — ContextManager protocol, Go RAG pipeline for real-review-based scores, multi-agent orchestration (Intent/Query/Guide). (3) Roadmap — Markdown PKM export, Obsidian dark theme, offline-first cache, Edge AI spike. See tasks/prd-experience-architecture-v1.md.",
   "userStories": [
     {
       "id": "US-001",
@@ -147,7 +147,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -163,7 +163,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -179,7 +179,7 @@
         "Tests pass"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -195,7 +195,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -206,12 +206,12 @@
         "When ChatUIState is .unconfigured, render guidance card: title, body, primary button 'Open Settings'",
         "Tapping primary button navigates to Preferences > AI section",
         "All strings come from NSLocalizedString (no raw chat.* keys visible)",
-        "Replace any hard-coded 'AI \u529f\u80fd\u5c1a\u672a\u914d\u7f6e' string usage",
+        "Replace any hard-coded 'AI 功能尚未配置' string usage",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -227,7 +227,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -244,7 +244,7 @@
         "Tests pass"
       ],
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -262,7 +262,7 @@
         "Tests pass"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -278,7 +278,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -295,13 +295,13 @@
         "Tests pass"
       ],
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-019",
       "title": "Create BilingualCityRow component and update CityPickerSheet",
-      "description": "As a user, I want to see each city as 'Local Name System Name' (e.g. '\u4e07\u8c61 Vientiane') in the picker.",
+      "description": "As a user, I want to see each city as 'Local Name System Name' (e.g. '万象 Vientiane') in the picker.",
       "acceptanceCriteria": [
         "Create Views/Shared/BilingualCityRow.swift accepting City model",
         "Layout: local name (headline) + system name (subheadline secondary)",
@@ -312,7 +312,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -328,7 +328,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 20,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

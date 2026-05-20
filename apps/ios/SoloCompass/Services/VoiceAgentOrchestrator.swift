@@ -36,6 +36,9 @@ public final class VoiceAgentOrchestrator: Identifiable {
     /// True while a tool is executing.
     public private(set) var isExecutingTool: Bool = false
 
+    /// US-011: Strict chat UI state machine — drives state-specific view modifiers.
+    public private(set) var uiState: ChatUIState = .idle
+
     private var turnTask: Task<Void, Never>?
     private let synthesizer = AVSpeechSynthesizer()
 
@@ -61,6 +64,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         guard !isRunning else { return }
         isRunning = true
         errorMessage = nil
+        uiState = .listening
         session.seedSystem(systemPrompt)
         session.beginListening()
         thinkingStep = NSLocalizedString("agent.step.listening", comment: "Listening…")
@@ -91,6 +95,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         streamingContent = ""
         thinkingStep = ""
         isExecutingTool = false
+        uiState = .idle
         synthesizer.stopSpeaking(at: .immediate)
         if !session.isEnded {
             session.end(reason: .userClose)
@@ -113,6 +118,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
         session.beginUserTurn(transcript: transcript)
         thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
         streamingContent = ""
+        uiState = .processing
 
         turnTask = Task {
             let turnStart = Date()
@@ -131,9 +137,11 @@ public final class VoiceAgentOrchestrator: Identifiable {
                     session.resumeThinkingAfterTools()
                     thinkingStep = NSLocalizedString("agent.step.thinking", comment: "Thinking…")
                     streamingContent = ""
+                    uiState = .processing
                     shouldContinue = true
                 } else {
                     let finalText = streamingContent
+                    uiState = .responding(finalText)
                     session.finishSpeakingTurn()
                     thinkingStep = ""
                     shouldContinue = false
@@ -208,6 +216,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
             return true
         } catch {
             errorMessage = error.localizedDescription
+            uiState = .error(.network)
             session.end(reason: .error)
             thinkingStep = ""
             return false

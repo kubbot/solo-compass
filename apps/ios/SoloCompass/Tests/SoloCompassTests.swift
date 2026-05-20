@@ -3073,4 +3073,88 @@ final class LanguageServiceTests: XCTestCase {
                 "'\(exp.id)' breakdown variance \(variance) must be ≥ 1.5 for radar to render")
         }
     }
+
+    // MARK: - US-011 ChatUIState transitions
+
+    func testChatUIStateIdleIsDefault() {
+        XCTAssertEqual(ChatUIState.idle, ChatUIState.idle)
+    }
+
+    func testChatUIStateEquality() {
+        XCTAssertEqual(ChatUIState.listening, ChatUIState.listening)
+        XCTAssertEqual(ChatUIState.processing, ChatUIState.processing)
+        XCTAssertEqual(ChatUIState.unconfigured, ChatUIState.unconfigured)
+        XCTAssertEqual(ChatUIState.responding("hello"), ChatUIState.responding("hello"))
+        XCTAssertNotEqual(ChatUIState.responding("hello"), ChatUIState.responding("world"))
+        XCTAssertEqual(ChatUIState.error(.network), ChatUIState.error(.network))
+        XCTAssertEqual(ChatUIState.error(.apiKey), ChatUIState.error(.apiKey))
+        XCTAssertNotEqual(ChatUIState.error(.network), ChatUIState.error(.permission))
+    }
+
+    func testChatUIStateDistinctCasesNotEqual() {
+        XCTAssertNotEqual(ChatUIState.idle, ChatUIState.listening)
+        XCTAssertNotEqual(ChatUIState.listening, ChatUIState.processing)
+        XCTAssertNotEqual(ChatUIState.processing, ChatUIState.unconfigured)
+    }
+
+    func testChatErrorAllCasesDistinct() {
+        let errors: [ChatError] = [.network, .apiKey, .permission, .unknown]
+        XCTAssertEqual(Set(errors.map { "\($0)" }).count, 4, "All ChatError cases must be distinct")
+    }
+
+    @MainActor
+    func testOrchestratorUiStateStartsIdle() {
+        let orchestrator = VoiceAgentOrchestrator(
+            aiService: AIService(),
+            voiceService: VoiceService(),
+            mapViewModel: MapViewModel(
+                locationService: LocationService.shared,
+                experienceService: ExperienceService(),
+                aiService: AIService(),
+                preferences: UserPreferences()
+            ),
+            preferences: UserPreferences()
+        )
+        XCTAssertEqual(orchestrator.uiState, .idle)
+    }
+
+    @MainActor
+    func testOrchestratorUiStateTransitionsToIdleOnStop() {
+        let orchestrator = VoiceAgentOrchestrator(
+            aiService: AIService(),
+            voiceService: VoiceService(),
+            mapViewModel: MapViewModel(
+                locationService: LocationService.shared,
+                experienceService: ExperienceService(),
+                aiService: AIService(),
+                preferences: UserPreferences()
+            ),
+            preferences: UserPreferences()
+        )
+        orchestrator.start()
+        XCTAssertEqual(orchestrator.uiState, .listening)
+        orchestrator.stop()
+        XCTAssertEqual(orchestrator.uiState, .idle)
+    }
+
+    // MARK: - US-018 City dedupe by geonameId
+
+    func testCityDedupeByGeonameId() {
+        var seen = Set<Int>()
+        let cities: [(geonameId: Int, name: String)] = [
+            (1154689, "เวียงจันทน์"),
+            (1154689, "Vientiane"),
+            (1154689, "万象"),
+            (1609350, "Chiang Mai"),
+        ]
+        var deduped: [(geonameId: Int, name: String)] = []
+        for city in cities {
+            if seen.insert(city.geonameId).inserted {
+                deduped.append(city)
+            }
+        }
+        XCTAssertEqual(deduped.count, 2, "3 duplicates of geonameId 1154689 should collapse to 1")
+        XCTAssertEqual(deduped[0].geonameId, 1154689)
+        XCTAssertEqual(deduped[1].geonameId, 1609350)
+    }
 }

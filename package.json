@@ -23,7 +23,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
     "seed:chiang-mai": "tsx scripts/seed-load.ts",
-    "parity:check": "tsx scripts/check-swift-parity.ts"
+    "parity:check": "tsx scripts/check-swift-parity.ts",
+    "localization:check": "tsx scripts/check-localization.ts"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",

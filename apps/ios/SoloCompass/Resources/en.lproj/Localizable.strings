@@ -87,6 +87,7 @@
 /* Common */
 "common.ok" = "OK";
 "common.cancel" = "Cancel";
+"common.close" = "Close";
 
 /* Add Experience (long-press flow) */
 "addExperience.confirm.title" = "Add an experience here?";
@@ -238,6 +239,12 @@
 "notification.checkin.title" = "You're nearby";
 "notification.checkin.body" = "You're standing near %@. Want to check it out?";
 
+/* Settings — Apple ID link */
+"settings.saveWithApple" = "Save with Apple";
+"settings.linkedToAppleID" = "Linked to Apple ID";
+"settings.appleLink.success" = "Saved with Apple ID.";
+"settings.appleLink.failure" = "Could not link Apple ID. Please try again.";
+
 /* Settings data */
 "settings.data.header" = "My Data";
 "settings.clearData" = "Clear all data";
@@ -388,6 +395,11 @@
 /* Skeleton loading placeholder */
 "skeleton.loading" = "Loading";
 
+/* GlassmorphismCapsule preview-only strings */
+"glassmorphism.preview.search" = "Search";
+"glassmorphism.preview.findPlace" = "Find a place…";
+"glassmorphism.preview.customPadding" = "Custom padding & shadow";
+
 /* Common */
 "common.settings" = "Settings";
 
@@ -398,3 +410,19 @@
 "location.openIn.google" = "Google Maps";
 "location.openIn.amap" = "Amap";
 "action.cancel" = "Cancel";
+
+/* US-013: Unconfigured AI guidance card */
+"chat.unconfigured.title" = "AI Not Configured";
+"chat.unconfigured.body" = "To use voice and AI features, add your Anthropic API key in Preferences → AI & Privacy.";
+"chat.unconfigured.cta" = "Open Settings";
+
+/* US-014: Additional chat localization keys */
+"chat.error.network" = "Connection error — please check your network and try again.";
+"chat.error.apiKey" = "Invalid API key — please check your key in Settings.";
+"chat.error.permission" = "Microphone permission required — enable it in Settings.";
+"chat.error.unknown" = "Something went wrong — please try again.";
+
+/* US-019: Bilingual city picker */
+"city.distanceAway" = "%.1f km away";
+"city.distanceAway.mi" = "%.1f mi away";
+"city.distanceUnknown" = "Distance unknown";
