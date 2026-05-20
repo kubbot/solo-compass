@@ -695,9 +695,9 @@ private struct MapControlBar: View {
                     .font(.title3)
                     .frame(width: 48, height: 48)
                     .background(Circle().fill(.regularMaterial))
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FABButtonStyle())
             .padding(.leading, 20)
             .padding(.bottom, 80)
             .accessibilityLabel(Text(NSLocalizedString("settings.title", comment: "Settings")))
@@ -721,9 +721,9 @@ private struct MapControlBar: View {
                 }
                 .frame(minWidth: 48, minHeight: 48)
                 .background(Capsule().fill(.regularMaterial))
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FABButtonStyle())
             .padding(.leading, 12)
             .padding(.bottom, 80)
             .disabled(viewModel.isExploring || viewModel.isExploringFreeMode)
@@ -740,6 +740,19 @@ private struct MapControlBar: View {
             .padding(.trailing, 20)
             .padding(.bottom, 80)
         }
+    }
+}
+
+/// `ButtonStyle` that applies the standard FAB press treatment:
+/// scale-down to 0.92 on touch-down (spring) + soft haptic.
+private struct FABButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.25), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
+            }
     }
 }
 
