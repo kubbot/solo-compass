@@ -717,11 +717,11 @@ private struct MapControlBar: View {
             Spacer()
 
             PlusActionButton(
-                onShortTap: { onOpenChat(.text) },
-                onLongPress: {
+                onShortTap: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     onOpenChat(.voice)
-                }
+                },
+                onLongPress: { onOpenChat(.text) }
             )
             .padding(.trailing, 20)
             .padding(.bottom, 80)
@@ -729,9 +729,9 @@ private struct MapControlBar: View {
     }
 }
 
-/// Bottom-right "+" button. Tap opens the chat sheet in text mode; long
-/// press (≥0.6s) opens the chat sheet with the mic pre-armed for
-/// push-to-talk.
+/// Bottom-right "+" button. Tap opens the chat sheet with the mic pre-armed
+/// for push-to-talk — voice is the primary action. Long press (≥0.6s) opens
+/// the chat sheet in text mode for users who prefer typing.
 ///
 /// `onPressingChanged` fires immediately on touch-down so the ring + scale
 /// animate within one frame — fixes the "looks frozen" bug where the user

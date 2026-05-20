@@ -348,8 +348,17 @@
 "voiceAgent.tts.fallback" = "Response ready";
 
 /* "+" quick-action button — single chat entry point */
-"plus.button.a11y" = "Chat with Solo";
-"plus.button.hint" = "Tap to open chat, hold to talk";
+"plus.button.a11y" = "Talk to Solo";
+"plus.button.hint" = "Tap to talk, hold to type";
+
+/* Voice-first state view shown inside ChatSheet on voice entry */
+"chat.voice.title" = "Talk to Solo";
+"chat.voice.tap.toType" = "Tap to type instead";
+"chat.voice.idle" = "Hold the mic to speak";
+"chat.voice.listening" = "I'm listening…";
+"chat.voice.thinking" = "Thinking…";
+"chat.voice.toolRunning" = "Working on it…";
+"chat.voice.responding" = "Responding…";
 
 /* Chat sheet — Messenger-style assistant surface */
 "chat.title" = "Solo Compass";
