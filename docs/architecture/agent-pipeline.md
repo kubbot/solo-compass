@@ -30,17 +30,18 @@ User text
 The flag is declared but never read in any production code path. There is no conditional branch anywhere in the codebase that checks this flag and routes traffic to `AgentRouter`. The flag comment even documents the intended switch ("When true, AgentRouter is used in place of the legacy VoiceAgentOrchestrator") but the switch was never implemented.
 
 `AgentRouter` itself is:
+
 - Never instantiated in production code.
 - Not referenced from any `View`, `ViewModel`, or `Service` outside of tests.
 - Covered by `AgentRouterTests` (6 cases) and `PerformanceTests` (P95 latency benchmark) — both of which exercise the class directly without going through the feature flag.
 
 ### Active production pathways
 
-| User action | Pathway |
-|---|---|
-| Voice input / ChatSheet | `VoiceAgentOrchestrator` → `AIService.sendAgentMessage()` tool-use loop |
-| Explore Here (map) | `MapViewModel.exploreHere()` → `AIService.synthesizeExperiences()` |
-| Synthesis routing | `FeatureFlags.routeAIThroughEdge && .backendSync` → Supabase Edge or direct DeepSeek |
+| User action             | Pathway                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| Voice input / ChatSheet | `VoiceAgentOrchestrator` → `AIService.sendAgentMessage()` tool-use loop              |
+| Explore Here (map)      | `MapViewModel.exploreHere()` → `AIService.synthesizeExperiences()`                   |
+| Synthesis routing       | `FeatureFlags.routeAIThroughEdge && .backendSync` → Supabase Edge or direct DeepSeek |
 
 `AgentRouter`, `IntentAgent`, `QueryAgent`, and `GuideAgent` are **dead code** relative to every active production code path.
 
@@ -64,16 +65,16 @@ The flag is declared but never read in any production code path. There is no con
 
 ### What to delete in the follow-up story
 
-| File | Action |
-|---|---|
-| `Services/Agents/AgentRouter.swift` | Delete |
-| `Services/Agents/IntentAgent.swift` | Delete (no non-router callers) |
-| `Services/Agents/QueryAgent.swift` | Delete (no non-router callers) |
-| `Services/Agents/GuideAgent.swift` | Delete (no non-router callers) |
-| `Services/Agents/AgentMessage.swift` | Delete (types only used by the above) |
-| `Services/FeatureFlags.swift` | Remove `agentRouterEnabled` property |
-| `Tests/AgentTests.swift` | Remove `AgentRouterTests` class |
-| `Tests/PerformanceTests.swift` | Remove AgentRouter benchmark |
+| File                                     | Action                                |
+| ---------------------------------------- | ------------------------------------- |
+| `Services/Agents/AgentRouter.swift`      | Delete                                |
+| `Services/Agents/IntentAgent.swift`      | Delete (no non-router callers)        |
+| `Services/Agents/QueryAgent.swift`       | Delete (no non-router callers)        |
+| `Services/Agents/GuideAgent.swift`       | Delete (no non-router callers)        |
+| `Services/Agents/AgentMessage.swift`     | Delete (types only used by the above) |
+| `Services/FeatureFlags.swift`            | Remove `agentRouterEnabled` property  |
+| `Tests/AgentTests.swift`                 | Remove `AgentRouterTests` class       |
+| `Tests/PerformanceTests.swift`           | Remove AgentRouter benchmark          |
 | `Resources/en.lproj/Localizable.strings` | Remove `agent.router.*` fallback keys |
 
 ### What to keep

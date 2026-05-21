@@ -6,10 +6,10 @@ This document is a topology snapshot for the current iOS AI surfaces. It is inte
 
 Solo Compass currently has two separate LLM endpoint families:
 
-| Surface | Call sites | Provider / endpoint | Model | Auth source | Quota |
-| --- | --- | --- | --- | --- | --- |
-| Agent layer | `IntentAgent`, `QueryAgent`, `GuideAgent` | Anthropic Messages API, `https://api.anthropic.com/v1/messages` | `claude-opus-4-7` by default | `ANTHROPIC_API_KEY` environment variable or explicit initializer key | No in-app quota currently enforced |
-| App AI service | `AIService.synthesizeExperiences`, `explainRecommendation`, `processVoiceIntent`, `sendAgentMessage`, `sendAgentMessageStreaming` | DeepSeek/OpenAI-compatible chat completions, `Secrets.resolvedDeepSeekBaseURL + "/chat/completions"` | `Secrets.resolvedDeepSeekModel`, with per-kind environment overrides | `Secrets.resolvedDeepSeekApiKey` via `AIService.resolveAPIKey()` | Pro: synthesis/voice 30 per day, explanation 60 per day; free: 0/0 |
+| Surface        | Call sites                                                                                                                        | Provider / endpoint                                                                                  | Model                                                                | Auth source                                                          | Quota                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Agent layer    | `IntentAgent`, `QueryAgent`, `GuideAgent`                                                                                         | Anthropic Messages API, `https://api.anthropic.com/v1/messages`                                      | `claude-opus-4-7` by default                                         | `ANTHROPIC_API_KEY` environment variable or explicit initializer key | No in-app quota currently enforced                                 |
+| App AI service | `AIService.synthesizeExperiences`, `explainRecommendation`, `processVoiceIntent`, `sendAgentMessage`, `sendAgentMessageStreaming` | DeepSeek/OpenAI-compatible chat completions, `Secrets.resolvedDeepSeekBaseURL + "/chat/completions"` | `Secrets.resolvedDeepSeekModel`, with per-kind environment overrides | `Secrets.resolvedDeepSeekApiKey` via `AIService.resolveAPIKey()`     | Pro: synthesis/voice 30 per day, explanation 60 per day; free: 0/0 |
 
 ## Anthropic Messages API surfaces
 

@@ -3,6 +3,7 @@ import CoreLocation
 import MapKit
 import SwiftData
 import StoreKitTest
+import SwiftUI
 @testable import SoloCompass
 
 @MainActor
