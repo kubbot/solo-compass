@@ -414,11 +414,6 @@
 "location.openIn.amap" = "Amap";
 "action.cancel" = "Cancel";
 
-/* US-013: Unconfigured AI guidance card */
-"chat.unconfigured.title" = "AI Not Configured";
-"chat.unconfigured.body" = "To use voice and AI features, add your Anthropic API key in Preferences → AI & Privacy.";
-"chat.unconfigured.cta" = "Open Settings";
-
 /* US-014: Additional chat localization keys */
 "chat.error.network" = "Connection error — please check your network and try again.";
 "chat.error.apiKey" = "Invalid API key — please check your key in Settings.";

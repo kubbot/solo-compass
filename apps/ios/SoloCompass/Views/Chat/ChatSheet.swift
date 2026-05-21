@@ -66,51 +66,12 @@ public struct ChatSheet: View {
 
     @ViewBuilder
     private var mainContent: some View {
-        // US-013: Unconfigured state shows a guidance card instead of chat
-        if orchestrator.uiState == .unconfigured {
-            unconfiguredCard
-        } else if showVoiceSurface {
+        if showVoiceSurface {
             voiceSurface
         } else {
             messageList
             textInputBar
         }
-    }
-
-    private var unconfiguredCard: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 16) {
-                Image(systemName: "key.slash")
-                    .font(.system(size: 44))
-                    .foregroundStyle(.orange)
-                Text(NSLocalizedString("chat.unconfigured.title", comment: "AI not configured title"))
-                    .font(.title3.bold())
-                    .multilineTextAlignment(.center)
-                Text(NSLocalizedString("chat.unconfigured.body", comment: "AI not configured body"))
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
-                Button {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                } label: {
-                    Text(NSLocalizedString("chat.unconfigured.cta", comment: "Open Settings"))
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 44)
-                        .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(.white)
-                }
-            }
-            .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 24)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var textInputBar: some View {

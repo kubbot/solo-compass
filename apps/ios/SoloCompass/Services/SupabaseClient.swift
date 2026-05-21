@@ -378,6 +378,26 @@ public final class SupabaseClient: SupabaseClientProtocol {
         return await sendREST(req)
     }
 
+    /// Build a signed `URLRequest` for an Edge Function so the caller can
+    /// stream the response (`URLSession.bytes(for:)`). Returns `nil` when
+    /// the backend flag is off, config is missing, or there is no session.
+    /// Used by `AIService` to forward voice-agent SSE through chat-proxy
+    /// while keeping the existing `AsyncThrowingStream<StreamEvent>`
+    /// parser unchanged.
+    public func makeFunctionRequest(function: String, body: Data, accept: String = "application/json") -> URLRequest? {
+        guard FeatureFlags.backendSync else { return nil }
+        guard let cfg = Self.loadConfig() else { return nil }
+        guard let token = currentSession?.accessToken else { return nil }
+        var req = URLRequest(url: cfg.url.appendingPathComponent("/functions/v1/\(function)"))
+        req.httpMethod = "POST"
+        req.setValue(cfg.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(accept, forHTTPHeaderField: "Accept")
+        req.httpBody = body
+        return req
+    }
+
     // MARK: - Internals
 
     private func sendREST(_ request: URLRequest) async -> Result<Data, SupabaseError> {

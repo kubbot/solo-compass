@@ -242,20 +242,6 @@ public final class AIService {
             Task {
                 await MainActor.run { self.isProcessing = true }
                 do {
-                    guard let key = Self.resolveAPIKey() else {
-                        throw AIError.missingAPIKey
-                    }
-                    guard let apiURL else {
-                        throw AIError.requestFailed(status: 0, body: "bad URL")
-                    }
-
-                    var request = URLRequest(url: apiURL)
-                    request.httpMethod = "POST"
-                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-                    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                    request.timeoutInterval = 60
-
                     let body: [String: Any] = [
                         "model": Self.modelName(for: .voice),
                         "messages": Self.serializeAgentMessages(messages),
@@ -265,7 +251,12 @@ public final class AIService {
                         "max_tokens": 512,
                         "temperature": 0.3,
                     ]
-                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                    let request = try await buildChatRequest(
+                        stream: true,
+                        kind: .voice,
+                        bodyDict: body,
+                        timeout: 60
+                    )
 
                     // Accumulate tool-call deltas keyed by index.
                     var toolCallAccum: [Int: (id: String, name: String, args: String)] = [:]
@@ -379,17 +370,8 @@ public final class AIService {
         messages: [VoiceAgentSession.Message],
         tools: [AgentTool]
     ) async throws -> AgentResponse {
-        guard let key = Self.resolveAPIKey() else { throw AIError.missingAPIKey }
-        guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
-
         await MainActor.run { self.isProcessing = true }
         defer { Task { @MainActor [weak self] in self?.isProcessing = false } }
-
-        var request = URLRequest(url: apiURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 30  // tighter than synthesis: agent turn budget is 30s total
 
         let body: [String: Any] = [
             "model": Self.modelName(for: .voice),
@@ -400,7 +382,13 @@ public final class AIService {
             "max_tokens": 512,
             "temperature": 0.3,
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        // tighter than synthesis: agent turn budget is 30s total
+        let request = try await buildChatRequest(
+            stream: false,
+            kind: .voice,
+            bodyDict: body,
+            timeout: 30
+        )
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -503,17 +491,8 @@ public final class AIService {
     /// the assistant text content. Strips ``` fences defensively before
     /// returning so callers can `JSON.parse` the result without re-doing it.
     private func sendMessage(prompt: String, kind: ModelKind = .synthesis) async throws -> String {
-        guard let key = Self.resolveAPIKey() else { throw AIError.missingAPIKey }
-        guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
-
         await MainActor.run { self.isProcessing = true }
         defer { Task { @MainActor [weak self] in self?.isProcessing = false } }
-
-        var request = URLRequest(url: apiURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 60
 
         // System prompt forbids markdown fences explicitly — DeepSeek can
         // still emit them, so we also strip defensively after parsing.
@@ -531,7 +510,12 @@ public final class AIService {
             "max_tokens": kind == .synthesis ? 2048 : 1024,
             "temperature": 0.7,
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let request = try await buildChatRequest(
+            stream: false,
+            kind: kind,
+            bodyDict: body,
+            timeout: 60
+        )
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -553,6 +537,74 @@ public final class AIService {
             throw AIError.decodingFailed("Unexpected response shape")
         }
         return Self.stripMarkdownFences(content)
+    }
+
+    // MARK: - Request routing (Pro → Edge / direct DeepSeek)
+
+    /// Pick between Supabase Edge proxy (Pro tier + flags) and direct
+    /// DeepSeek. Returns a fully-built `URLRequest`. The `kind` parameter
+    /// is stamped into the body when going via Edge so chat-proxy can
+    /// pick the correct daily quota bucket.
+    ///
+    /// `bodyDict` is the OpenAI-compatible payload built by callers
+    /// (messages / tools / stream / max_tokens / etc.). It is mutated to
+    /// add `kind` only on the Edge path.
+    private func buildChatRequest(
+        stream: Bool,
+        kind: ModelKind,
+        bodyDict: [String: Any],
+        timeout: TimeInterval
+    ) async throws -> URLRequest {
+        // Edge path: Pro user + flags on + Supabase session available.
+        if FeatureFlags.routeAIThroughEdge
+            && FeatureFlags.backendSync
+            && isProTier
+        {
+            var edgeBody = bodyDict
+            edgeBody["kind"] = Self.edgeKindString(for: kind)
+            let bodyData = try JSONSerialization.data(withJSONObject: edgeBody)
+            let accept = stream ? "text/event-stream" : "application/json"
+            // SupabaseClient is @MainActor — hop over to it just for the
+            // request build, then run the actual network call back here.
+            let edgeRequest: URLRequest? = await MainActor.run {
+                SupabaseClient.shared.makeFunctionRequest(
+                    function: "chat-proxy",
+                    body: bodyData,
+                    accept: accept
+                )
+            }
+            if var edgeRequest {
+                edgeRequest.timeoutInterval = timeout
+                return edgeRequest
+            }
+            // makeFunctionRequest returned nil — flag on but no session /
+            // missing config. Fall through to the direct path; that
+            // mirrors the legacy behaviour and is safer than failing the
+            // whole request when the backend is momentarily unreachable.
+        }
+
+        // Direct DeepSeek path (legacy).
+        guard let key = Self.resolveAPIKey() else { throw AIError.missingAPIKey }
+        guard let apiURL else { throw AIError.requestFailed(status: 0, body: "bad URL") }
+        let bodyData = try JSONSerialization.data(withJSONObject: bodyDict)
+        var request = URLRequest(url: apiURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        if stream {
+            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        }
+        request.timeoutInterval = timeout
+        request.httpBody = bodyData
+        return request
+    }
+
+    private static func edgeKindString(for kind: ModelKind) -> String {
+        switch kind {
+        case .voice:       return "voice"
+        case .explanation: return "explanation"
+        case .synthesis:   return "synthesis"
+        }
     }
 
     // MARK: - Helpers
