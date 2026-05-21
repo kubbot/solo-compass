@@ -3773,8 +3773,9 @@ final class LanguageServiceTests: XCTestCase {
 @MainActor
 final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
 
-    /// When resolvedDeepSeekApiKey is empty, start() must set uiState = .unconfigured
-    /// and must NOT set isRunning (no session seeded, no mic started).
+    /// When resolvedDeepSeekApiKey is empty AND the user is not on the Pro
+    /// Edge-routing path, start() must set uiState = .unconfigured and must
+    /// NOT set isRunning (no session seeded, no mic started).
     func testMissingKeyYieldsUnconfiguredState() {
         // Clear any UserDefaults override so resolvedDeepSeekApiKey falls back
         // to the build-time value. In CI the build-time key is empty (""), so
@@ -3796,13 +3797,18 @@ final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
         unsetenv("DEEPSEEK_API_KEY")
         defer { if hadEnvKey { setenv("DEEPSEEK_API_KEY", "", 1) } }
 
+        // Force the non-Edge path: isProTier = false so the local-key guard
+        // is the only thing standing between start() and .unconfigured.
+        let ai = AIService()
+        ai.isProTier = false
+
         let orch = VoiceAgentOrchestrator(
-            aiService: AIService(),
+            aiService: ai,
             voiceService: VoiceService(),
             mapViewModel: MapViewModel(
                 locationService: LocationService(),
                 experienceService: ExperienceService(),
-                aiService: AIService(),
+                aiService: ai,
                 preferences: UserPreferences()
             ),
             preferences: UserPreferences()
@@ -3817,6 +3823,63 @@ final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
                        "start() with empty API key must set uiState = .unconfigured")
         XCTAssertFalse(orch.isRunning,
                        "orchestrator must NOT become running when key is missing")
+    }
+
+    /// Pro users whose traffic is routed through the chat-proxy Edge function
+    /// must not be blocked by an empty local DeepSeek key — the key lives on
+    /// the server. start() should proceed to the listening state even when
+    /// `resolvedDeepSeekApiKey` is empty, provided the Edge-routing flags +
+    /// isProTier are all on.
+    func testProUserSkipsLocalKeyGuardWhenRoutingThroughEdge() {
+        // Force-empty the local key so the only way start() can succeed is
+        // via the Edge-routing bypass.
+        let savedOverride = UserDefaults.standard.string(forKey: Secrets.RuntimeKeys.deepSeekApiKey)
+        UserDefaults.standard.set("", forKey: Secrets.RuntimeKeys.deepSeekApiKey)
+        defer {
+            if let saved = savedOverride {
+                UserDefaults.standard.set(saved, forKey: Secrets.RuntimeKeys.deepSeekApiKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Secrets.RuntimeKeys.deepSeekApiKey)
+            }
+        }
+        let hadEnvKey = getenv("DEEPSEEK_API_KEY") != nil
+        unsetenv("DEEPSEEK_API_KEY")
+        defer { if hadEnvKey { setenv("DEEPSEEK_API_KEY", "", 1) } }
+
+        // Inject Edge-routing flags via env vars (FeatureFlags.readBool reads
+        // env first, then plist). Save+restore so we don't leak into other tests.
+        let savedBackendSync = getenv("FF_BACKEND_SYNC").flatMap { String(cString: $0) }
+        let savedRouteEdge = getenv("FF_ROUTE_AI_THROUGH_EDGE").flatMap { String(cString: $0) }
+        setenv("FF_BACKEND_SYNC", "1", 1)
+        setenv("FF_ROUTE_AI_THROUGH_EDGE", "1", 1)
+        defer {
+            if let v = savedBackendSync { setenv("FF_BACKEND_SYNC", v, 1) } else { unsetenv("FF_BACKEND_SYNC") }
+            if let v = savedRouteEdge { setenv("FF_ROUTE_AI_THROUGH_EDGE", v, 1) } else { unsetenv("FF_ROUTE_AI_THROUGH_EDGE") }
+        }
+        XCTAssertTrue(FeatureFlags.routeAIThroughEdge, "precondition: env override should turn the flag on")
+        XCTAssertTrue(FeatureFlags.backendSync, "precondition: env override should turn the flag on")
+
+        let ai = AIService()
+        ai.isProTier = true
+
+        let orch = VoiceAgentOrchestrator(
+            aiService: ai,
+            voiceService: VoiceService(),
+            mapViewModel: MapViewModel(
+                locationService: LocationService(),
+                experienceService: ExperienceService(),
+                aiService: ai,
+                preferences: UserPreferences()
+            ),
+            preferences: UserPreferences()
+        )
+
+        orch.start()
+
+        XCTAssertNotEqual(orch.uiState, .unconfigured,
+                          "Pro + Edge routing must bypass the empty-key guard")
+        XCTAssertTrue(orch.isRunning,
+                      "orchestrator must enter the running state for Pro users on Edge")
     }
 
     // MARK: - US-010 Pan debounce: single long-lived Task, not N per-frame Tasks

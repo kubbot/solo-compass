@@ -101,8 +101,14 @@ public struct CompassMapView: View {
     private var mapZStack: some View {
         ZStack {
             if let viewModel {
-                mapLayer(viewModel: viewModel)
+                // Backing tile bleeds under every edge so the map looks
+                // edge-to-edge, but the actual `Map` view keeps its top
+                // safe-area inset so `.mapControls` (MapCompass +
+                // MapUserLocationButton) don't collide with the status bar.
+                themeService.currentTheme.background
                     .ignoresSafeArea()
+                mapLayer(viewModel: viewModel)
+                    .ignoresSafeArea(edges: [.bottom, .horizontal])
 
                 MapOverlayView(
                     viewModel: viewModel,
