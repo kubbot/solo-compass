@@ -164,7 +164,7 @@
         "Verify in Simulator: drag the map for 5s -> FilterBar dims; release -> after 1.5s FilterBar restores"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

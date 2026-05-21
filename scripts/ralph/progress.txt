@@ -18,3 +18,4 @@ Tool: claude
 [2026-05-21T05:30:00Z] Story #US-009: Make ThemeService.currentTheme a computed property — PASSED
 [2026-05-21T05:24:32Z] Story #US-009: Make ThemeService.currentTheme a computed property — PASSED
 [2026-05-21T05:24:48Z] Story #US-009: Make ThemeService.currentTheme a computed property — PASSED
+[2026-05-21T05:25:56Z] Story #US-010: Replace per-frame panResetTask with debounced timer — PASSED
