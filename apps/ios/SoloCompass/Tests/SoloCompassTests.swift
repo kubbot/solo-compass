@@ -1179,6 +1179,79 @@ final class SoloCompassTests: XCTestCase {
         }
     }
 
+    // MARK: - US-016 smooth scanning progress
+
+    /// Verifies that exploreProgress emits each of (1,4), (2,4), (3,4), (4,4)
+    /// as discrete values rather than jumping straight to the final count.
+    @MainActor
+    func testFetchExplorePOIsEmitsDiscreteProgressForEachRing() async throws {
+        setenv("FF_PRO_MULTI_RING_EXPLORE", "1", 1)
+        defer { unsetenv("FF_PRO_MULTI_RING_EXPLORE") }
+
+        // Stagger ring completion times: R1 fastest, R4 slowest.
+        let ringDelays: [Int: UInt64] = [
+            1500: 10_000_000,
+            3000: 30_000_000,
+            6000: 50_000_000,
+            12000: 70_000_000
+        ]
+
+        StubURLProtocol.requestCount = 0
+        StubURLProtocol.handler = { request in
+            let body = StubURLProtocol.readBody(from: request.httpBodyStream)
+                ?? request.httpBody ?? Data()
+            let bodyString = String(data: body, encoding: .utf8) ?? ""
+            var radius = 0
+            if let range = bodyString.range(of: "around:") {
+                let after = bodyString[range.upperBound...]
+                let digits = after.prefix { $0.isNumber }
+                radius = Int(digits) ?? 0
+            }
+            if let delay = ringDelays[radius] {
+                try? await Task.sleep(nanoseconds: delay)
+            }
+            let json = """
+            {"elements":[{"type":"node","id":\(radius),"lat":0,"lon":0,"tags":{"name":"R\(radius)","amenity":"cafe"}}]}
+            """
+            let resp = HTTPURLResponse(
+                url: request.url!, statusCode: 200,
+                httpVersion: nil, headerFields: nil
+            )!
+            return (resp, Data(json.utf8))
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let overpass = OverpassService(session: session, maxResults: 30, repository: nil)
+        let vm = makeMapViewModelForMultiRing(overpass: overpass)
+
+        var observedProgress: [MapViewModel.ExploreProgress] = []
+        // Capture each distinct scanning(N,4) update while fetchExplorePOIs runs.
+        let observeTask = Task { @MainActor in
+            while !Task.isCancelled {
+                let p = vm.exploreProgress
+                if case .scanning = p, observedProgress.last != p {
+                    observedProgress.append(p)
+                }
+                await Task.yield()
+            }
+        }
+
+        _ = try await vm.fetchExplorePOIs(
+            near: CLLocationCoordinate2D(latitude: 21.0, longitude: 105.8),
+            singleRingRadius: 3000
+        )
+        observeTask.cancel()
+
+        let total = MapViewModel.multiRingRadii.count
+        let expected: [MapViewModel.ExploreProgress] = (1...total).map {
+            .scanning(ringsDone: $0, totalRings: total)
+        }
+        XCTAssertEqual(observedProgress, expected,
+                       "exploreProgress must emit each discrete scanning(N,4) value")
+    }
+
     // MARK: - US-MR-05 multi-ring analytics
 
     @MainActor
@@ -1229,6 +1302,89 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requestCount, 1, "exactly one HTTP request")
         XCTAssertEqual(effectiveRadius, 2500, "effectiveRadius matches the requested radius")
         XCTAssertEqual(pois.map(\.osmId), [2500], "single ring at 2500m")
+    }
+
+    // MARK: - US-016 smooth scanning progress
+
+    /// Verifies that fetchExplorePOIs emits each discrete scanning(1,4)…(4,4)
+    /// value rather than jumping straight to the final state.
+    @MainActor
+    func testFetchExplorePOIsEmitsDiscreteProgressForEachRing() async throws {
+        setenv("FF_PRO_MULTI_RING_EXPLORE", "1", 1)
+        defer { unsetenv("FF_PRO_MULTI_RING_EXPLORE") }
+
+        // Stub each ring with a small delay so completions are staggered
+        // and we can collect progress snapshots after every yield().
+        StubURLProtocol.requestCount = 0
+        StubURLProtocol.handler = { request in
+            let body = StubURLProtocol.readBody(from: request.httpBodyStream)
+                ?? request.httpBody ?? Data()
+            let bodyString = String(data: body, encoding: .utf8) ?? ""
+            var radius = 0
+            if let range = bodyString.range(of: "around:") {
+                let after = bodyString[range.upperBound...]
+                let digits = after.prefix { $0.isNumber }
+                radius = Int(digits) ?? 0
+            }
+            // Stagger completions by sleeping proportional to ring index.
+            let ringIndex = MapViewModel.multiRingRadii.firstIndex(of: radius) ?? 0
+            // Sleeping here (in stub handler, on a background thread) is fine —
+            // it simulates network latency without blocking the main actor.
+            Thread.sleep(forTimeInterval: Double(ringIndex) * 0.01)
+            let json = """
+            {"elements":[{"type":"node","id":\(radius),"lat":0,"lon":0,"tags":{"name":"R\(radius)","amenity":"cafe"}}]}
+            """
+            let resp = HTTPURLResponse(
+                url: request.url!, statusCode: 200,
+                httpVersion: nil, headerFields: nil
+            )!
+            return (resp, Data(json.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let overpass = OverpassService(session: session, maxResults: 30, repository: nil)
+        let vm = makeMapViewModelForMultiRing(overpass: overpass)
+
+        // Collect exploreProgress snapshots while fetchExplorePOIs runs.
+        var observed: [MapViewModel.ExploreProgress] = []
+        let coord = CLLocationCoordinate2D(latitude: 21.0, longitude: 105.8)
+
+        // Run fetch and sample progress after each yield opportunity.
+        let fetchTask = Task { @MainActor in
+            try await vm.fetchExplorePOIs(near: coord, singleRingRadius: 3000)
+        }
+
+        // Poll progress on the main actor — each Task.yield() inside
+        // fetchExplorePOIs gives us a chance to observe intermediate states.
+        while !fetchTask.isCancelled {
+            let current = vm.exploreProgress
+            if case .scanning = current {
+                if observed.last != current { observed.append(current) }
+            }
+            if case .idle = current, !observed.isEmpty { break }
+            // Check if task completed
+            if let result = fetchTask.result as? Result<(pois: [OverpassService.POI], effectiveRadius: Int), Error> {
+                _ = result
+                break
+            }
+            await Task.yield()
+        }
+        _ = try await fetchTask.value
+
+        // Must have seen all four discrete scanning values.
+        let expected: [MapViewModel.ExploreProgress] = [
+            .scanning(ringsDone: 1, totalRings: 4),
+            .scanning(ringsDone: 2, totalRings: 4),
+            .scanning(ringsDone: 3, totalRings: 4),
+            .scanning(ringsDone: 4, totalRings: 4),
+        ]
+        for step in expected {
+            XCTAssertTrue(
+                observed.contains(step),
+                "expected to observe \(step) but only saw: \(observed)"
+            )
+        }
     }
 
     func testOverpassFetchUsesCacheOnSecondCall() async throws {

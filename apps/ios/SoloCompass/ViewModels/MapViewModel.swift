@@ -1007,6 +1007,9 @@ public final class MapViewModel {
                 if pois.isEmpty { failedRings += 1 }
                 done += 1
                 exploreProgress = .scanning(ringsDone: done, totalRings: total)
+                // US-016: yield so SwiftUI can pick up each discrete
+                // scanning(N,4) update before the next ring completes.
+                await Task.yield()
             }
         }
 
