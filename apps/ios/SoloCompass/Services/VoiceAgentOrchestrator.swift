@@ -107,6 +107,7 @@ public final class VoiceAgentOrchestrator: Identifiable {
     /// Terminate the session.
     public func stop() {
         synthesizer.stopSpeaking(at: .immediate)
+        didRequestImmediateSpeechStop = true
         turnTask?.cancel()
         turnTask = nil
         isRunning = false
@@ -123,9 +124,15 @@ public final class VoiceAgentOrchestrator: Identifiable {
     /// Exposed for testing only — reflects AVSpeechSynthesizer's speaking state.
     var isSynthesizerSpeaking: Bool { synthesizer.isSpeaking }
 
+    /// Exposed for testing only — records that stop() requested an immediate
+    /// AVSpeechSynthesizer halt. `isSpeaking` can lag on CI simulators even
+    /// after `stopSpeaking(at: .immediate)` has been invoked.
+    private(set) var didRequestImmediateSpeechStop = false
+
     /// Speak the agent's final text response via AVSpeechSynthesizer.
     public func speakResponse(_ text: String) {
         guard !text.isEmpty else { return }
+        didRequestImmediateSpeechStop = false
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = 0.52

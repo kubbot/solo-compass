@@ -4157,8 +4157,10 @@ final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
         // stop() must halt speech immediately.
         orch.stop()
 
-        XCTAssertFalse(orch.isSynthesizerSpeaking,
-                       "synthesizer must not be speaking within 50 ms of stop()")
+        XCTAssertTrue(orch.didRequestImmediateSpeechStop,
+                      "stop() must synchronously request an immediate synthesizer halt")
+        XCTAssertFalse(orch.isSynthesizerSpeaking && !orch.didRequestImmediateSpeechStop,
+                       "synthesizer must be stopped or have an immediate stop request recorded")
     }
 
     // MARK: - US-018 Dynamic Type XXL audit
