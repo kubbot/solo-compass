@@ -2,3 +2,4 @@
 Started: 2026-05-21T04:57:58Z
 Tool: claude
 ---
+[2026-05-21T04:59:27Z] Story #US-001: Remove auto explore-consent from Onboarding — PASSED
