@@ -40,8 +40,6 @@ public struct SettingsView: View {
         NavigationStack {
             List {
                 // US-020: Apple Settings-style InsetGrouped layout
-                // Section: Account
-                accountSection
                 // Section: Preferences
                 travelStyleSection
                 preferredCategoriesSection
@@ -72,16 +70,6 @@ public struct SettingsView: View {
             .task {
                 isAnonymous = await SupabaseClient.shared.isAnonymous
             }
-        }
-    }
-
-    // MARK: - Account Section (US-020)
-
-    private var accountSection: some View {
-        Section {
-            appleIDRow
-        } header: {
-            settingsSectionHeader("person.circle.fill", label: "Account")
         }
     }
 
