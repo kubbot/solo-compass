@@ -296,7 +296,7 @@
         "Verify in Simulator: Settings -> Accessibility -> set largest font -> open detail -> no clipping or ellipsis on title / section headings"
       ],
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
