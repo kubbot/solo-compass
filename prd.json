@@ -34,7 +34,7 @@
         "Verify in Simulator: Explore -> Paywall -> tap X -> no auto-resumed Explore"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
