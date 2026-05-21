@@ -352,6 +352,19 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertTrue(reloaded.hasAcceptedExploreConsent, "Acceptance must persist across launches")
     }
 
+    // US-001: onboarding must NOT auto-accept Explore consent.
+    func testOnboardingDoesNotAutoAcceptExploreConsent() {
+        let defaults = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+        let prefs = UserPreferences(defaults: defaults)
+        XCTAssertFalse(prefs.hasAcceptedExploreConsent, "Precondition: consent starts false")
+
+        // Simulate both completion paths: CTA and "Decide later" skip button.
+        prefs.completeOnboarding()
+        XCTAssertFalse(prefs.hasAcceptedExploreConsent,
+                       "hasAcceptedExploreConsent must remain false after onboarding completes")
+        XCTAssertTrue(prefs.hasCompletedOnboarding)
+    }
+
     // MARK: - Overpass tag mapping
 
     func testOverpassCategoryFromAmenity() {
