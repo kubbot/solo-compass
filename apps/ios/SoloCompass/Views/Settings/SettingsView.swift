@@ -202,7 +202,6 @@ public struct SettingsView: View {
 
     private var distanceSection: some View {
         Section {
-            @Bindable var prefs = preferences
             let displayedKm = draftDistanceKm ?? preferences.maxDistanceKm
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
