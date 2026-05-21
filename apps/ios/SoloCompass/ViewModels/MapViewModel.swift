@@ -764,6 +764,16 @@ public final class MapViewModel {
                 singleRingRadius: radiusMeters
             )
             guard !pois.isEmpty else {
+                if let region = experienceService.repo.closestRecentRegion(to: coordinate) {
+                    let cached = experienceService.repo.experiences(in: region)
+                    if !cached.isEmpty {
+                        visibleExperiences = cached
+                        nearbySoloCount = 0
+                        updateBottomInfo()
+                        lastExploreToast = NSLocalizedString("explore.toast.cachedFallback", comment: "Showing cached results")
+                        return
+                    }
+                }
                 lastExploreError = NSLocalizedString("explore.error.nothingFound", comment: "No POIs found nearby")
                 return
             }

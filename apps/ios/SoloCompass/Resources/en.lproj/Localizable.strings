@@ -266,6 +266,7 @@
 "explore.progress.scanning" = "Scanning area · ring %1$d of %2$d";
 "explore.progress.synthesizing" = "Synthesizing %d places…";
 "explore.offline.staleToast" = "Showing offline data from %@";
+"explore.toast.cachedFallback" = "Showing cached results";
 
 /* Paywall */
 "paywall.hero.title" = "Unlock Solo Compass Pro";
