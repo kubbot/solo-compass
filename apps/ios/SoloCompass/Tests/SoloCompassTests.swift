@@ -506,6 +506,40 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertNotEqual(MapViewModel.cityCode(for: hanoi), MapViewModel.cityCode(for: tokyo))
     }
 
+    @MainActor
+    func testLoadAndRefreshUseSharedMixedFilters() throws {
+        let seed = ExperienceService.hardcodedSeed
+        let target = try XCTUnwrap(seed.first { $0.isBestNow() } ?? seed.first)
+        let coordinate = try XCTUnwrap(target.coordinate)
+        let preferences = UserPreferences()
+        preferences.maxDistanceKm = 50
+        if let dislikedCategory = seed.first(where: { $0.category != target.category })?.category {
+            preferences.dislikedCategories = [dislikedCategory]
+        }
+        let locationService = LocationService()
+        locationService.simulate(location: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
+        let viewModel = MapViewModel(
+            locationService: locationService,
+            experienceService: ExperienceService(seed: seed),
+            aiService: AIService(),
+            preferences: preferences
+        )
+        viewModel.selectedCity = target.location.cityCode
+        viewModel.selectedCategory = target.category
+        viewModel.isNowFilter = target.isBestNow()
+
+        viewModel.loadNearbyExperiences()
+        let loadIDs = viewModel.visibleExperiences.map(\.id)
+        let loadCount = viewModel.nearbySoloCount
+        let loadInfo = viewModel.bottomInfoText
+
+        viewModel.refreshForLocation(coordinate)
+        XCTAssertEqual(viewModel.visibleExperiences.map(\.id), loadIDs)
+        XCTAssertEqual(viewModel.nearbySoloCount, loadCount)
+        XCTAssertEqual(viewModel.bottomInfoText, loadInfo)
+        XCTAssertTrue(loadIDs.contains(target.id))
+    }
+
     // MARK: - SwiftData ExperienceRecord round-trip
 
     @MainActor

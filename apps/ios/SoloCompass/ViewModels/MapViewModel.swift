@@ -328,12 +328,17 @@ public final class MapViewModel {
     public func loadNearbyExperiences() {
         let center = locationService.currentLocation?.coordinate ?? defaultCenterForSelectedCity
         let radiusKm = max(1.0, preferences.maxDistanceKm)
-        var nearby = experienceService.getExperiences(near: center, radiusKm: radiusKm)
+        let nearby = applyFilters(near: center, radiusKm: radiusKm)
+        visibleExperiences = nearby
+        nearbySoloCount = computeNearbySoloCount(in: nearby)
+        updateBottomInfo()
+    }
 
+    private func applyFilters(near coordinate: CLLocationCoordinate2D, radiusKm: Double) -> [Experience] {
+        var nearby = experienceService.getExperiences(near: coordinate, radiusKm: radiusKm)
         if let cityCode = selectedCity {
             nearby = nearby.filter { $0.location.cityCode == cityCode }
         }
-
         if let category = selectedCategory {
             nearby = nearby.filter { $0.category == category }
         }
@@ -344,8 +349,7 @@ public final class MapViewModel {
             let disliked = Set(preferences.dislikedCategories)
             nearby = nearby.filter { !disliked.contains($0.category) }
         }
-        visibleExperiences = nearby
-        nearbySoloCount = computeNearbySoloCount(in: nearby)
+        return nearby
     }
 
     public func selectCategory(_ category: ExperienceCategory?) {
@@ -445,22 +449,7 @@ public final class MapViewModel {
     /// touch `cameraPosition`, to avoid fighting the user's gesture.
     public func refreshForLocation(_ coordinate: CLLocationCoordinate2D) {
         let radiusKm = max(1.0, preferences.maxDistanceKm)
-        var nearby = experienceService.getExperiences(near: coordinate, radiusKm: radiusKm)
-
-        if let cityCode = selectedCity {
-            nearby = nearby.filter { $0.location.cityCode == cityCode }
-        }
-
-        if let category = selectedCategory {
-            nearby = nearby.filter { $0.category == category }
-        }
-        if isNowFilter {
-            nearby = nearby.filter { $0.isBestNow() }
-        }
-        if !preferences.dislikedCategories.isEmpty {
-            let disliked = Set(preferences.dislikedCategories)
-            nearby = nearby.filter { !disliked.contains($0.category) }
-        }
+        let nearby = applyFilters(near: coordinate, radiusKm: radiusKm)
         visibleExperiences = nearby
         nearbySoloCount = computeNearbySoloCount(in: nearby)
         updateBottomInfo()
