@@ -263,7 +263,7 @@
         "Verify in Simulator: trigger Explore as Pro user -> progress capsule visibly counts up ring-by-ring"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
