@@ -12,3 +12,4 @@ Tool: claude
 [2026-05-21T05:11:57Z] Story #US-006: Remove duplicate appleIDRow in SettingsView — PASSED
 
 [2026-05-21T05:20:40Z] Story #US-007: Extract shared applyFilters helper in MapViewModel — PASSED (salvaged from uncommitted work after prior Claude/Ralph run)
+[2026-05-21T05:22:00Z] Story #US-008: Delete OfflineCacheService dead code or wire it in — PASSED
