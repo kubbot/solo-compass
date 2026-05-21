@@ -9,3 +9,4 @@ Tool: claude
 [2026-05-21T05:05:46Z] Story #US-003: Wire ChatSheet unconfigured state when API key missing — PASSED
 [2026-05-21T05:07:58Z] Story #US-004: Make ReviewsService skip localhost in Release builds — PASSED
 [2026-05-21T05:10:31Z] Story #US-005: Decide and document AgentRouter integration strategy — PASSED
+[2026-05-21T05:11:57Z] Story #US-006: Remove duplicate appleIDRow in SettingsView — PASSED

@@ -99,7 +99,7 @@
         "Verify in Simulator: open Settings -> confirm Apple ID row appears once"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
