@@ -41,3 +41,9 @@ Tool: claude
 [2026-05-21T05:43:25Z] Story #US-017: Add prompt-injection guard around user transcript — PASSED
 [2026-05-21T05:44:54Z] Story #US-018: Dynamic Type XXL audit for ExperienceDetailView — PASSED
 [2026-05-21T05:46:26Z] Story #US-019: Add 150-marker rendering performance baseline test — PASSED
+[2026-05-21T05:49:48Z] Story #US-020: Add map snapshot to Markdown export (opt-in) — FAILED (iteration 6)
+[2026-05-21T05:51:07Z] Story #US-020: Add map snapshot to Markdown export (opt-in) — FAILED (iteration 7)
+[2026-05-21T05:54:22Z] Story #US-020: Add map snapshot to Markdown export (opt-in) — FAILED (iteration 8)
+[2026-05-21T05:54:22Z] Ralph complete after 8 iterations
+
+[MANUAL] Story #US-020: Add map snapshot to Markdown export (opt-in) — PASSED (salvaged after max_turns)

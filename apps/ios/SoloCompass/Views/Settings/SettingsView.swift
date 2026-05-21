@@ -61,6 +61,7 @@ public struct SettingsView: View {
                 // Section: AI & Privacy
                 languageSection
                 notificationsSection
+                exportSection
                 // Section: Subscription
                 subscriptionSection
                 // Section: About / Stats / Data
@@ -237,6 +238,28 @@ public struct SettingsView: View {
             settingsSectionHeader("location.circle", label: NSLocalizedString("settings.distance", comment: "Discovery Radius"))
         } footer: {
             Text(NSLocalizedString("settings.distance.footer", comment: "Only experiences within this radius appear on the map."))
+        }
+    }
+
+    // MARK: - Export
+
+    private var exportSection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { preferences.includeMapInExport },
+                set: { preferences.includeMapInExport = $0 }
+            )) {
+                HStack(spacing: 10) {
+                    Image(systemName: "map")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.teal, in: RoundedRectangle(cornerRadius: 7))
+                    Text(NSLocalizedString("settings.exportMapPreview", comment: "Include map preview in exports"))
+                }
+            }
+        } header: {
+            settingsSectionHeader("square.and.arrow.up", label: NSLocalizedString("export.preview", comment: "Export preview"))
         }
     }
 

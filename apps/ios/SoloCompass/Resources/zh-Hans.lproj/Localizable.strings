@@ -417,3 +417,6 @@
 /* Theme picker (US-039) */
 "settings.appearance" = "外观";
 "settings.theme" = "主题";
+
+/* Map preview in exports (US-020) */
+"settings.exportMapPreview" = "导出时包含地图预览";

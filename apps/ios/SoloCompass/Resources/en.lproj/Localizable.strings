@@ -450,3 +450,6 @@
 /* Theme picker (US-039) */
 "settings.appearance" = "Appearance";
 "settings.theme" = "Theme";
+
+/* Map preview in exports (US-020) */
+"settings.exportMapPreview" = "Include map preview in exports";

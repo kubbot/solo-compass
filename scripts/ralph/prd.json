@@ -248,7 +248,7 @@
         "Verify in Simulator: open chat in voice mode -> press-and-hold mic -> recording starts; release -> transcript sends"
       ],
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -263,7 +263,7 @@
         "Verify in Simulator: trigger Explore as Pro user -> progress capsule visibly counts up ring-by-ring"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -279,7 +279,7 @@
         "Tests pass"
       ],
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -296,7 +296,7 @@
         "Verify in Simulator: Settings -> Accessibility -> set largest font -> open detail -> no clipping or ellipsis on title / section headings"
       ],
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -312,7 +312,7 @@
         "Tests pass"
       ],
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -331,7 +331,7 @@
         "Verify in Simulator: enable toggle -> Export Note -> preview shows map image; paste into Notion to confirm renders"
       ],
       "priority": 20,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

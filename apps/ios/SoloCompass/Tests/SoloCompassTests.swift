@@ -3655,6 +3655,65 @@ final class LanguageServiceTests: XCTestCase {
         XCTAssertTrue(url!.absoluteString.contains("notion.so"), "should be Notion URL")
     }
 
+    // MARK: - US-020 Map snapshot embed in Markdown export
+
+    func testMarkdownExportWithSnapshotEmbedsBase64DataURL() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        // Simulate the PNG bytes a real MKMapSnapshotter would produce.
+        let fakePNG = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) // PNG header
+        let md = MarkdownExporter.export(
+            exp,
+            date: Date(timeIntervalSince1970: 0),
+            includeMapSnapshot: true,
+            snapshotData: fakePNG
+        )
+        let expectedB64 = fakePNG.base64EncodedString()
+        XCTAssertTrue(
+            md.contains("data:image/png;base64,\(expectedB64)"),
+            "exported markdown must embed PNG as data: URL when snapshotData is provided"
+        )
+        XCTAssertTrue(md.contains("![Map preview]"), "must use alt text 'Map preview'")
+    }
+
+    func testMarkdownExportWithoutSnapshotOmitsImageTag() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let md = MarkdownExporter.export(
+            exp,
+            date: Date(timeIntervalSince1970: 0),
+            includeMapSnapshot: false,
+            snapshotData: nil
+        )
+        XCTAssertFalse(md.contains("data:image/png;base64,"), "no data URL when snapshot disabled")
+        XCTAssertFalse(md.contains("![Map preview]"), "no image tag when snapshot disabled")
+    }
+
+    func testMarkdownExportSnapshotNilDataOmitsImageTag() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        // includeMapSnapshot true but snapshotData nil (e.g. snapshotter failed)
+        let md = MarkdownExporter.export(
+            exp,
+            date: Date(timeIntervalSince1970: 0),
+            includeMapSnapshot: true,
+            snapshotData: nil
+        )
+        XCTAssertFalse(md.contains("data:image/png;base64,"), "nil snapshotData must not embed image")
+    }
+
+    func testUserPreferencesIncludeMapInExportDefaultsToFalse() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "us020-map-export-\(UUID().uuidString)"))
+        let prefs = UserPreferences(defaults: defaults)
+        XCTAssertFalse(prefs.includeMapInExport, "includeMapInExport must default to false")
+    }
+
+    func testUserPreferencesIncludeMapInExportPersists() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "us020-map-export-persist-\(UUID().uuidString)"))
+        let prefs = UserPreferences(defaults: defaults)
+        prefs.includeMapInExport = true
+
+        let reloaded = UserPreferences(defaults: defaults)
+        XCTAssertTrue(reloaded.includeMapInExport, "includeMapInExport must persist across reloads")
+    }
+
     // MARK: - US-038 ThemeService
 
     @MainActor
