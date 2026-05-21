@@ -871,6 +871,34 @@ final class SoloCompassTests: XCTestCase {
         XCTAssertEqual(repo.completionCount(experienceId: id), 3)
     }
 
+    // MARK: - US-013 Clear-all-data wipes SwiftData mirrors
+
+    @MainActor
+    func testClearAllUserDataWipesFavoritesAndCompletions() {
+        let container = SoloCompassModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let repo = ExperienceRepository(context: context, preferences: nil)
+
+        // Seed favorites and completions.
+        repo.toggleFavorite(experienceId: "exp_fav_1")
+        repo.toggleFavorite(experienceId: "exp_fav_2")
+        repo.recordCompletion(experienceId: "exp_comp_1")
+        repo.recordCompletion(experienceId: "exp_comp_2")
+        repo.recordCompletion(experienceId: "exp_comp_1")
+
+        XCTAssertEqual(repo.allFavorites().count, 2, "two favorites before clear")
+        XCTAssertEqual(repo.allCompletions().count, 3, "three completion rows before clear")
+
+        repo.clearAllUserData()
+
+        XCTAssertEqual(repo.allFavorites().count, 0, "favorites empty after clearAllUserData")
+        XCTAssertEqual(repo.allCompletions().count, 0, "completions empty after clearAllUserData")
+        XCTAssertFalse(repo.isFavorited(experienceId: "exp_fav_1"))
+        XCTAssertFalse(repo.isFavorited(experienceId: "exp_fav_2"))
+        XCTAssertFalse(repo.isCompleted(experienceId: "exp_comp_1"))
+        XCTAssertFalse(repo.isCompleted(experienceId: "exp_comp_2"))
+    }
+
     @MainActor
     func testImportSeedIfNeededPopulatesStoreAndSetsFlagThenIsNoOp() throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "us007-seed-\(UUID().uuidString)"))

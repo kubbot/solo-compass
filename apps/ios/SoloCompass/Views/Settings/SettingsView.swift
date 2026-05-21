@@ -6,6 +6,7 @@ import SwiftUI
 /// Accessed via the map's navigation bar settings button.
 public struct SettingsView: View {
     @Environment(UserPreferences.self) private var preferences
+    @Environment(ExperienceService.self) private var experienceService
     @Environment(NotificationService.self) private var notificationService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(LanguageService.self) private var languageService
@@ -374,6 +375,7 @@ public struct SettingsView: View {
                     preferences.pendingCheckIns = [:]
                     preferences.preferredCategories = []
                     preferences.dislikedCategories = []
+                    experienceService.repo.clearAllUserData()
                 }
                 Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
             } message: {
