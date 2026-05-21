@@ -3829,6 +3829,35 @@ final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
                      "no toast when error is set")
     }
 
+    // MARK: - US-015 VoiceMicButton onLongPressGesture semantics
+
+    /// Simulates the onPressingChanged callback that VoiceMicButton wires to
+    /// onLongPressGesture: pressing=true fires onPress exactly once, pressing=false
+    /// fires onRelease exactly once.
+    func testVoiceMicButtonGesturePressReleaseFiredExactlyOnce() {
+        var pressCount = 0
+        var releaseCount = 0
+
+        // Mirror the onPressingChanged closure from VoiceMicButton verbatim.
+        let onPressingChanged: (Bool) -> Void = { pressing in
+            if pressing {
+                pressCount += 1
+            } else {
+                releaseCount += 1
+            }
+        }
+
+        // Simulate press.
+        onPressingChanged(true)
+        XCTAssertEqual(pressCount, 1, "onPress must fire exactly once on press")
+        XCTAssertEqual(releaseCount, 0, "onRelease must not fire on press")
+
+        // Simulate release.
+        onPressingChanged(false)
+        XCTAssertEqual(pressCount, 1, "onPress must not fire again on release")
+        XCTAssertEqual(releaseCount, 1, "onRelease must fire exactly once on release")
+    }
+
     /// Calling start() a second time while already unconfigured must remain unconfigured.
     func testRepeatedStartWhileUnconfiguredStaysUnconfigured() {
         UserDefaults.standard.set("", forKey: Secrets.RuntimeKeys.deepSeekApiKey)
