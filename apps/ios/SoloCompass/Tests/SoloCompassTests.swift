@@ -3485,6 +3485,19 @@ final class LanguageServiceTests: XCTestCase {
         service.selectedOption = .system
     }
 
+    @MainActor
+    func testThemeServiceCurrentThemeReflectsSelectedOption() {
+        let service = ThemeService.shared
+        service.selectedOption = .obsidian
+        let expected = ObsidianTheme().background
+        XCTAssertEqual(
+            service.currentTheme.background.description,
+            expected.description,
+            "currentTheme.background must match ObsidianTheme().background after setting selectedOption = .obsidian"
+        )
+        service.selectedOption = .system
+    }
+
 }
 
 // MARK: - US-003 VoiceAgentOrchestrator unconfigured state
