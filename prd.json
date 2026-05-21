@@ -347,7 +347,7 @@
         "Verify in Simulator: trigger a long AI reply that speaks -> swipe down to close chat -> audio stops within ~50ms"
       ],
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
