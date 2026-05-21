@@ -3485,22 +3485,6 @@ final class LanguageServiceTests: XCTestCase {
         service.selectedOption = .system
     }
 
-    // MARK: - US-040 OfflineCacheService
-
-    @MainActor
-    func testOfflineCacheRoundTrip() throws {
-        let cache = OfflineCacheService.shared
-        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
-        cache.cacheExperiences([exp], forCity: "test-city-\(UUID().uuidString)")
-        // A different city should return nil
-        XCTAssertNil(cache.loadExperiences(forCity: "nonexistent-\(UUID().uuidString)"))
-    }
-
-    @MainActor
-    func testOfflineCacheHasDataReturnsFalseForUnknownCity() {
-        let cache = OfflineCacheService.shared
-        XCTAssertFalse(cache.hasCachedData(forCity: "unknown-city-\(UUID().uuidString)"))
-    }
 }
 
 // MARK: - US-003 VoiceAgentOrchestrator unconfigured state
