@@ -754,9 +754,9 @@ private struct MapControlBar: View {
             PlusActionButton(
                 onShortTap: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    onOpenChat(.voice)
+                    onOpenChat(.text)
                 },
-                onLongPress: { onOpenChat(.text) }
+                onLongPress: { onOpenChat(.voice) }
             )
             .padding(.trailing, 20)
             .padding(.bottom, 80)

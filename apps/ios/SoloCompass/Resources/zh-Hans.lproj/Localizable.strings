@@ -358,6 +358,10 @@
 "chat.error.permission" = "需要麦克风权限 — 请在设置中启用。";
 "chat.error.unknown" = "出现错误 — 请重试。";
 
+/* "+" quick-action button — single chat entry point */
+"plus.button.a11y" = "和 Solo 聊天";
+"plus.button.hint" = "点击文字输入，长按语音说话";
+
 /* Chat voice surface */
 "chat.voice.title" = "和 Solo 说话";
 "chat.voice.tap.toType" = "点击改为文字输入";
