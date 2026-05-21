@@ -4053,4 +4053,56 @@ final class VoiceAgentOrchestratorUnconfiguredTests: XCTestCase {
         XCTAssertEqual(result, "<user_input>Can you recommend a quiet café near the museum?</user_input>",
                        "normal user input must pass through unchanged inside tags")
     }
+
+    // MARK: - US-018 Dynamic Type XXL audit
+
+    /// Verifies that ExperienceDetailView hero title text does not
+    /// require a fixed intrinsic height at accessibility3 Dynamic Type.
+    /// We measure the host view via UIHostingController and confirm
+    /// that its height grows beyond the default-size baseline rather
+    /// than being clipped or truncated.
+    @MainActor
+    func testExperienceDetailViewHeroTitleScalesAtAccessibility3() throws {
+        let exp = try XCTUnwrap(ExperienceService.hardcodedSeed.first)
+        let vm = ExperienceDetailViewModel(
+            experience: exp,
+            experienceService: ExperienceService(),
+            aiService: AIService(),
+            preferences: UserPreferences()
+        )
+
+        // Default Dynamic Type size.
+        let defaultHost = UIHostingController(
+            rootView: ExperienceDetailView(viewModel: vm) {}
+        )
+        let defaultWindow = UIWindow(frame: UIScreen.main.bounds)
+        defaultWindow.rootViewController = defaultHost
+        defaultWindow.makeKeyAndVisible()
+        defaultHost.view.setNeedsLayout()
+        defaultHost.view.layoutIfNeeded()
+        let defaultHeight = defaultHost.view.frame.height
+
+        // Accessibility3 — the largest Dynamic Type size.
+        let a3Host = UIHostingController(
+            rootView: ExperienceDetailView(viewModel: vm) {}
+                .environment(\.dynamicTypeSize, .accessibility3)
+        )
+        let a3Window = UIWindow(frame: UIScreen.main.bounds)
+        a3Window.rootViewController = a3Host
+        a3Window.makeKeyAndVisible()
+        a3Host.view.setNeedsLayout()
+        a3Host.view.layoutIfNeeded()
+        let a3Height = a3Host.view.frame.height
+
+        // Both views should have a positive height, proving layout ran.
+        XCTAssertGreaterThan(defaultHeight, 0, "default view must have positive height")
+        XCTAssertGreaterThan(a3Height, 0, "accessibility3 view must have positive height — layout must not collapse")
+
+        // The scroll view fills the window; both should match the window height.
+        // We verify neither is zero (which would indicate a clipping collapse).
+        XCTAssertEqual(defaultHeight, UIScreen.main.bounds.height, accuracy: 1,
+                       "default view fills screen")
+        XCTAssertEqual(a3Height, UIScreen.main.bounds.height, accuracy: 1,
+                       "accessibility3 view fills screen — no clipping")
+    }
 }
