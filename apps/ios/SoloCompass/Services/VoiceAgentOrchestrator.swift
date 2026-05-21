@@ -68,9 +68,17 @@ public final class VoiceAgentOrchestrator: Identifiable {
     /// Seed with system prompt and begin listening immediately.
     /// US-003: If the resolved API key is empty, short-circuit to .unconfigured
     /// before touching the session — no system prompt is seeded, no mic starts.
+    ///
+    /// Pro users whose traffic goes through the Supabase chat-proxy Edge
+    /// function don't need a local DeepSeek key — the Edge function holds it
+    /// server-side. Skip the local-key guard in that case so the orchestrator
+    /// actually starts and `handleTextInput` / `handleTranscript` can run.
     public func start() {
         guard !isRunning else { return }
-        guard !Secrets.resolvedDeepSeekApiKey.isEmpty else {
+        let routesThroughEdge = FeatureFlags.routeAIThroughEdge
+            && FeatureFlags.backendSync
+            && aiService.isProTier
+        if !routesThroughEdge && Secrets.resolvedDeepSeekApiKey.isEmpty {
             uiState = .unconfigured
             return
         }
